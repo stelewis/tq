@@ -43,5 +43,5 @@ In Python, importing `pkg.submodule` executes `pkg/__init__.py` first. Keep `__i
 - `uv run ruff format`
 - `uv run ruff check --fix`
 - `uv run ty check`
+- `uv run tq check`
 - `uv run pytest -q`
-- `uv run check_test_quality`

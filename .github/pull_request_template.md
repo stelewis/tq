@@ -11,8 +11,8 @@ Describe what this PR changes and why.
 - [ ] `uv run ruff format`
 - [ ] `uv run ruff check --fix`
 - [ ] `uv run ty check`
+- [ ] `uv run tq check`
 - [ ] `uv run pytest -q`
-- [ ] `uv run check_test_quality`
 
 ## Notes
 

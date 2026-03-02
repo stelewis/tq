@@ -95,8 +95,8 @@ Rebuild `tq` as a general-purpose open source test quality linter with a `ruff`/
 
 ## Phase 5: Packaging, migration, and cleanup
 
-- Update `README.md` and `docs/developer/tools/test_quality_tool.md` to reflect new command and config.
-- Add migration notes for existing users of `[tool.test_quality]` and `check_test_quality`.
+- Update `README.md` and `docs/developer/tools/tq_check.md` to reflect command and config contract.
+- Add migration notes for users moving from `[tool.test_quality]` and `check_test_quality`.
 - Remove imported legacy modules under `src/tq/tools/test_quality/` after parity verification.
 - Refactor tests to target only new architecture and delete legacy-specific test fixtures.
 

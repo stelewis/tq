@@ -44,11 +44,8 @@ The original `check_test_quality` tool was built in a specific codebase and vali
 
 *Cross-module tests, duplicated coverage, misnamed-by-semantics, redundant-by-semantics, and vacuous tests were not included due to noisy heuristics.*
 
-The core logic, presently living in `src/tq/tools/test_quality/`, can be run via:
-
-```bash
-uv run check_test_quality
-```
+That legacy implementation has now been fully removed in favor of the native
+`tq check` architecture and command surface.
 
 ## Problem
 
@@ -56,6 +53,6 @@ uv run check_test_quality
 
 ## Goal
 
-Instead of porting the `check_test_quality` scripts across to each project, the goal with `tq` is to build these test lints / checks into a fully open source, reliable tool that anyone can use and that can be expanded on.
+Instead of porting the old scripts across to each project, the goal with `tq` is to provide these test lints/checks as a fully open source, reliable tool that anyone can use and expand.
 
 In terms of design aesthetic and ergonomics, `ruff` and `ty` serve as inspiration. `tq` should follow the same design pattern wherever possible.

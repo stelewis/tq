@@ -15,7 +15,6 @@ dependencies = [
 
 [project.scripts]
 tq = "tq.cli.main:main"
-check_test_quality = "tq.tools.test_quality.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.9.26,<0.10.0"]
@@ -52,7 +51,6 @@ ban-relative-imports = "all"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101", "PLR2004"]
-"src/**/test_quality/checks/orphan_check.py" = ["C901", "PLR0911", "PLR0912"]
 
 [tool.ruff.lint.pylint]
 max-returns = 10
@@ -119,23 +117,6 @@ package = "tq"
 ignore_init_modules = true
 max_test_file_non_blank_lines = 600
 qualifier_strategy = "allowlist"
-allowed_qualifiers = [
-    "fixtures_golden",
-    "fixtures_synthetic",
-    "regression",
-    "config",
-]
-
-[tool.test_quality]
-# Patterns to ignore when scanning source and test files
-ignore = []
-# Maximum allowed non-blank lines in a test file
-max_test_lines = 600
-# Whether to ignore __init__.py files in mapping checks
-ignore_init = true
-
-# Allowed suffixes for qualified unit tests:
-# tests/<package>/<path>/test_<module>_<qualifier>.py -> src/<package>/<path>/<module>.py
 allowed_qualifiers = [
     "fixtures_golden",
     "fixtures_synthetic",

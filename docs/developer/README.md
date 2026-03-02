@@ -11,5 +11,4 @@ This folder contains canonical, developer-facing documentation.
 
 ## Tools
 
-- [tq check contract (v1)](./tools/tq_check.md)
-- [Legacy test quality checker](./tools/test_quality_tool.md) -- TO BE DELETED AFTER MIGRATION
+- [tq check contract](./tools/tq_check.md)

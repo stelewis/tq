@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Removed
+
+- Removed `check_test_quality` command and legacy implementation.
+- Removed legacy config namespace `[tool.test_quality]` from project configuration.
+
+### Changed
+
+- Standardized docs, CI, and contributor workflows on `uv run tq check`.
+
 ## [0.2.0] - 2026-03-02
 
 ### Added

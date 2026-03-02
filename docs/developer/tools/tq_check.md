@@ -1,4 +1,4 @@
-# tq check contract (v1)
+# tq check contract
 
 This document freezes the external user contract for `tq check`.
 
@@ -10,8 +10,8 @@ This page defines:
 
 - command and exit behavior,
 - configuration namespace and precedence,
-- stable v1 rule IDs and default severities,
-- migration behavior from the legacy checker surface.
+- stable rule IDs and default severities,
+- migration mapping from removed legacy surfaces.
 
 ## Command model
 
@@ -41,10 +41,6 @@ Canonical configuration namespace:
 
 - `[tool.tq]`
 
-Legacy namespace:
-
-- `[tool.test_quality]` is deprecated and migration-only.
-
 Precedence policy:
 
 - dedicated CLI flags override config file values,
@@ -52,11 +48,11 @@ Precedence policy:
 - project config overrides user config,
 - isolated mode ignores discovered configuration files.
 
-## v1 rule IDs and default severities
+## Rule IDs and default severities
 
 Rule IDs are stable kebab-case identifiers.
 
-Stable v1 rules:
+Stable rules:
 
 - `mapping-missing-test` (default severity: `error`)
 - `structure-mismatch` (default severity: `warning`)
@@ -68,22 +64,3 @@ Severity vocabulary:
 - `error`, `warning`, `info`
 
 Severity remapping is supported at CLI/config boundaries without changing rule IDs.
-
-## Migration policy
-
-Migration from legacy behavior proceeds in three steps:
-
-1. `tq check` is the documented default entrypoint.
-2. `check_test_quality` remains as a compatibility shim for at least one minor release.
-3. The shim is removed in a later minor release with explicit release-note communication.
-
-## References
-
-- [ADR 0001](../../adr/0001-tq-cli-contract-and-v1-policy.md)
-- [Ruff docs](https://docs.astral.sh/ruff/)
-- [Ruff linter](https://docs.astral.sh/ruff/linter/)
-- [Ruff configuration](https://docs.astral.sh/ruff/configuration/)
-- [Ty docs](https://docs.astral.sh/ty/)
-- [Ty CLI reference](https://docs.astral.sh/ty/reference/cli/)
-- [Ty exit codes](https://docs.astral.sh/ty/reference/exit-codes/)
-- [Ty rules reference](https://docs.astral.sh/ty/reference/rules/)

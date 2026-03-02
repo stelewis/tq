@@ -116,11 +116,11 @@ jobs:
       - name: Setup Python + uv + deps
         uses: ./.github/actions/setup-python-uv
 
+      - name: Test quality
+        run: uv run tq check
+
       - name: Run tests
         run: uv run pytest -q
-
-      - name: Test quality
-        run: uv run check_test_quality
 
   integration-tests:
     name: Integration tests (pytest)

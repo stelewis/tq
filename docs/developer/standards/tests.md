@@ -128,5 +128,5 @@ Place reusable fixtures in `conftest.py` files at appropriate levels to share th
 This project includes an automated test quality checker which can be run via:
 
 ```bash
-uv run check_test_quality
+uv run tq check
 ```

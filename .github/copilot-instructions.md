@@ -32,7 +32,7 @@ Project uses `uv`.
 Before committing, run all checks:
 
 ```bash
-uv run ruff format && uv run ruff check --fix && uv run ty check && uv run pytest -q && uv run check_test_quality
+uv run ruff format && uv run ruff check --fix && uv run ty check && uv run tq check && uv run pytest -q
 ```
 
 ## Guidelines

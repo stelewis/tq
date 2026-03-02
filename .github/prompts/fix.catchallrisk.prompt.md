@@ -48,5 +48,5 @@ Eliminate error-handling patterns that hide failures by silently dropping or “
 - `uv run ruff format`
 - `uv run ruff check --fix`
 - `uv run ty check`
+- `uv run tq check`
 - `uv run pytest -q`
-- `uv run check_test_quality`
