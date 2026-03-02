@@ -14,6 +14,7 @@ from tq.discovery.filesystem import build_analysis_index
 from tq.engine.context import AnalysisContext
 from tq.engine.rule_id import RuleId
 from tq.engine.runner import RuleEngine
+from tq.reporting.json import print_json_report
 from tq.reporting.terminal import print_report
 from tq.rules.contracts import Rule
 from tq.rules.file_too_large import FileTooLargeRule
@@ -114,6 +115,13 @@ def cli() -> None:
     default=False,
     help="Render remediation suggestions in diagnostics output.",
 )
+@click.option(
+    "--output-format",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    show_default=True,
+    help="Select output format.",
+)
 def check_command(  # noqa: PLR0913
     *,
     config_path: Path | None,
@@ -129,6 +137,7 @@ def check_command(  # noqa: PLR0913
     ignore_rules: tuple[str, ...],
     exit_zero: bool,
     show_suggestions: bool,
+    output_format: str,
 ) -> None:
     """Run built-in tq quality rules against discovered modules and tests."""
     cwd = Path.cwd()
@@ -177,12 +186,15 @@ def check_command(  # noqa: PLR0913
     context = AnalysisContext.create(index=index)
     result = RuleEngine(rules=rules).run(context=context)
 
-    print_report(
-        result=result,
-        console=console,
-        cwd=cwd,
-        include_suggestions=show_suggestions,
-    )
+    if output_format == "json":
+        print_json_report(result=result, console=console, cwd=cwd)
+    else:
+        print_report(
+            result=result,
+            console=console,
+            cwd=cwd,
+            include_suggestions=show_suggestions,
+        )
 
     if exit_zero:
         raise click.exceptions.Exit(0)

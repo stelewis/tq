@@ -11,4 +11,5 @@ This folder contains canonical, developer-facing documentation.
 
 ## Tools
 
-- [tq check contract](./tools/tq_check.md)
+- [tq check](./tools/tq_check.md)
+- [tq built-in rules](./tools/rules.md)

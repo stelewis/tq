@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -102,6 +103,49 @@ def test_check_returns_two_for_invalid_config() -> None:
 
     assert result.exit_code == 2
     assert "Unknown [tool.tq] key" in result.output
+
+
+def test_check_supports_json_output_when_clean() -> None:
+    """Emit machine-readable JSON payload when output format is json."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        _write_project_config(Path("pyproject.toml"))
+        _write(Path("src/tq/engine/runner.py"), "def run() -> None:\n    pass\n")
+        _write(
+            Path("tests/tq/engine/test_runner.py"),
+            "def test_runner() -> None:\n    assert True\n",
+        )
+
+        result = runner.invoke(cli, ["check", "--output-format", "json"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["findings"] == []
+    assert payload["summary"] == {
+        "errors": 0,
+        "warnings": 0,
+        "infos": 0,
+        "total": 0,
+    }
+
+
+def test_check_supports_json_output_with_findings() -> None:
+    """Emit findings payload fields using stable machine-readable names."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        _write_project_config(Path("pyproject.toml"))
+        _write(Path("src/tq/engine/runner.py"), "def run() -> None:\n    pass\n")
+        Path("tests").mkdir(parents=True, exist_ok=True)
+
+        result = runner.invoke(cli, ["check", "--output-format", "json"])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["summary"]["errors"] == 1
+    assert payload["summary"]["total"] == 1
+    assert payload["findings"][0]["rule_id"] == "mapping-missing-test"
+    assert payload["findings"][0]["severity"] == "error"
+    assert payload["findings"][0]["path"] == "src/tq/engine/runner.py"
 
 
 def test_cli_override_takes_precedence_over_config() -> None:

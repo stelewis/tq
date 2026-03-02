@@ -11,7 +11,8 @@ from tq.engine.context import AnalysisContext
 from tq.engine.runner import RuleEngine
 from tq.rules.file_too_large import FileTooLargeRule
 from tq.rules.mapping_missing_test import MappingMissingTestRule
-from tq.rules.orphaned_test import OrphanedTestRule, QualifierStrategy
+from tq.rules.orphaned_test import OrphanedTestRule
+from tq.rules.qualifiers import QualifierStrategy
 from tq.rules.structure_mismatch import StructureMismatchRule
 
 

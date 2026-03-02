@@ -10,6 +10,12 @@ Run checks:
 uv run tq check
 ```
 
+Emit machine-readable diagnostics:
+
+```sh
+uv run tq check --output-format json
+```
+
 ## Configuration
 
 Configure `tq` in `pyproject.toml` under `[tool.tq]`:
@@ -25,7 +31,10 @@ qualifier_strategy = "allowlist"
 allowed_qualifiers = ["regression"]
 ```
 
-See [docs/developer/tools/tq_check.md](docs/developer/tools/tq_check.md) for the full CLI and policy contract.
+## Documentation
+
+- See [docs/developer/tools/tq_check.md](docs/developer/tools/tq_check.md) for tool usage and configuration details.
+- See [docs/developer/tools/rules.md](docs/developer/tools/rules.md) for built-in rules.
 
 ## Development
 

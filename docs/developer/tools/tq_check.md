@@ -1,8 +1,8 @@
 # tq check contract
 
-This document freezes the external user contract for `tq check`.
+This document defines the external user contract for `tq check`.
 
-The contract is intentionally explicit so implementation work can proceed without CLI, configuration, or rule-policy drift.
+The contract is intentionally explicit so users can proceed without CLI, configuration, or rule-policy drift.
 
 ## Scope
 
@@ -24,6 +24,15 @@ Design alignment targets:
 - subcommand-first CLI (Ruff/Ty style),
 - deterministic diagnostic output,
 - machine-readable reporting support.
+
+## Output formats
+
+`tq check` supports:
+
+- text (default): concise human-readable terminal diagnostics.
+- json (`--output-format json`): machine-readable diagnostics payload with stable fields:
+  - finding fields: `rule_id`, `severity`, `message`, `path`, `line`, `suggestion`
+  - summary fields: `errors`, `warnings`, `infos`, `total`
 
 ## Exit code policy
 
