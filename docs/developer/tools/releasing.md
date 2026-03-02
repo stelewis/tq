@@ -24,8 +24,10 @@ The workflow performs:
 - package metadata validation (`twine check dist/*`)
 - smoke checks against built wheel and sdist
 - GitHub artifact attestation for `dist/*` (supply-chain provenance)
+- attestation verification for wheel and sdist before publish
 - trusted publish with `uv publish` (tag-triggered runs)
 - post-publish smoke checks via `uvx tqlint`
+- post-publish consumer provenance verification against the PyPI wheel
 
 Manual `workflow_dispatch` runs are supported for dry-run build/smoke validation without publishing to PyPI.
 
