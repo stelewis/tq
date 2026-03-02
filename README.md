@@ -1,6 +1,6 @@
-# Test Quality Toolkit
+# `tq` - Test Quality Toolkit
 
-tq inspects a codebase's tests and enforces quality rules so tests remain discoverable, focused, actionable, and maintainable.
+`tq` inspects a codebase's tests and enforces quality rules so tests remain discoverable, focused, actionable, and maintainable.
 
 ## Getting Started
 
