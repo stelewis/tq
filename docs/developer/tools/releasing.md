@@ -23,6 +23,7 @@ The workflow performs:
 - `uv build`
 - package metadata validation (`twine check dist/*`)
 - smoke checks against built wheel and sdist
+- GitHub artifact attestation for `dist/*` (supply-chain provenance)
 - trusted publish with `uv publish` (tag-triggered runs)
 - post-publish smoke checks via `uvx tqlint`
 
