@@ -37,7 +37,7 @@ The initial built-in rules cover:
 - max test file size,
 - orphaned tests.
 
-See [docs/developer/tools/rules.md](./tools/rules.md) for canonical rule IDs and behavior.
+See [docs/reference/rules/index.md](../reference/rules/index.md) for canonical rule IDs and behavior.
 
 ## Current non-goals
 

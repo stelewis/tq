@@ -15,8 +15,8 @@ export default defineConfig({
     nav: [
       { text: "Guide", link: "/guide/getting-started" },
       { text: "Reference", link: "/reference/cli" },
-      { text: "Developer", link: "/developer/context" },
-      { text: "ADR", link: "/adr/README" }
+      { text: "Developer", link: "/developer/" },
+      { text: "ADR", link: "/adr/" }
     ],
     sidebar: {
       "/guide/": [
@@ -44,15 +44,24 @@ export default defineConfig({
         {
           text: "Developer",
           items: [
+            { text: "Overview", link: "/developer/" },
             { text: "Context", link: "/developer/context" },
-            { text: "Standards", link: "/developer/README" },
+            { text: "Code Standards", link: "/developer/standards/code" },
+            { text: "Docs Standards", link: "/developer/standards/docs" },
+            { text: "Git Standards", link: "/developer/standards/git" },
+            {
+              text: "Policy Standards",
+              link: "/developer/standards/policies"
+            },
+            { text: "Test Standards", link: "/developer/standards/tests" },
             { text: "Rules", link: "/developer/tools/rules" },
             { text: "tq check", link: "/developer/tools/tq_check" },
             {
               text: "Attestation Verification",
               link: "/developer/tools/attestation_verification"
             },
-            { text: "Releasing", link: "/developer/tools/releasing" }
+            { text: "Releasing", link: "/developer/tools/releasing" },
+            { text: "ADR Index", link: "/adr/README" }
           ]
         }
       ],

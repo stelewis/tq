@@ -1,7 +1,22 @@
 # CLI Reference
 
-Primary command:
+`tq` uses a subcommand-first CLI.
+
+## Usage
 
 - `tq check`
 
-For the canonical contract, see [tq check contract](../developer/tools/tq_check.md).
+## Output formats
+
+- `text` (default): concise terminal diagnostics.
+- `json`: machine-readable diagnostics for CI and tooling.
+
+Use:
+
+```sh
+tq check --output-format json
+```
+
+## Language support
+
+`tq` currently targets Python codebases.
