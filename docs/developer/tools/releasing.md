@@ -31,7 +31,22 @@ The workflow performs:
 
 Manual `workflow_dispatch` runs are supported for dry-run build/smoke validation without publishing to PyPI.
 
-Publishing runs in the `pypi` GitHub Actions environment. Configure that environment with required reviewers for manual approval before publish runs.
+### Run a dry-run release validation
+
+1. Open **GitHub → Actions → Publish**.
+2. Click **Run workflow**.
+3. Select branch `main` (or your release branch).
+4. Run it.
+
+Expected behavior for `workflow_dispatch` runs:
+
+- build + metadata validation run
+- wheel/sdist smoke checks run
+- fixture smoke checks run
+- `Publish` step is skipped
+- post-publish steps are skipped
+
+Publishing runs in the `pypi` GitHub Actions environment. This environment must be configured with required reviewers for manual approval before publish runs.
 
 ## Maintainer checklist
 
@@ -54,3 +69,11 @@ Publishing runs in the `pypi` GitHub Actions environment. Configure that environ
 - If publish fails before upload, fix workflow and re-run.
 - If a bad version is published, publish a corrected patch release.
 - Avoid deleting artifacts once consumed; prefer forward fix releases.
+
+### Versioning when tag-triggered publish fails
+
+- Prefer cutting a new patch version tag after fixing workflow issues
+   (for example, `0.4.0` failed before upload → release `0.4.1`).
+- Update `CHANGELOG.md` for the new version before tagging.
+- Avoid reusing or force-moving existing release tags unless you are
+   intentionally rewriting release history and your team explicitly agrees.

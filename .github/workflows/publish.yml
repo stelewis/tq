@@ -46,14 +46,29 @@ jobs:
 
       - name: Smoke check wheel and sdist entrypoints
         run: |
-          uv run --isolated --no-project --with dist/*.whl -- tq --help
-          uv run --isolated --no-project --with dist/*.whl -- tqlint --help
-          uv run --isolated --no-project --with dist/*.whl -- tq check --help
-          uv run --isolated --no-project --with dist/*.tar.gz -- tq --help
-          uv run --isolated --no-project --with dist/*.tar.gz -- tqlint --help
+          wheel_path="$(find "$PWD/dist" -maxdepth 1 -type f -name '*.whl' | head -n 1)"
+          if [ -z "$wheel_path" ]; then
+            echo "No wheel artifact found in dist/"
+            exit 1
+          fi
+          sdist_path="$(find "$PWD/dist" -maxdepth 1 -type f -name '*.tar.gz' | head -n 1)"
+          if [ -z "$sdist_path" ]; then
+            echo "No source distribution artifact found in dist/"
+            exit 1
+          fi
+          uv run --isolated --no-project --with "$wheel_path" -- tq --help
+          uv run --isolated --no-project --with "$wheel_path" -- tqlint --help
+          uv run --isolated --no-project --with "$wheel_path" -- tq check --help
+          uv run --isolated --no-project --with "$sdist_path" -- tq --help
+          uv run --isolated --no-project --with "$sdist_path" -- tqlint --help
 
       - name: Smoke check fixture from built wheel
         run: |
+          wheel_path="$(find "$PWD/dist" -maxdepth 1 -type f -name '*.whl' | head -n 1)"
+          if [ -z "$wheel_path" ]; then
+            echo "No wheel artifact found in dist/"
+            exit 1
+          fi
           mkdir -p tmp/release-smoke/src/demo tmp/release-smoke/tests/demo
           cat > tmp/release-smoke/pyproject.toml <<'TOML'
           [project]
@@ -83,7 +98,7 @@ jobs:
           PY
           (
             cd tmp/release-smoke
-            uv run --isolated --no-project --with ../dist/*.whl -- tq check
+            uv run --isolated --no-project --with "$wheel_path" -- tq check
           )
 
       - name: Generate artifact attestation
