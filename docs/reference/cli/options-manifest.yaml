@@ -1,0 +1,44 @@
+version: 1
+cli_options:
+  - param: config_path
+    config_key: null
+    notes: Use an explicit pyproject file for this run.
+  - param: isolated
+    config_key: null
+    notes: Ignore discovered project and user configuration.
+  - param: package
+    config_key: package
+    notes: Override configured package path.
+  - param: source_root
+    config_key: source_root
+    notes: Override configured source root.
+  - param: test_root
+    config_key: test_root
+    notes: Override configured test root.
+  - param: max_test_file_non_blank_lines
+    config_key: max_test_file_non_blank_lines
+    notes: Override configured size threshold.
+  - param: qualifier_strategy
+    config_key: qualifier_strategy
+    notes: Override qualifier matching strategy.
+  - param: allowed_qualifiers
+    config_key: allowed_qualifiers
+    notes: Repeatable; each occurrence adds one qualifier.
+  - param: ignore_init_modules
+    config_key: ignore_init_modules
+    notes: Toggle with paired flags.
+  - param: select_rules
+    config_key: select
+    notes: Repeatable; limits active rules.
+  - param: ignore_rules
+    config_key: ignore
+    notes: Repeatable; excludes listed rules.
+  - param: exit_zero
+    config_key: null
+    notes: Exit 0 regardless of findings.
+  - param: show_suggestions
+    config_key: null
+    notes: Include suggestion text in terminal output.
+  - param: output_format
+    config_key: null
+    notes: Choose text or json output.

@@ -36,6 +36,29 @@ Why:
 - gives maintainers and consumers a verifiable trust signal,
 - aligns release validation with supply-chain security best practices.
 
+## Packaging content policy
+
+Release artifacts must only contain runtime package content required for users.
+
+Forbidden repository paths in wheel/sdist artifacts:
+
+- `scripts/`
+- `tests/`
+- `docs/`
+- `tmp/`
+- `.github/`
+
+Enforcement:
+
+- CI package checks run `scripts/release/verify_artifact_contents.py`
+- publish workflow runs the same guard before metadata validation and publish
+
+Why:
+
+- keeps installed artifacts minimal and predictable,
+- reduces accidental leakage of internal automation or repository-only files,
+- tightens release hygiene and consumer trust.
+
 ### References
 
 - Release workflow: [publish workflow](https://github.com/stelewis/tq/blob/main/.github/workflows/publish.yml)

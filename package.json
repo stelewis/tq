@@ -6,7 +6,9 @@
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
-    "docs:rules:generate": "uv run python scripts/docs/generate_rules_docs.py"
+    "docs:rules:generate": "uv run python scripts/docs/generate_rules_docs.py",
+    "docs:cli:generate": "uv run python scripts/docs/generate_cli_docs.py",
+    "package:verify-contents": "uv run python scripts/release/verify_artifact_contents.py"
   },
   "devDependencies": {
     "vitepress": "1.6.4"

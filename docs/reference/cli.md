@@ -26,19 +26,33 @@ Design goals for this command surface:
 - explicit rule selection controls,
 - machine-readable reporting for CI tooling.
 
-## Configuration quick reference
+<!-- BEGIN GENERATED:check-options -->
 
-| Option                          | Purpose                                           | Reference                                                                                   |
-|---------------------------------|---------------------------------------------------|---------------------------------------------------------------------------------------------|
-| `package`                       | Target import package path.                       | [package](./configuration.md#package-required)                                              |
-| `source_root`                   | Root directory containing source packages.        | [source_root](./configuration.md#source_root-required)                                      |
-| `test_root`                     | Root directory containing tests.                  | [test_root](./configuration.md#test_root-required)                                          |
-| `ignore_init_modules`           | Include or skip `__init__.py` in mapping checks.  | [ignore_init_modules](./configuration.md#ignore_init_modules-optional)                      |
-| `max_test_file_non_blank_lines` | Line budget for `test-file-too-large`.            | [max_test_file_non_blank_lines](./configuration.md#max_test_file_non_blank_lines-optional)  |
-| `qualifier_strategy`            | Policy for qualified test name mapping.           | [qualifier_strategy](./configuration.md#qualifier_strategy-optional)                        |
-| `allowed_qualifiers`            | Allowed suffixes when using `allowlist` strategy. | [allowed_qualifiers](./configuration.md#allowed_qualifiers-optional)                        |
-| `select`                        | Explicit rule allow-list.                         | [select](./configuration.md#select-optional)                                                |
-| `ignore`                        | Rule IDs to skip.                                 | [ignore](./configuration.md#ignore-optional)                                                |
+## `tq check` options
+
+The table below is generated from the Click command definition and
+`docs/reference/cli/options-manifest.yaml`.
+
+| Flags | Config key | Default | Description |
+| --- | --- | --- | --- |
+| `--config` | — | `none` | Use this pyproject file instead of discovered configuration. |
+| `--isolated` | — | `false` | Ignore discovered configuration files. |
+| `--package` | [`package`](./configuration.md#package-required) | `none` | Target package import path. |
+| `--source-root` | [`source_root`](./configuration.md#source_root-required) | `none` | Source tree root path. |
+| `--test-root` | [`test_root`](./configuration.md#test_root-required) | `none` | Test tree root path. |
+| `--max-test-file-non-blank-lines` | [`max_test_file_non_blank_lines`](./configuration.md#max_test_file_non_blank_lines-optional) | `none` | Maximum non-blank, non-comment lines per test file. |
+| `--qualifier-strategy` | [`qualifier_strategy`](./configuration.md#qualifier_strategy-optional) | `none` | Module-name qualifier policy for qualified test files. |
+| `--allowed-qualifier` | [`allowed_qualifiers`](./configuration.md#allowed_qualifiers-optional) | `[]` | Allowed qualifier suffix for allowlist strategy. |
+| `--ignore-init-modules, --no-ignore-init-modules` | [`ignore_init_modules`](./configuration.md#ignore_init_modules-optional) | `none` | Ignore __init__.py modules in mapping checks. / Include __init__.py modules in mapping checks. |
+| `--select` | [`select`](./configuration.md#select-optional) | `[]` | Only run selected rule IDs. |
+| `--ignore` | [`ignore`](./configuration.md#ignore-optional) | `[]` | Skip listed rule IDs. |
+| `--exit-zero` | — | `false` | Always exit with code 0 regardless of findings. |
+| `--show-suggestions` | — | `false` | Render remediation suggestions in diagnostics output. |
+| `--output-format` | — | `text` | Select output format. |
+
+Run `tq check --help` for the runtime source of truth.
+
+<!-- END GENERATED:check-options -->
 
 ## Output formats
 

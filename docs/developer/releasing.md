@@ -21,6 +21,7 @@ Publishing is handled by [publish workflow](../../.github/workflows/publish.yml)
 The workflow performs:
 
 - `uv build`
+- artifact content policy validation
 - package metadata validation (`twine check dist/*`)
 - smoke checks against built wheel and sdist
 - GitHub artifact attestation for `dist/*` (supply-chain provenance)

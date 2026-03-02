@@ -92,6 +92,26 @@ Isolated mode (`--isolated`) ignores discovered configuration files.
 - Meaning: rule IDs to skip after selection is resolved
 - Validation: values must be valid kebab-case rule IDs and known built-ins
 
+<!-- BEGIN GENERATED:config-cli-mapping -->
+
+## CLI mapping
+
+The table below is generated from the Click command definitions.
+
+| Config key | CLI flag(s) | Notes |
+| --- | --- | --- |
+| `package` | `--package` | Override configured package path. |
+| `source_root` | `--source-root` | Override configured source root. |
+| `test_root` | `--test-root` | Override configured test root. |
+| `max_test_file_non_blank_lines` | `--max-test-file-non-blank-lines` | Override configured size threshold. |
+| `qualifier_strategy` | `--qualifier-strategy` | Override qualifier matching strategy. |
+| `allowed_qualifiers` | `--allowed-qualifier` | Repeatable; each occurrence adds one qualifier. |
+| `ignore_init_modules` | `--ignore-init-modules, --no-ignore-init-modules` | Toggle with paired flags. |
+| `select` | `--select` | Repeatable; limits active rules. |
+| `ignore` | `--ignore` | Repeatable; excludes listed rules. |
+
+<!-- END GENERATED:config-cli-mapping -->
+
 ## Built-in rule IDs
 
 - `mapping-missing-test`
