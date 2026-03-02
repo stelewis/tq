@@ -28,6 +28,7 @@ words:
   - invokable
   - isinstance
   - kwargs
+  - mapfile
   - mnda
   - monkeypatch
   - msgfile
@@ -37,6 +38,7 @@ words:
   - overengineering
   - pathlib
   - pdfplumber
+  - pipefail
   - prek
   - pycache
   - pydantic
