@@ -10,6 +10,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+## [0.4.2] - 2026-03-03
+
+### Fixed
+
+- Added GH_TOKEN environment variable for artifact verification.
+
 ## [0.4.1] - 2026-03-03
 
 ### Changed
