@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from tq.engine.context import AnalysisContext
-from tq.engine.models import Finding
-from tq.engine.rule_id import RuleId
+if TYPE_CHECKING:
+    from tq.engine.context import AnalysisContext
+    from tq.engine.models import Finding
+    from tq.engine.rule_id import RuleId
 
 
 @runtime_checkable

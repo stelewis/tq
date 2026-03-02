@@ -14,13 +14,13 @@ def test_rule_id_accepts_kebab_case_values() -> None:
 
 def test_rule_id_rejects_invalid_values() -> None:
     """Reject blank and non-kebab-case identifiers."""
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="RuleId must be non-empty"):
         RuleId("")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="RuleId must be kebab-case"):
         RuleId("Mapping-Missing-Test")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="RuleId must be kebab-case"):
         RuleId("mapping_missing_test")
 
 

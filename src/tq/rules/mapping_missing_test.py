@@ -7,11 +7,14 @@ corresponding unit test module.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from tq.engine.context import AnalysisContext
 from tq.engine.models import Finding, Severity
 from tq.engine.rule_id import RuleId
 from tq.rules.qualifiers import QualifierStrategy, candidate_module_names
+
+if TYPE_CHECKING:
+    from tq.engine.context import AnalysisContext
 
 
 class MappingMissingTestRule:
@@ -36,8 +39,9 @@ class MappingMissingTestRule:
             ValueError: If allowlist strategy has no allowed qualifiers.
         """
         if qualifier_strategy is QualifierStrategy.ALLOWLIST and not allowed_qualifiers:
+            msg = "allowed_qualifiers must be non-empty for allowlist strategy"
             raise ValueError(
-                "allowed_qualifiers must be non-empty for allowlist strategy"
+                msg,
             )
 
         self._ignore_init_modules = ignore_init_modules
@@ -76,7 +80,7 @@ class MappingMissingTestRule:
                     message=f"No test file found for source module: {source_file}",
                     path=context.index.source_root / source_file,
                     suggestion=f"Create test file at: {expected_test_path.as_posix()}",
-                )
+                ),
             )
 
         return tuple(findings)

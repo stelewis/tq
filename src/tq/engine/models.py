@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from pathlib import Path
 from types import MappingProxyType
+from typing import TYPE_CHECKING
 
-from tq.engine.rule_id import RuleId
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from tq.engine.rule_id import RuleId
 
 
 class Severity(StrEnum):
@@ -23,7 +26,7 @@ SEVERITY_ORDER = MappingProxyType(
         Severity.ERROR: 0,
         Severity.WARNING: 1,
         Severity.INFO: 2,
-    }
+    },
 )
 
 
@@ -59,10 +62,12 @@ class Finding:
             ValueError: If required values are missing or invalid.
         """
         if not self.message.strip():
-            raise ValueError("Finding message must be non-empty")
+            msg = "Finding message must be non-empty"
+            raise ValueError(msg)
 
         if self.line is not None and self.line < 1:
-            raise ValueError("Finding line must be >= 1 when provided")
+            msg = "Finding line must be >= 1 when provided"
+            raise ValueError(msg)
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,7 +85,8 @@ class FindingSummary:
             ValueError: If any summary count is negative.
         """
         if self.errors < 0 or self.warnings < 0 or self.infos < 0:
-            raise ValueError("FindingSummary counts must be non-negative")
+            msg = "FindingSummary counts must be non-negative"
+            raise ValueError(msg)
 
     @property
     def total(self) -> int:

@@ -19,7 +19,7 @@ def test_mapping_rule_emits_error_for_unmapped_source() -> None:
             test_root=Path("tests"),
             source_files=[Path("alpha.py"), Path("beta.py")],
             test_files=[Path("tq/test_alpha.py")],
-        )
+        ),
     )
 
     findings = MappingMissingTestRule(ignore_init_modules=True).evaluate(context)
@@ -39,7 +39,7 @@ def test_mapping_rule_accepts_qualified_test_files() -> None:
             test_root=Path("tests"),
             source_files=[Path("engine/runner.py")],
             test_files=[Path("tq/engine/test_runner_regression.py")],
-        )
+        ),
     )
 
     findings = MappingMissingTestRule(ignore_init_modules=True).evaluate(context)
@@ -55,7 +55,7 @@ def test_mapping_rule_ignores_init_modules_when_configured() -> None:
             test_root=Path("tests"),
             source_files=[Path("__init__.py")],
             test_files=[],
-        )
+        ),
     )
 
     findings = MappingMissingTestRule(ignore_init_modules=True).evaluate(context)
@@ -71,7 +71,7 @@ def test_mapping_rule_allowlist_blocks_unknown_qualifier() -> None:
             test_root=Path("tests"),
             source_files=[Path("engine/runner.py")],
             test_files=[Path("tq/engine/test_runner_smoke.py")],
-        )
+        ),
     )
 
     findings = MappingMissingTestRule(

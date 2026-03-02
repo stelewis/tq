@@ -82,14 +82,12 @@ def test_check_returns_two_for_invalid_config() -> None:
     runner = CliRunner()
     with runner.isolated_filesystem():
         Path("pyproject.toml").write_text(
-            "\n".join(
-                [
-                    "[tool.tq]",
-                    'package = "tq"',
-                    'source_root = "src"',
-                    'test_root = "tests"',
-                    "unknown = true",
-                ]
+            (
+                "[tool.tq]\n"
+                'package = "tq"\n'
+                'source_root = "src"\n'
+                'test_root = "tests"\n'
+                "unknown = true"
             ),
             encoding="utf-8",
         )
@@ -153,14 +151,12 @@ def test_cli_override_takes_precedence_over_config() -> None:
     runner = CliRunner()
     with runner.isolated_filesystem():
         Path("pyproject.toml").write_text(
-            "\n".join(
-                [
-                    "[tool.tq]",
-                    'package = "tq"',
-                    'source_root = "src"',
-                    'test_root = "tests"',
-                    "ignore_init_modules = false",
-                ]
+            (
+                "[tool.tq]\n"
+                'package = "tq"\n'
+                'source_root = "src"\n'
+                'test_root = "tests"\n'
+                "ignore_init_modules = false"
             ),
             encoding="utf-8",
         )
@@ -179,12 +175,7 @@ def test_isolated_ignores_discovered_configuration() -> None:
     runner = CliRunner()
     with runner.isolated_filesystem():
         Path("pyproject.toml").write_text(
-            "\n".join(
-                [
-                    "[tool.tq]",
-                    "invalid = true",
-                ]
-            ),
+            "[tool.tq]\ninvalid = true",
             encoding="utf-8",
         )
         _write(Path("src/tq/engine/runner.py"), "def run() -> None:\n    pass\n")
@@ -213,17 +204,15 @@ def test_isolated_ignores_discovered_configuration() -> None:
 def _write_project_config(path: Path) -> None:
     """Write a minimal valid project tq configuration."""
     path.write_text(
-        "\n".join(
-            [
-                "[tool.tq]",
-                'package = "tq"',
-                'source_root = "src"',
-                'test_root = "tests"',
-                "ignore_init_modules = true",
-                "max_test_file_non_blank_lines = 600",
-                'qualifier_strategy = "allowlist"',
-                'allowed_qualifiers = ["regression"]',
-            ]
+        (
+            "[tool.tq]\n"
+            'package = "tq"\n'
+            'source_root = "src"\n'
+            'test_root = "tests"\n'
+            "ignore_init_modules = true\n"
+            "max_test_file_non_blank_lines = 600\n"
+            'qualifier_strategy = "allowlist"\n'
+            'allowed_qualifiers = ["regression"]'
         ),
         encoding="utf-8",
     )

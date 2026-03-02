@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Quick validation script for skills."""
 
 from __future__ import annotations
@@ -6,11 +5,13 @@ from __future__ import annotations
 import argparse
 import logging
 import re
-from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
 import yaml
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 LOGGER = logging.getLogger(__name__)
 MAX_SKILL_MD_SIZE = 1_000_000
@@ -39,14 +40,14 @@ def _extract_frontmatter(content: str) -> str | None:
     return match.group(1)
 
 
-def _parse_frontmatter(frontmatter_text: str) -> dict[str, Any]:
+def _parse_frontmatter(frontmatter_text: str) -> dict[str, object]:
     """Parse frontmatter with PyYAML."""
     parsed = yaml.safe_load(frontmatter_text)
     if parsed is None:
         return {}
     if not isinstance(parsed, dict):
         msg = "Frontmatter must be a YAML dictionary"
-        raise ValueError(msg)
+        raise TypeError(msg)
     return parsed
 
 
@@ -94,7 +95,7 @@ def _read_skill_markdown(skill_path: Path) -> tuple[str | None, str]:
     return content, ""
 
 
-def _validate_allowed_keys(frontmatter: dict[str, Any]) -> tuple[bool, str]:
+def _validate_allowed_keys(frontmatter: dict[str, object]) -> tuple[bool, str]:
     """Validate top-level frontmatter keys."""
     unexpected_keys = set(frontmatter.keys()) - ALLOWED_PROPERTIES
     if not unexpected_keys:
@@ -108,7 +109,7 @@ def _validate_allowed_keys(frontmatter: dict[str, Any]) -> tuple[bool, str]:
     )
 
 
-def _validate_required_fields(frontmatter: dict[str, Any]) -> tuple[bool, str]:
+def _validate_required_fields(frontmatter: dict[str, object]) -> tuple[bool, str]:
     """Validate required frontmatter fields."""
     if "name" not in frontmatter:
         return False, "Missing 'name' in frontmatter"
@@ -117,7 +118,7 @@ def _validate_required_fields(frontmatter: dict[str, Any]) -> tuple[bool, str]:
     return True, ""
 
 
-def _validate_name(name: Any, skill_path: Path) -> tuple[bool, str]:
+def _validate_name(name: object, skill_path: Path) -> tuple[bool, str]:
     """Validate the `name` field."""
     if not isinstance(name, str):
         return False, f"Name must be a string, got {type(name).__name__}"
@@ -148,7 +149,7 @@ def _validate_name(name: Any, skill_path: Path) -> tuple[bool, str]:
     return True, ""
 
 
-def _validate_description(description: Any) -> tuple[bool, str]:
+def _validate_description(description: object) -> tuple[bool, str]:
     """Validate the `description` field."""
     if not isinstance(description, str):
         return False, f"Description must be a string, got {type(description).__name__}"
@@ -170,7 +171,7 @@ def _validate_description(description: Any) -> tuple[bool, str]:
     return True, ""
 
 
-def _validate_license(frontmatter: dict[str, Any]) -> tuple[bool, str]:
+def _validate_license(frontmatter: dict[str, object]) -> tuple[bool, str]:
     """Validate optional `license` field."""
     license_field = frontmatter.get("license")
     if license_field is not None:
@@ -184,7 +185,7 @@ def _validate_license(frontmatter: dict[str, Any]) -> tuple[bool, str]:
     return True, ""
 
 
-def _validate_metadata(frontmatter: dict[str, Any]) -> tuple[bool, str]:
+def _validate_metadata(frontmatter: dict[str, object]) -> tuple[bool, str]:
     """Validate optional `metadata` field."""
     metadata = frontmatter.get("metadata")
     if metadata is None:
@@ -201,7 +202,7 @@ def _validate_metadata(frontmatter: dict[str, Any]) -> tuple[bool, str]:
 
 
 def _validate_string_option(
-    frontmatter: dict[str, Any],
+    frontmatter: dict[str, object],
     field_name: str,
 ) -> tuple[bool, str]:
     """Validate optional string frontmatter field."""
@@ -211,7 +212,7 @@ def _validate_string_option(
     return True, ""
 
 
-def _validate_compatibility(frontmatter: dict[str, Any]) -> tuple[bool, str]:
+def _validate_compatibility(frontmatter: dict[str, object]) -> tuple[bool, str]:
     """Validate optional `compatibility` field."""
     compatibility = frontmatter.get("compatibility")
     if compatibility is None:
@@ -235,7 +236,7 @@ def _validate_compatibility(frontmatter: dict[str, Any]) -> tuple[bool, str]:
 
 
 def _validate_bool_option(
-    frontmatter: dict[str, Any],
+    frontmatter: dict[str, object],
     field_name: str,
 ) -> tuple[bool, str]:
     """Validate optional boolean frontmatter field."""
@@ -245,9 +246,9 @@ def _validate_bool_option(
     return True, ""
 
 
-def _validate_optional_fields(frontmatter: dict[str, Any]) -> tuple[bool, str]:
+def _validate_optional_fields(frontmatter: dict[str, object]) -> tuple[bool, str]:
     """Validate optional frontmatter fields."""
-    validators: tuple[Callable[[dict[str, Any]], tuple[bool, str]], ...] = (
+    validators: tuple[Callable[[dict[str, object]], tuple[bool, str]], ...] = (
         _validate_license,
         _validate_metadata,
         lambda data: _validate_string_option(data, "allowed-tools"),
@@ -279,7 +280,7 @@ def validate_skill(skill_path: str | Path) -> tuple[bool, str]:
 
     try:
         frontmatter = _parse_frontmatter(frontmatter_text)
-    except ValueError as error:
+    except (TypeError, ValueError) as error:
         return False, str(error)
 
     for validator in (_validate_allowed_keys, _validate_required_fields):

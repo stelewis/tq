@@ -86,7 +86,8 @@ def _load_partial_from_pyproject(
 ) -> PartialTqConfig:
     """Load strict partial tq config from a pyproject file."""
     if not path.exists():
-        raise ConfigValidationError(f"Config file not found: {path}")
+        msg = f"Config file not found: {path}"
+        raise ConfigValidationError(msg)
 
     with path.open("rb") as handle:
         document = tomllib.load(handle)
@@ -96,18 +97,21 @@ def _load_partial_from_pyproject(
 
     if tq_section is None:
         if require_section:
+            msg = f"Missing [tool.tq] section in config file: {path}"
             raise ConfigValidationError(
-                f"Missing [tool.tq] section in config file: {path}"
+                msg,
             )
         return PartialTqConfig()
 
     if not isinstance(tq_section, dict):
-        raise ConfigValidationError("[tool.tq] must be a table")
+        msg = "[tool.tq] must be a table"
+        raise ConfigValidationError(msg)
 
     unknown_keys = set(tq_section) - _CONFIG_KEYS
     if unknown_keys:
         keys = ", ".join(sorted(unknown_keys))
-        raise ConfigValidationError(f"Unknown [tool.tq] key(s): {keys}")
+        msg = f"Unknown [tool.tq] key(s): {keys}"
+        raise ConfigValidationError(msg)
 
     return PartialTqConfig(
         package=_expect_optional_str(tq_section, "package"),
@@ -186,25 +190,31 @@ def _merge_partial(base: PartialTqConfig, override: PartialTqConfig) -> PartialT
 def _materialize_config(*, cwd: Path, partial: PartialTqConfig) -> TqConfig:
     """Validate and materialize a final runtime config."""
     if not partial.package:
+        msg = "Missing required configuration key: tool.tq.package"
         raise ConfigValidationError(
-            "Missing required configuration key: tool.tq.package"
+            msg,
         )
     if not partial.source_root:
+        msg = "Missing required configuration key: tool.tq.source_root"
         raise ConfigValidationError(
-            "Missing required configuration key: tool.tq.source_root"
+            msg,
         )
     if not partial.test_root:
+        msg = "Missing required configuration key: tool.tq.test_root"
         raise ConfigValidationError(
-            "Missing required configuration key: tool.tq.test_root"
+            msg,
         )
 
     allowed_qualifiers = tuple(sorted(set(partial.allowed_qualifiers or ())))
     qualifier_strategy = partial.qualifier_strategy or DEFAULT_QUALIFIER_STRATEGY
 
     if qualifier_strategy is QualifierStrategy.ALLOWLIST and not allowed_qualifiers:
-        raise ConfigValidationError(
+        msg = (
             "tool.tq.allowed_qualifiers must be non-empty when "
             "tool.tq.qualifier_strategy is 'allowlist'"
+        )
+        raise ConfigValidationError(
+            msg,
         )
 
     source_root = _resolve_path(cwd=cwd, value=partial.source_root)
@@ -245,9 +255,11 @@ def _expect_optional_str(document: dict[str, Any], key: str) -> str | None:
     if value is None:
         return None
     if not isinstance(value, str):
-        raise ConfigValidationError(f"tool.tq.{key} must be a string")
+        msg = f"tool.tq.{key} must be a string"
+        raise ConfigValidationError(msg)
     if not value.strip():
-        raise ConfigValidationError(f"tool.tq.{key} must be non-empty")
+        msg = f"tool.tq.{key} must be non-empty"
+        raise ConfigValidationError(msg)
     return value
 
 
@@ -257,7 +269,8 @@ def _expect_optional_bool(document: dict[str, Any], key: str) -> bool | None:
     if value is None:
         return None
     if not isinstance(value, bool):
-        raise ConfigValidationError(f"tool.tq.{key} must be a boolean")
+        msg = f"tool.tq.{key} must be a boolean"
+        raise ConfigValidationError(msg)
     return value
 
 
@@ -267,9 +280,11 @@ def _expect_optional_positive_int(document: dict[str, Any], key: str) -> int | N
     if value is None:
         return None
     if not isinstance(value, int):
-        raise ConfigValidationError(f"tool.tq.{key} must be an integer")
+        msg = f"tool.tq.{key} must be an integer"
+        raise ConfigValidationError(msg)
     if value < 1:
-        raise ConfigValidationError(f"tool.tq.{key} must be >= 1")
+        msg = f"tool.tq.{key} must be >= 1"
+        raise ConfigValidationError(msg)
     return value
 
 
@@ -282,14 +297,16 @@ def _expect_optional_qualifier_strategy(
     if value is None:
         return None
     if not isinstance(value, str):
-        raise ConfigValidationError(f"tool.tq.{key} must be a string")
+        msg = f"tool.tq.{key} must be a string"
+        raise ConfigValidationError(msg)
 
     try:
         return QualifierStrategy(value)
     except ValueError as error:
         choices = ", ".join(strategy.value for strategy in QualifierStrategy)
+        msg = f"tool.tq.{key} must be one of: {choices}"
         raise ConfigValidationError(
-            f"tool.tq.{key} must be one of: {choices}"
+            msg,
         ) from error
 
 
@@ -302,13 +319,15 @@ def _expect_optional_string_tuple(
     if value is None:
         return None
     if not isinstance(value, list):
-        raise ConfigValidationError(f"tool.tq.{key} must be an array of strings")
+        msg = f"tool.tq.{key} must be an array of strings"
+        raise ConfigValidationError(msg)
 
     items: list[str] = []
     for item in value:
         if not isinstance(item, str) or not item.strip():
+            msg = f"tool.tq.{key} must contain only non-empty strings"
             raise ConfigValidationError(
-                f"tool.tq.{key} must contain only non-empty strings"
+                msg,
             )
         items.append(item)
 
@@ -329,8 +348,9 @@ def _expect_optional_rule_ids(
         try:
             rule_ids.append(RuleId(value))
         except ValueError as error:
+            msg = f"tool.tq.{key} contains invalid rule id: {value}"
             raise ConfigValidationError(
-                f"tool.tq.{key} contains invalid rule id: {value}"
+                msg,
             ) from error
 
     return tuple(rule_ids)

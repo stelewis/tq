@@ -72,16 +72,14 @@ def test_json_output_is_deterministic_for_representative_project() -> None:
 def _write_project_config(path: Path) -> None:
     """Write a minimal valid project tq configuration."""
     path.write_text(
-        "\n".join(
-            [
-                "[tool.tq]",
-                'package = "tq"',
-                'source_root = "src"',
-                'test_root = "tests"',
-                "ignore_init_modules = true",
-                "max_test_file_non_blank_lines = 600",
-                'qualifier_strategy = "any-suffix"',
-            ]
+        (
+            "[tool.tq]\n"
+            'package = "tq"\n'
+            'source_root = "src"\n'
+            'test_root = "tests"\n'
+            "ignore_init_modules = true\n"
+            "max_test_file_non_blank_lines = 600\n"
+            'qualifier_strategy = "any-suffix"'
         ),
         encoding="utf-8",
     )

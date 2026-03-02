@@ -24,10 +24,12 @@ class RuleId:
             ValueError: If the identifier is blank or not valid kebab-case.
         """
         if not self.value:
-            raise ValueError("RuleId must be non-empty")
+            msg = "RuleId must be non-empty"
+            raise ValueError(msg)
 
         if not RULE_ID_PATTERN.fullmatch(self.value):
-            raise ValueError("RuleId must be kebab-case, e.g. mapping-missing-test")
+            msg = "RuleId must be kebab-case, e.g. mapping-missing-test"
+            raise ValueError(msg)
 
     def __str__(self) -> str:
         """Return identifier string form."""

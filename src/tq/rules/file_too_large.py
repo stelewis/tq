@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-from tq.engine.context import AnalysisContext
 from tq.engine.models import Finding, Severity
 from tq.engine.rule_id import RuleId
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from tq.engine.context import AnalysisContext
 
 
 class FileTooLargeRule:
@@ -23,7 +27,8 @@ class FileTooLargeRule:
             ValueError: If threshold is less than 1.
         """
         if max_non_blank_lines < 1:
-            raise ValueError("max_non_blank_lines must be >= 1")
+            msg = "max_non_blank_lines must be >= 1"
+            raise ValueError(msg)
         self._max_non_blank_lines = max_non_blank_lines
 
     @property
@@ -49,7 +54,7 @@ class FileTooLargeRule:
                         ),
                         path=full_path,
                         suggestion="Ensure file exists and is UTF-8 decodable",
-                    )
+                    ),
                 )
                 continue
 
@@ -67,7 +72,7 @@ class FileTooLargeRule:
                     ),
                     path=full_path,
                     suggestion="Split this module into smaller focused test files",
-                )
+                ),
             )
 
         return tuple(findings)
@@ -85,6 +90,7 @@ def _count_non_blank_non_comment_lines(path: Path) -> int | None:
                 if stripped.startswith("#"):
                     continue
                 line_count += 1
-        return line_count
     except (OSError, UnicodeDecodeError):
         return None
+    else:
+        return line_count

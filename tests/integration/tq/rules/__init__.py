@@ -1,0 +1,1 @@
+"""Integration rules tests package."""

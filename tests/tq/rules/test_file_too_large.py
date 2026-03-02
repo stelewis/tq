@@ -34,7 +34,7 @@ def test_size_rule_counts_non_blank_non_comment_lines(tmp_path: Path) -> None:
             test_root=test_root,
             source_files=[Path("alpha.py")],
             test_files=[Path("tq/test_big.py")],
-        )
+        ),
     )
 
     findings = FileTooLargeRule(max_non_blank_lines=3).evaluate(context)
@@ -48,7 +48,7 @@ def test_size_rule_counts_non_blank_non_comment_lines(tmp_path: Path) -> None:
 
 def test_size_rule_rejects_non_positive_threshold() -> None:
     """Reject invalid size threshold configuration."""
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="max_non_blank_lines must be >= 1"):
         FileTooLargeRule(max_non_blank_lines=0)
 
 
@@ -66,7 +66,7 @@ def test_size_rule_emits_warning_for_unreadable_file(tmp_path: Path) -> None:
             test_root=test_root,
             source_files=[Path("alpha.py")],
             test_files=[Path("tq/test_bad_encoding.py")],
-        )
+        ),
     )
 
     findings = FileTooLargeRule(max_non_blank_lines=3).evaluate(context)

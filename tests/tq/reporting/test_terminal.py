@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import pytest
 from rich.console import Console
 
 from tq.engine.models import EngineResult, Finding, FindingSummary, Severity
 from tq.engine.rule_id import RuleId
 from tq.reporting.terminal import print_report
+
+if TYPE_CHECKING:
+    import pytest
 
 
 def test_print_report_all_clear_matches_tooling_style(

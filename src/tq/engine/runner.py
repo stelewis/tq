@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
-from tq.engine.context import AnalysisContext
 from tq.engine.models import (
     EngineResult,
     Finding,
@@ -13,13 +12,18 @@ from tq.engine.models import (
     severity_rank,
 )
 from tq.engine.rule_id import RuleId
-from tq.rules.contracts import Rule
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from tq.engine.context import AnalysisContext
+    from tq.rules.contracts import Rule
 
 
 class RuleEngine:
     """Execute rules against analysis context and aggregate diagnostics."""
 
-    def __init__(self, *, rules: Sequence[Rule]):
+    def __init__(self, *, rules: Sequence[Rule]) -> None:
         """Initialize the engine with explicit rule dependencies.
 
         Args:
@@ -29,7 +33,8 @@ class RuleEngine:
 
         for rule in self._rules:
             if not isinstance(rule.rule_id, RuleId):
-                raise TypeError("Rule.rule_id must be a RuleId instance")
+                msg = "Rule.rule_id must be a RuleId instance"
+                raise TypeError(msg)
 
     def run(self, *, context: AnalysisContext) -> EngineResult:
         """Evaluate configured rules and aggregate deterministic results.

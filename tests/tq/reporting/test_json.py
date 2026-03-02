@@ -4,13 +4,16 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import pytest
 from rich.console import Console
 
 from tq.engine.models import EngineResult, Finding, FindingSummary, Severity
 from tq.engine.rule_id import RuleId
 from tq.reporting.json import print_json_report
+
+if TYPE_CHECKING:
+    import pytest
 
 
 def test_print_json_report_renders_empty_payload(
@@ -73,5 +76,5 @@ def test_print_json_report_renders_finding_fields(
             "path": "src/tq/foo.py",
             "line": 7,
             "suggestion": "create tests/tq/test_foo.py",
-        }
+        },
     ]

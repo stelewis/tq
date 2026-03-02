@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from tq.engine.rule_id import RuleId
-from tq.rules.qualifiers import QualifierStrategy
+if TYPE_CHECKING:
+    from tq.engine.rule_id import RuleId
+    from tq.rules.qualifiers import QualifierStrategy
 
 
 class ConfigValidationError(ValueError):

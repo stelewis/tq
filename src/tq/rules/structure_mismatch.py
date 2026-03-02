@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from tq.engine.context import AnalysisContext
 from tq.engine.models import Finding, Severity
 from tq.engine.rule_id import RuleId
+
+if TYPE_CHECKING:
+    from tq.engine.context import AnalysisContext
 
 
 class StructureMismatchRule:
@@ -41,7 +44,7 @@ class StructureMismatchRule:
                             "Move test under: "
                             f"{(Path(package_name) / test_file.name).as_posix()}"
                         ),
-                    )
+                    ),
                 )
                 continue
 
@@ -60,7 +63,7 @@ class StructureMismatchRule:
                     message="Test file is not in the expected location",
                     path=context.index.test_root / test_file,
                     suggestion=f"Move to: {expected_path.as_posix()}",
-                )
+                ),
             )
 
         return tuple(findings)

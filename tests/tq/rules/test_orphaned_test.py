@@ -23,11 +23,11 @@ def test_orphan_rule_emits_warning_for_missing_source() -> None:
             test_root=Path("tests"),
             source_files=[Path("engine/runner.py")],
             test_files=[Path("tq/engine/test_missing.py")],
-        )
+        ),
     )
 
     findings = OrphanedTestRule(qualifier_strategy=QualifierStrategy.NONE).evaluate(
-        context
+        context,
     )
 
     assert len(findings) == 1
@@ -45,7 +45,7 @@ def test_orphan_rule_allowlist_strategy_accepts_qualified_test() -> None:
             test_root=Path("tests"),
             source_files=[Path("engine/runner.py")],
             test_files=[Path("tq/engine/test_runner_regression.py")],
-        )
+        ),
     )
 
     findings = OrphanedTestRule(
@@ -64,7 +64,7 @@ def test_orphan_rule_any_suffix_strategy_accepts_qualified_test() -> None:
             test_root=Path("tests"),
             source_files=[Path("engine/runner.py")],
             test_files=[Path("tq/engine/test_runner_foo.py")],
-        )
+        ),
     )
 
     findings = OrphanedTestRule(
@@ -76,5 +76,8 @@ def test_orphan_rule_any_suffix_strategy_accepts_qualified_test() -> None:
 
 def test_orphan_rule_rejects_empty_allowlist() -> None:
     """Require explicit qualifiers for allowlist strategy."""
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError,
+        match="allowed_qualifiers must be non-empty for allowlist strategy",
+    ):
         OrphanedTestRule(qualifier_strategy=QualifierStrategy.ALLOWLIST)

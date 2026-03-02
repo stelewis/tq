@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import tomllib
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 from rich.console import Console
@@ -16,12 +17,14 @@ from tq.engine.rule_id import RuleId
 from tq.engine.runner import RuleEngine
 from tq.reporting.json import print_json_report
 from tq.reporting.terminal import print_report
-from tq.rules.contracts import Rule
 from tq.rules.file_too_large import FileTooLargeRule
 from tq.rules.mapping_missing_test import MappingMissingTestRule
 from tq.rules.orphaned_test import OrphanedTestRule
 from tq.rules.qualifiers import QualifierStrategy
 from tq.rules.structure_mismatch import StructureMismatchRule
+
+if TYPE_CHECKING:
+    from tq.rules.contracts import Rule
 
 _BUILTIN_RULE_IDS = (
     RuleId("mapping-missing-test"),
@@ -169,13 +172,17 @@ def check_command(  # noqa: PLR0913
         raise click.UsageError(str(error)) from error
 
     if not config.source_package_root.exists():
-        raise click.UsageError(
+        msg = (
             "Configured source package root does not exist: "
             f"{config.source_package_root}"
         )
-    if not config.test_root.exists():
         raise click.UsageError(
-            f"Configured test root does not exist: {config.test_root}"
+            msg,
+        )
+    if not config.test_root.exists():
+        msg = f"Configured test root does not exist: {config.test_root}"
+        raise click.UsageError(
+            msg,
         )
 
     rules = _build_rules(config=config)
@@ -215,7 +222,7 @@ def _build_rules(*, config: TqConfig) -> tuple[Rule, ...]:
         ),
         RuleId("structure-mismatch"): StructureMismatchRule(),
         RuleId("test-file-too-large"): FileTooLargeRule(
-            max_non_blank_lines=config.max_test_file_non_blank_lines
+            max_non_blank_lines=config.max_test_file_non_blank_lines,
         ),
         RuleId("orphaned-test"): OrphanedTestRule(
             qualifier_strategy=config.qualifier_strategy,
@@ -238,7 +245,8 @@ def _resolve_rule_selection(*, config: TqConfig) -> tuple[RuleId, ...]:
     unknown = (requested_select | requested_ignore) - builtin_set
     if unknown:
         unknown_ids = ", ".join(sorted(rule_id.value for rule_id in unknown))
-        raise ConfigValidationError(f"Unknown built-in rule ID(s): {unknown_ids}")
+        msg = f"Unknown built-in rule ID(s): {unknown_ids}"
+        raise ConfigValidationError(msg)
 
     if config.select:
         selected = tuple(
@@ -260,7 +268,8 @@ def _parse_rule_id_tuple(*, values: tuple[str, ...]) -> tuple[RuleId, ...] | Non
         try:
             rule_ids.append(RuleId(value))
         except ValueError as error:
-            raise ConfigValidationError(f"Invalid rule ID: {value}") from error
+            msg = f"Invalid rule ID: {value}"
+            raise ConfigValidationError(msg) from error
 
     return tuple(rule_ids)
 

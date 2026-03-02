@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from tq.engine.context import AnalysisContext
 from tq.engine.models import Finding, Severity
 from tq.engine.rule_id import RuleId
 from tq.rules.qualifiers import QualifierStrategy, candidate_module_names
+
+if TYPE_CHECKING:
+    from tq.engine.context import AnalysisContext
 
 
 class OrphanedTestRule:
@@ -30,8 +33,9 @@ class OrphanedTestRule:
             ValueError: If strategy is allowlist but no qualifiers are provided.
         """
         if qualifier_strategy is QualifierStrategy.ALLOWLIST and not allowed_qualifiers:
+            msg = "allowed_qualifiers must be non-empty for allowlist strategy"
             raise ValueError(
-                "allowed_qualifiers must be non-empty for allowlist strategy"
+                msg,
             )
 
         self._qualifier_strategy = qualifier_strategy
@@ -76,7 +80,7 @@ class OrphanedTestRule:
                         "Verify this test is still needed or move it "
                         "to integration/e2e scope"
                     ),
-                )
+                ),
             )
 
         return tuple(findings)

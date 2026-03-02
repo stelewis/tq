@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Skill initializer.
 
 Create a new skill scaffold from templates.
@@ -133,7 +132,7 @@ def validate_skill_name(skill_name: str) -> tuple[bool, str]:
     return True, ""
 
 
-def _write_file(path: Path, content: str, executable: bool = False) -> None:
+def _write_file(path: Path, content: str, *, executable: bool = False) -> None:
     """Write content to a file and optionally mark it executable."""
     path.write_text(content, encoding="utf-8")
     if executable:
@@ -192,7 +191,9 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Initialize a new skill scaffold.")
     parser.add_argument("skill_name", help="Kebab-case skill identifier.")
     parser.add_argument(
-        "--path", required=True, help="Directory where skill is created."
+        "--path",
+        required=True,
+        help="Directory where skill is created.",
     )
     return parser
 

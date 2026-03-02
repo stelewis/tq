@@ -41,7 +41,7 @@ def test_engine_result_has_errors() -> None:
 
 def test_finding_rejects_invalid_line() -> None:
     """Reject findings with invalid line numbers."""
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Finding line must be >= 1"):
         Finding(
             rule_id=RuleId("mapping-missing-test"),
             severity=Severity.ERROR,
@@ -53,10 +53,10 @@ def test_finding_rejects_invalid_line() -> None:
 
 def test_finding_rejects_blank_message_or_rule_id() -> None:
     """Reject findings with blank identifiers or messages."""
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="RuleId must be non-empty"):
         RuleId("")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Finding message must be non-empty"):
         Finding(
             rule_id=RuleId("mapping-missing-test"),
             severity=Severity.ERROR,
@@ -67,7 +67,7 @@ def test_finding_rejects_blank_message_or_rule_id() -> None:
 
 def test_summary_rejects_negative_counts() -> None:
     """Reject negative summary counters."""
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="FindingSummary counts must be non-negative"):
         FindingSummary(errors=-1, warnings=0, infos=0)
 
 

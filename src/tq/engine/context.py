@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
+from typing import TYPE_CHECKING
 
-from tq.discovery.index import AnalysisIndex
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from tq.discovery.index import AnalysisIndex
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,7 +23,7 @@ class AnalysisContext:
 
     index: AnalysisIndex
     settings: MappingProxyType[str, object] = field(
-        default_factory=lambda: MappingProxyType({})
+        default_factory=lambda: MappingProxyType({}),
     )
 
     @classmethod

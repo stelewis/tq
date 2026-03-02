@@ -18,7 +18,7 @@ def test_structure_rule_emits_warning_for_misplaced_test() -> None:
             test_root=Path("tests"),
             source_files=[Path("engine/runner.py")],
             test_files=[Path("tq/test_runner.py")],
-        )
+        ),
     )
 
     findings = StructureMismatchRule().evaluate(context)
@@ -39,7 +39,7 @@ def test_structure_rule_allows_correctly_placed_test() -> None:
             test_root=Path("tests"),
             source_files=[Path("engine/runner.py")],
             test_files=[Path("tq/engine/test_runner.py")],
-        )
+        ),
     )
 
     findings = StructureMismatchRule().evaluate(context)
@@ -55,7 +55,7 @@ def test_structure_rule_skips_non_unit_scopes() -> None:
             test_root=Path("tests"),
             source_files=[Path("engine/runner.py")],
             test_files=[Path("integration/test_runner.py"), Path("e2e/test_runner.py")],
-        )
+        ),
     )
 
     findings = StructureMismatchRule().evaluate(context)

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from rich.console import Console
+from typing import TYPE_CHECKING
 
 from tq.engine.models import EngineResult, Finding, Severity
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from rich.console import Console
 
 
 def print_report(
@@ -27,7 +30,7 @@ def print_report(
                 finding=finding,
                 cwd=cwd,
                 include_suggestions=include_suggestions,
-            )
+            ),
         )
 
     summary = result.summary
@@ -35,7 +38,7 @@ def print_report(
         "Summary: "
         f"{summary.errors} error(s), "
         f"{summary.warnings} warning(s), "
-        f"{summary.infos} info finding(s)"
+        f"{summary.infos} info finding(s)",
     )
 
 

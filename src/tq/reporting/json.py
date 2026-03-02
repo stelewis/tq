@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-from rich.console import Console
+if TYPE_CHECKING:
+    from pathlib import Path
 
-from tq.engine.models import EngineResult, Finding
+    from rich.console import Console
+
+    from tq.engine.models import EngineResult, Finding
 
 
 def print_json_report(*, result: EngineResult, console: Console, cwd: Path) -> None:

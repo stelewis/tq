@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -14,6 +14,9 @@ from tq.rules.mapping_missing_test import MappingMissingTestRule
 from tq.rules.orphaned_test import OrphanedTestRule
 from tq.rules.qualifiers import QualifierStrategy
 from tq.rules.structure_mismatch import StructureMismatchRule
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @pytest.mark.integration
@@ -47,7 +50,7 @@ def test_builtins_emit_expected_findings_for_representative_workflow(
     )
 
     context = AnalysisContext.create(
-        index=_build_index(source_root=source_root, test_root=test_root)
+        index=_build_index(source_root=source_root, test_root=test_root),
     )
     engine = RuleEngine(
         rules=(
@@ -58,7 +61,7 @@ def test_builtins_emit_expected_findings_for_representative_workflow(
                 qualifier_strategy=QualifierStrategy.ALLOWLIST,
                 allowed_qualifiers=("regression",),
             ),
-        )
+        ),
     )
 
     result = engine.run(context=context)

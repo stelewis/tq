@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from tq.config.loader import resolve_tq_config
 from tq.config.models import CliOverrides, ConfigValidationError
 from tq.rules.qualifiers import QualifierStrategy
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_resolve_requires_package_source_and_test_roots(tmp_path: Path) -> None:
@@ -26,14 +29,12 @@ def test_resolve_rejects_unknown_tool_tq_keys(tmp_path: Path) -> None:
     """Fail fast when [tool.tq] includes unknown keys."""
     config_path = tmp_path / "pyproject.toml"
     config_path.write_text(
-        "\n".join(
-            [
-                "[tool.tq]",
-                'package = "tq"',
-                'source_root = "src"',
-                'test_root = "tests"',
-                "unknown = 1",
-            ]
+        (
+            "[tool.tq]\n"
+            'package = "tq"\n'
+            'source_root = "src"\n'
+            'test_root = "tests"\n'
+            "unknown = 1"
         ),
         encoding="utf-8",
     )
@@ -51,15 +52,13 @@ def test_cli_overrides_precede_config_values(tmp_path: Path) -> None:
     """Apply explicit CLI options after file-based configuration."""
     config_path = tmp_path / "pyproject.toml"
     config_path.write_text(
-        "\n".join(
-            [
-                "[tool.tq]",
-                'package = "demo"',
-                'source_root = "src"',
-                'test_root = "tests"',
-                'qualifier_strategy = "none"',
-                "ignore_init_modules = false",
-            ]
+        (
+            "[tool.tq]\n"
+            'package = "demo"\n'
+            'source_root = "src"\n'
+            'test_root = "tests"\n'
+            'qualifier_strategy = "none"\n'
+            "ignore_init_modules = false"
         ),
         encoding="utf-8",
     )
@@ -84,27 +83,13 @@ def test_explicit_config_overrides_discovered_project_config(tmp_path: Path) -> 
     """Use explicit --config values instead of discovered pyproject settings."""
     project_config = tmp_path / "pyproject.toml"
     project_config.write_text(
-        "\n".join(
-            [
-                "[tool.tq]",
-                'package = "wrong"',
-                'source_root = "src"',
-                'test_root = "tests"',
-            ]
-        ),
+        '[tool.tq]\npackage = "wrong"\nsource_root = "src"\ntest_root = "tests"',
         encoding="utf-8",
     )
 
     explicit_config = tmp_path / "alternate.toml"
     explicit_config.write_text(
-        "\n".join(
-            [
-                "[tool.tq]",
-                'package = "tq"',
-                'source_root = "src"',
-                'test_root = "tests"',
-            ]
-        ),
+        '[tool.tq]\npackage = "tq"\nsource_root = "src"\ntest_root = "tests"',
         encoding="utf-8",
     )
 
