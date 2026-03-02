@@ -2,20 +2,12 @@
 
 from __future__ import annotations
 
-from enum import StrEnum
 from pathlib import Path
 
 from tq.engine.context import AnalysisContext
 from tq.engine.models import Finding, Severity
 from tq.engine.rule_id import RuleId
-
-
-class QualifierStrategy(StrEnum):
-    """Policy for deriving source module names from qualified tests."""
-
-    NONE = "none"
-    ANY_SUFFIX = "any-suffix"
-    ALLOWLIST = "allowlist"
+from tq.rules.qualifiers import QualifierStrategy, candidate_module_names
 
 
 class OrphanedTestRule:
@@ -97,35 +89,16 @@ class OrphanedTestRule:
     ) -> bool:
         """Check whether a unit test resolves to any source module."""
         relative_source_dir = Path(*test_file.parts[1:-1])
-        for module_name in self._candidate_module_names(test_file.stem[5:]):
+        for module_name in candidate_module_names(
+            module_stem=test_file.stem[5:],
+            qualifier_strategy=self._qualifier_strategy,
+            allowed_qualifiers=self._allowed_qualifiers,
+        ):
             source_file = relative_source_dir / f"{module_name}.py"
             if source_file in source_files:
                 return True
 
         return False
-
-    def _candidate_module_names(self, module_stem: str) -> tuple[str, ...]:
-        """Build candidate source module names from a test stem."""
-        names = [module_stem]
-        if "_" not in module_stem:
-            return tuple(names)
-
-        stem_parts = module_stem.split("_")
-        if self._qualifier_strategy is QualifierStrategy.NONE:
-            return tuple(names)
-
-        for index in range(len(stem_parts) - 1, 0, -1):
-            candidate = "_".join(stem_parts[:index])
-            suffix = "_".join(stem_parts[index:])
-
-            if self._qualifier_strategy is QualifierStrategy.ANY_SUFFIX:
-                names.append(candidate)
-                continue
-
-            if suffix in self._allowed_qualifiers:
-                names.append(candidate)
-
-        return tuple(names)
 
 
 def _is_non_unit_test_path(test_file: Path) -> bool:

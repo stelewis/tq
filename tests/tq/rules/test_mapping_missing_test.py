@@ -8,6 +8,7 @@ from tq.discovery.index import AnalysisIndex
 from tq.engine.context import AnalysisContext
 from tq.engine.models import Severity
 from tq.rules.mapping_missing_test import MappingMissingTestRule
+from tq.rules.qualifiers import QualifierStrategy
 
 
 def test_mapping_rule_emits_error_for_unmapped_source() -> None:
@@ -60,3 +61,24 @@ def test_mapping_rule_ignores_init_modules_when_configured() -> None:
     findings = MappingMissingTestRule(ignore_init_modules=True).evaluate(context)
 
     assert findings == ()
+
+
+def test_mapping_rule_allowlist_blocks_unknown_qualifier() -> None:
+    """Do not accept qualified tests with non-allowlisted suffixes."""
+    context = AnalysisContext.create(
+        index=AnalysisIndex.create(
+            source_root=Path("src/tq"),
+            test_root=Path("tests"),
+            source_files=[Path("engine/runner.py")],
+            test_files=[Path("tq/engine/test_runner_smoke.py")],
+        )
+    )
+
+    findings = MappingMissingTestRule(
+        ignore_init_modules=True,
+        qualifier_strategy=QualifierStrategy.ALLOWLIST,
+        allowed_qualifiers=("regression",),
+    ).evaluate(context)
+
+    assert len(findings) == 1
+    assert findings[0].rule_id.value == "mapping-missing-test"

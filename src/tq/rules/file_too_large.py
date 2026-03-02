@@ -38,6 +38,21 @@ class FileTooLargeRule:
         for test_file in context.index.test_files:
             full_path = context.index.test_root / test_file
             line_count = _count_non_blank_non_comment_lines(full_path)
+            if line_count is None:
+                findings.append(
+                    Finding(
+                        rule_id=self.rule_id,
+                        severity=Severity.WARNING,
+                        message=(
+                            "Could not read test file for size check "
+                            f"(path: {test_file.as_posix()})"
+                        ),
+                        path=full_path,
+                        suggestion="Ensure file exists and is UTF-8 decodable",
+                    )
+                )
+                continue
+
             if line_count <= self._max_non_blank_lines:
                 continue
 
@@ -58,15 +73,18 @@ class FileTooLargeRule:
         return tuple(findings)
 
 
-def _count_non_blank_non_comment_lines(path: Path) -> int:
+def _count_non_blank_non_comment_lines(path: Path) -> int | None:
     """Count policy: non-blank lines excluding comment-only lines."""
     line_count = 0
-    with path.open(encoding="utf-8") as handle:
-        for line in handle:
-            stripped = line.strip()
-            if not stripped:
-                continue
-            if stripped.startswith("#"):
-                continue
-            line_count += 1
-    return line_count
+    try:
+        with path.open(encoding="utf-8") as handle:
+            for line in handle:
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                if stripped.startswith("#"):
+                    continue
+                line_count += 1
+        return line_count
+    except OSError, UnicodeDecodeError:
+        return None

@@ -50,3 +50,27 @@ def test_size_rule_rejects_non_positive_threshold() -> None:
     """Reject invalid size threshold configuration."""
     with pytest.raises(ValueError):
         FileTooLargeRule(max_non_blank_lines=0)
+
+
+def test_size_rule_emits_warning_for_unreadable_file(tmp_path: Path) -> None:
+    """Emit warning finding instead of raising on unreadable test files."""
+    test_root = tmp_path / "tests"
+    test_root.mkdir()
+    test_file = test_root / "tq" / "test_bad_encoding.py"
+    test_file.parent.mkdir(parents=True)
+    test_file.write_bytes(b"\xff\xfe\xfa")
+
+    context = AnalysisContext.create(
+        index=AnalysisIndex.create(
+            source_root=tmp_path / "src" / "tq",
+            test_root=test_root,
+            source_files=[Path("alpha.py")],
+            test_files=[Path("tq/test_bad_encoding.py")],
+        )
+    )
+
+    findings = FileTooLargeRule(max_non_blank_lines=3).evaluate(context)
+
+    assert len(findings) == 1
+    assert findings[0].rule_id.value == "test-file-too-large"
+    assert "Could not read test file" in findings[0].message

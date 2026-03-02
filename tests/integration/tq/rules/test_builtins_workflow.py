@@ -1,4 +1,4 @@
-"""Golden-style integration coverage for built-in rules."""
+"""Integration workflow coverage for built-in rules."""
 
 from __future__ import annotations
 
@@ -15,8 +15,8 @@ from tq.rules.orphaned_test import OrphanedTestRule, QualifierStrategy
 from tq.rules.structure_mismatch import StructureMismatchRule
 
 
-@pytest.mark.golden
-def test_builtins_emit_expected_findings_for_representative_tree(
+@pytest.mark.integration
+def test_builtins_emit_expected_findings_for_representative_workflow(
     tmp_path: Path,
 ) -> None:
     """Validate representative tree diagnostics with deterministic output."""

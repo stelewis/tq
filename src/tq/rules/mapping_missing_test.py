@@ -11,19 +11,38 @@ from pathlib import Path
 from tq.engine.context import AnalysisContext
 from tq.engine.models import Finding, Severity
 from tq.engine.rule_id import RuleId
+from tq.rules.qualifiers import QualifierStrategy, candidate_module_names
 
 
 class MappingMissingTestRule:
     """Emit findings for source modules without corresponding tests."""
 
-    def __init__(self, *, ignore_init_modules: bool) -> None:
+    def __init__(
+        self,
+        *,
+        ignore_init_modules: bool,
+        qualifier_strategy: QualifierStrategy = QualifierStrategy.ANY_SUFFIX,
+        allowed_qualifiers: tuple[str, ...] = (),
+    ) -> None:
         """Initialize rule with explicit mapping policy.
 
         Args:
             ignore_init_modules: Skip ``__init__.py`` source modules when
                 checking mapping coverage.
+            qualifier_strategy: Strategy for qualified test names.
+            allowed_qualifiers: Allowed qualifiers when using allowlist strategy.
+
+        Raises:
+            ValueError: If allowlist strategy has no allowed qualifiers.
         """
+        if qualifier_strategy is QualifierStrategy.ALLOWLIST and not allowed_qualifiers:
+            raise ValueError(
+                "allowed_qualifiers must be non-empty for allowlist strategy"
+            )
+
         self._ignore_init_modules = ignore_init_modules
+        self._qualifier_strategy = qualifier_strategy
+        self._allowed_qualifiers = tuple(sorted(set(allowed_qualifiers)))
 
     @property
     def rule_id(self) -> RuleId:
@@ -74,16 +93,22 @@ class MappingMissingTestRule:
             source_file=source_file,
             package_name=package_name,
         )
-        expected_stem = expected_path.stem
+        source_stem = source_file.stem
 
         for test_file in test_files:
             if test_file.parent != expected_path.parent:
                 continue
 
-            if test_file.name == expected_path.name:
-                return True
+            if not test_file.name.startswith("test_"):
+                continue
 
-            if test_file.stem.startswith(f"{expected_stem}_"):
+            module_stem = test_file.stem[5:]
+            candidates = candidate_module_names(
+                module_stem=module_stem,
+                qualifier_strategy=self._qualifier_strategy,
+                allowed_qualifiers=self._allowed_qualifiers,
+            )
+            if source_stem in candidates:
                 return True
 
         return False
