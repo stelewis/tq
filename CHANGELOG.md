@@ -10,6 +10,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+## [0.4.1] - 2026-03-03
+
+### Changed
+
+- Hardened publish smoke checks to resolve explicit built artifact paths.
+- Added maintainer guidance for `workflow_dispatch` dry-run validation.
+
 ## [0.4.0] - 2026-03-02
 
 ### Added
