@@ -21,9 +21,12 @@ Publishing is handled by [publish workflow](../../../.github/workflows/publish.y
 The workflow performs:
 
 - `uv build`
+- package metadata validation (`twine check dist/*`)
 - smoke checks against built wheel and sdist
-- trusted publish with `uv publish`
+- trusted publish with `uv publish` (tag-triggered runs)
 - post-publish smoke checks via `uvx tqlint`
+
+Manual `workflow_dispatch` runs are supported for dry-run build/smoke validation without publishing to PyPI.
 
 Publishing runs in the `pypi` GitHub Actions environment. Configure that environment with required reviewers for manual approval before publish runs.
 

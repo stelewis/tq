@@ -3,7 +3,7 @@ name: Publish
 on:
   push:
     tags:
-      - "*"
+      - "*.*.*"
   workflow_dispatch:
 
 permissions:
@@ -28,9 +28,6 @@ jobs:
       - name: Clean previous build artifacts
         run: rm -rf dist
 
-      - name: Build package
-        run: uv build
-
       - name: Validate release tag format
         if: ${{ github.event_name == 'push' }}
         run: |
@@ -39,6 +36,12 @@ jobs:
             echo "Tag '$TAG_NAME' is not supported. Use SemVer tags like 0.4.0"
             exit 1
           fi
+
+      - name: Build package
+        run: uv build
+
+      - name: Validate package metadata
+        run: uv run --isolated --no-project --with twine -- twine check dist/*
 
       - name: Smoke check wheel and sdist entrypoints
         run: |
@@ -83,9 +86,11 @@ jobs:
           )
 
       - name: Publish
+        if: ${{ github.event_name == 'push' }}
         run: uv publish
 
       - name: Post-publish smoke (uvx)
+        if: ${{ github.event_name == 'push' }}
         run: |
           for attempt in 1 2 3 4 5; do
             if uvx tqlint --help; then

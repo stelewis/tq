@@ -142,11 +142,52 @@ jobs:
       - name: tq check (text)
         run: uv run tq check
 
-      - name: tq check (json)
-        run: uv run tq check --output-format json
+      - name: tq check (json snapshot)
+        run: |
+          mkdir -p tmp/ci
+          uv run tq check --output-format json > "tmp/ci/tq-check-${{ matrix.python-version }}.json"
+
+      - name: Upload tq json snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: tq-check-json-${{ matrix.python-version }}
+          path: tmp/ci/tq-check-${{ matrix.python-version }}.json
 
       - name: Run tests
         run: uv run pytest -q
+
+  matrix-determinism:
+    name: Matrix determinism (tq json)
+    needs: python-matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Download tq json snapshots
+        uses: actions/download-artifact@v5
+        with:
+          pattern: tq-check-json-*
+          path: tmp/ci/tq-json
+
+      - name: Compare snapshots
+        shell: bash
+        run: |
+          mapfile -t snapshots < <(find tmp/ci/tq-json -type f -name '*.json' | sort)
+
+          if [ "${#snapshots[@]}" -lt 2 ]; then
+            echo "Expected at least two tq json snapshots for comparison"
+            exit 1
+          fi
+
+          baseline="${snapshots[0]}"
+          for candidate in "${snapshots[@]:1}"; do
+            if ! cmp -s "$baseline" "$candidate"; then
+              echo "Non-deterministic tq JSON output detected:"
+              echo "  baseline:  $baseline"
+              echo "  candidate: $candidate"
+              diff -u "$baseline" "$candidate" || true
+              exit 1
+            fi
+          done
 
   package:
     name: Package checks
@@ -159,8 +200,14 @@ jobs:
       - name: Setup Python + uv + deps
         uses: ./.github/actions/setup-python-uv
 
+      - name: Clean previous build artifacts
+        run: rm -rf dist
+
       - name: Build package
         run: uv build
+
+      - name: Validate package metadata
+        run: uv run --isolated --no-project --with twine -- twine check dist/*
 
       - name: Smoke check wheel entrypoints
         run: |
