@@ -14,6 +14,7 @@ dependencies = [
 ]
 
 [project.scripts]
+tq = "tq.cli.main:main"
 check_test_quality = "tq.tools.test_quality.cli:main"
 
 [build-system]
@@ -109,6 +110,20 @@ exclude_dirs = [
 [tool.ty.src]
 exclude = [
     "tmp/scripts/**",
+]
+
+[tool.tq]
+source_root = "src"
+test_root = "tests"
+package = "tq"
+ignore_init_modules = true
+max_test_file_non_blank_lines = 600
+qualifier_strategy = "allowlist"
+allowed_qualifiers = [
+    "fixtures_golden",
+    "fixtures_synthetic",
+    "regression",
+    "config",
 ]
 
 [tool.test_quality]

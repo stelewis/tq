@@ -1,0 +1,191 @@
+"""Tests for tq check CLI behavior and contract semantics."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from click.testing import CliRunner
+
+from tq.cli.main import cli
+
+
+def test_check_returns_zero_when_no_error_findings() -> None:
+    """Exit with 0 when no error severity diagnostics are emitted."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        _write_project_config(Path("pyproject.toml"))
+        _write(Path("src/tq/engine/runner.py"), "def run() -> None:\n    pass\n")
+        _write(
+            Path("tests/tq/engine/test_runner.py"),
+            "def test_runner() -> None:\n    assert True\n",
+        )
+
+        result = runner.invoke(cli, ["check"])
+
+    assert result.exit_code == 0
+    assert "All checks passed!" in result.output
+    assert "Summary:" not in result.output
+
+
+def test_root_help_supports_short_h_alias() -> None:
+    """Expose -h alias at the CLI root."""
+    runner = CliRunner()
+
+    result = runner.invoke(cli, ["-h"])
+
+    assert result.exit_code == 0
+    assert "Usage:" in result.output
+
+
+def test_check_help_supports_short_h_alias() -> None:
+    """Expose -h alias on the check subcommand."""
+    runner = CliRunner()
+
+    result = runner.invoke(cli, ["check", "-h"])
+
+    assert result.exit_code == 0
+    assert "Usage:" in result.output
+
+
+def test_check_returns_one_when_error_findings_exist() -> None:
+    """Exit with 1 when at least one error finding exists."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        _write_project_config(Path("pyproject.toml"))
+        _write(Path("src/tq/engine/runner.py"), "def run() -> None:\n    pass\n")
+        Path("tests").mkdir(parents=True, exist_ok=True)
+
+        result = runner.invoke(cli, ["check"])
+
+    assert result.exit_code == 1
+    assert "mapping-missing-test" in result.output
+    assert "suggestion:" not in result.output
+
+
+def test_check_shows_suggestions_when_enabled() -> None:
+    """Render suggestions only when explicitly requested."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        _write_project_config(Path("pyproject.toml"))
+        _write(Path("src/tq/engine/runner.py"), "def run() -> None:\n    pass\n")
+        Path("tests").mkdir(parents=True, exist_ok=True)
+
+        result = runner.invoke(cli, ["check", "--show-suggestions"])
+
+    assert result.exit_code == 1
+    assert "suggestion:" in result.output
+
+
+def test_check_returns_two_for_invalid_config() -> None:
+    """Exit with 2 when configuration is invalid."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        Path("pyproject.toml").write_text(
+            "\n".join(
+                [
+                    "[tool.tq]",
+                    'package = "tq"',
+                    'source_root = "src"',
+                    'test_root = "tests"',
+                    "unknown = true",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        _write(Path("src/tq/engine/runner.py"), "def run() -> None:\n    pass\n")
+        _write(
+            Path("tests/tq/engine/test_runner.py"),
+            "def test_runner() -> None:\n    assert True\n",
+        )
+
+        result = runner.invoke(cli, ["check"])
+
+    assert result.exit_code == 2
+    assert "Unknown [tool.tq] key" in result.output
+
+
+def test_cli_override_takes_precedence_over_config() -> None:
+    """Honor CLI value over file-based configuration values."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        Path("pyproject.toml").write_text(
+            "\n".join(
+                [
+                    "[tool.tq]",
+                    'package = "tq"',
+                    'source_root = "src"',
+                    'test_root = "tests"',
+                    "ignore_init_modules = false",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        _write(Path("src/tq/__init__.py"), '"""Package."""\n')
+        Path("tests").mkdir(parents=True, exist_ok=True)
+
+        default_result = runner.invoke(cli, ["check"])
+        override_result = runner.invoke(cli, ["check", "--ignore-init-modules"])
+
+    assert default_result.exit_code == 1
+    assert override_result.exit_code == 0
+
+
+def test_isolated_ignores_discovered_configuration() -> None:
+    """Ignore discovered config when isolated mode is enabled."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        Path("pyproject.toml").write_text(
+            "\n".join(
+                [
+                    "[tool.tq]",
+                    "invalid = true",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        _write(Path("src/tq/engine/runner.py"), "def run() -> None:\n    pass\n")
+        _write(
+            Path("tests/tq/engine/test_runner.py"),
+            "def test_runner() -> None:\n    assert True\n",
+        )
+
+        result = runner.invoke(
+            cli,
+            [
+                "check",
+                "--isolated",
+                "--package",
+                "tq",
+                "--source-root",
+                "src",
+                "--test-root",
+                "tests",
+            ],
+        )
+
+    assert result.exit_code == 0
+
+
+def _write_project_config(path: Path) -> None:
+    """Write a minimal valid project tq configuration."""
+    path.write_text(
+        "\n".join(
+            [
+                "[tool.tq]",
+                'package = "tq"',
+                'source_root = "src"',
+                'test_root = "tests"',
+                "ignore_init_modules = true",
+                "max_test_file_non_blank_lines = 600",
+                'qualifier_strategy = "allowlist"',
+                'allowed_qualifiers = ["regression"]',
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write(path: Path, content: str) -> None:
+    """Create parent directories and write UTF-8 file content."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
