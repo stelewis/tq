@@ -54,13 +54,15 @@ export default defineConfig({
               link: "/developer/standards/policies"
             },
             { text: "Test Standards", link: "/developer/standards/tests" },
-            { text: "Rules", link: "/developer/tools/rules" },
-            { text: "tq check", link: "/developer/tools/tq_check" },
+            { text: "Rules", link: "/reference/rules/" },
+            { text: "CLI", link: "/reference/cli" },
+            { text: "Configuration", link: "/reference/configuration" },
+            { text: "Exit Codes", link: "/reference/exit-codes" },
             {
               text: "Attestation Verification",
-              link: "/developer/tools/attestation_verification"
+              link: "/developer/attestation"
             },
-            { text: "Releasing", link: "/developer/tools/releasing" },
+            { text: "Releasing", link: "/developer/releasing" },
             { text: "ADR Index", link: "/adr/README" }
           ]
         }

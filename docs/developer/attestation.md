@@ -8,7 +8,7 @@ This page defines:
 
 - maintainer verification in release automation,
 - consumer verification before install,
-- offline/air-gapped verification workflow.
+- offline and air-gapped verification workflow.
 
 ## Maintainer verification in CI
 
@@ -46,7 +46,7 @@ Release automation runs an equivalent consumer check after publish by downloadin
 
 ## Offline verification
 
-For offline/air-gapped verification, use the GitHub CLI bundle workflow:
+For offline and air-gapped verification, use the GitHub CLI bundle workflow:
 
 - `gh attestation download ... -R stelewis/tq`
 - `gh attestation trusted-root > trusted_root.jsonl`
@@ -56,6 +56,6 @@ For offline/air-gapped verification, use the GitHub CLI bundle workflow:
 
 `tq` release verification is provenance-first:
 
-- Attestations are the primary trust signal because they bind artifact identity to repository/workflow identity and runner policy.
+- Attestations are the primary trust signal because they bind artifact identity to repository and workflow identity and runner policy.
 - `SHA256SUMS` is published with each GitHub Release as an integrity convenience for local mirroring and checksum validation.
 - Detached signatures are not currently included for this project.

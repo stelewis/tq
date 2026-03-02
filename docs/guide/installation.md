@@ -14,5 +14,4 @@ Install the published package `tqlint` and run it via the `tq` command.
 - CLI command: `tq`
 - Primary command shape: `tq check`
 
-`uvx tq check` is currently not supported because `tq` on PyPI is owned by an
-unrelated project.
+`uvx tq check` is not currently supported because the `tq` package name on PyPI is owned by another project.

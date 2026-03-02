@@ -11,12 +11,17 @@ This section is the canonical landing page for contributors and maintainers.
 - [Project policies](./standards/policies.md)
 - [Testing standards](./standards/tests.md)
 
-## Tooling references
+## User contract references
 
-- [tq check contract](./tools/tq_check.md)
-- [Built-in rules reference](./tools/rules.md)
-- [Release workflow](./tools/releasing.md)
-- [Attestation verification](./tools/attestation_verification.md)
+- [CLI reference](../reference/cli.md)
+- [Configuration reference](../reference/configuration.md)
+- [Exit codes](../reference/exit-codes.md)
+- [Rules reference](../reference/rules/index.md)
+
+## Developer operations
+
+- [Release workflow](./releasing.md)
+- [Attestation verification](./attestation.md)
 
 ## Architecture decisions
 

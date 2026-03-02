@@ -16,7 +16,7 @@ This document defines the release workflow for publishing `tq` to PyPI.
 
 ## Publish automation
 
-Publishing is handled by [publish workflow](../../../.github/workflows/publish.yml) on SemVer tags matching `<major>.<minor>.<patch>` (for example `0.4.0`).
+Publishing is handled by [publish workflow](../../.github/workflows/publish.yml) on SemVer tags matching `<major>.<minor>.<patch>` (for example `0.4.0`).
 
 The workflow performs:
 
@@ -29,9 +29,9 @@ The workflow performs:
 - post-publish smoke checks via `uvx tqlint`
 - post-publish consumer provenance verification against the PyPI wheel
 
-Manual `workflow_dispatch` runs are supported for dry-run build/smoke validation without publishing to PyPI.
+Manual `workflow_dispatch` runs are supported for dry-run build and smoke validation without publishing to PyPI.
 
-### Run a dry-run release validation
+## Run a dry-run release validation
 
 1. Open **GitHub → Actions → Publish**.
 2. Click **Run workflow**.
@@ -40,8 +40,8 @@ Manual `workflow_dispatch` runs are supported for dry-run build/smoke validation
 
 Expected behavior for `workflow_dispatch` runs:
 
-- build + metadata validation run
-- wheel/sdist smoke checks run
+- build and metadata validation run
+- wheel and sdist smoke checks run
 - fixture smoke checks run
 - `Publish` step is skipped
 - post-publish steps are skipped
@@ -70,10 +70,8 @@ Publishing runs in the `pypi` GitHub Actions environment. This environment must 
 - If a bad version is published, publish a corrected patch release.
 - Avoid deleting artifacts once consumed; prefer forward fix releases.
 
-### Versioning when tag-triggered publish fails
+## Versioning when tag-triggered publish fails
 
-- Prefer cutting a new patch version tag after fixing workflow issues
-   (for example, `0.4.0` failed before upload → release `0.4.1`).
+- Prefer cutting a new patch version tag after fixing workflow issues (for example, `0.4.0` failed before upload → release `0.4.1`).
 - Update `CHANGELOG.md` for the new version before tagging.
-- Avoid reusing or force-moving existing release tags unless you are
-   intentionally rewriting release history and your team explicitly agrees.
+- Avoid reusing or force-moving existing release tags unless you are intentionally rewriting release history.

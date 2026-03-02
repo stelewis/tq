@@ -39,7 +39,7 @@ Why:
 ### References
 
 - Release workflow: [publish workflow](https://github.com/stelewis/tq/blob/main/.github/workflows/publish.yml)
-- Verification guide: [attestation verification](../tools/attestation_verification.md)
+- Verification guide: [attestation verification](../attestation.md)
 
 ## Security disclosure policy
 

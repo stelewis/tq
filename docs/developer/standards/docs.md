@@ -16,7 +16,7 @@ We want clean, maintainable docs that achieve the same design excellence as the 
 
 ## Where Things Live
 
-- **Developer docs** ([docs/developer](../README.md)):
+- **Developer docs** ([docs/developer](../index.md)):
   - How to use, extend, and contribute to the codebase.
 - **ADRs** ([docs/adr](../../adr/README.md)):
   - Architectural Decision Records capturing key design decisions.

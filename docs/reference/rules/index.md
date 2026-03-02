@@ -1,13 +1,15 @@
 # Rules
 
-This is the canonical user-facing rules index.
+This is the user-facing rules index.
+
+Rule metadata is sourced from `manifest.yaml` in this directory.
 
 ## Stable rule IDs
 
-- `mapping-missing-test` (default severity: `error`)
-- `structure-mismatch` (default severity: `warning`)
-- `test-file-too-large` (default severity: `warning`)
-- `orphaned-test` (default severity: `warning`)
+- [`mapping-missing-test`](./mapping-missing-test.md) (default severity: `error`)
+- [`structure-mismatch`](./structure-mismatch.md) (default severity: `warning`)
+- [`test-file-too-large`](./test-file-too-large.md) (default severity: `warning`)
+- [`orphaned-test`](./orphaned-test.md) (default severity: `warning`)
 
 ## Severity vocabulary
 
@@ -15,12 +17,12 @@ This is the canonical user-facing rules index.
 - `warning`
 - `info`
 
-## Rule behavior
+## Rule policy
 
-- `mapping-missing-test`: a discovered source module has no matching unit test module.
-- `structure-mismatch`: a unit test path does not mirror the corresponding source path.
-- `test-file-too-large`: a unit test file exceeds the configured non-blank, non-comment line limit.
-- `orphaned-test`: a unit test file does not resolve to an existing source module.
+- Rule IDs are stable kebab-case identifiers.
+- Severity defaults are part of the external contract.
+- Rule selection and suppression use `--select`/`--ignore` and `[tool.tq]` values.
 
-Per-rule pages will be added under this section and kept in sync from a canonical
-rules manifest.
+## Manifest
+
+Canonical source of truth: [`manifest.yaml`](./manifest.yaml).
