@@ -1,0 +1,62 @@
+# Architecture Decision Records (ADRs)
+
+This project uses Architecture Decision Records (ADRs) to capture important engineering decisions, their context, and consequences.
+
+ADRs are meant to be enduring reference documents. Prefer describing stable contracts and boundaries over transient implementation details.
+
+## Where ADRs live
+
+ADRs live in this folder: `docs/adr/`.
+
+## Naming
+
+- Use the next available 4-digit numeric ID.
+- Name files as: `NNNN-short-title.md`.
+
+Example: `0007-ofx-strict-mode-default.md`
+
+## Status workflow
+
+ADRs follow this workflow:
+
+- `draft` -> `proposed` -> `rejected`
+- `draft` -> `proposed` -> `accepted` -> `deprecated`
+- `draft` -> `proposed` -> `accepted` -> `superseded`
+
+Notes:
+
+- `draft`: under active authoring; not ready for team review.
+- `proposed`: ready for review and feedback.
+- `accepted`: approved and should be treated as the current decision.
+- `rejected`: explicitly not going ahead (keep for history).
+- `deprecated`: still true historically, but no longer recommended going forward.
+- `superseded`: replaced by a newer ADR; use `superseded_by`.
+
+## Creating a new ADR
+
+1. Copy the template in `docs/adr/0000-template.md`.
+2. Pick the next available ID and rename the file.
+3. Fill in the YAML front matter.
+4. Write the ADR sections.
+
+Guidelines:
+
+- Avoid issue/PR numbers and sprint-specific context.
+- Avoid naming internal modules/classes unless they are part of a long-lived public contract.
+
+## Metadata
+
+ADRs include YAML front matter so the set can be indexed and validated later.
+
+Required fields:
+
+- `id`
+- `title`
+- `status`
+- `date`
+
+Optional fields:
+
+- `tags`
+- `supersedes`
+- `superseded_by`

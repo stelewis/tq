@@ -1,0 +1,169 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  commit-messages:
+    name: Commit messages (commitizen)
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python + uv + deps
+        uses: ./.github/actions/setup-python-uv
+
+      - name: Check commit messages (pull_request)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: uv run cz check --rev-range "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+
+      - name: Check commit messages (push)
+        if: ${{ github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000' }}
+        run: |
+          BEFORE_SHA="${{ github.event.before }}"
+          HEAD_SHA="${{ github.sha }}"
+
+          git fetch --no-tags origin "$BEFORE_SHA" || true
+
+          if git rev-parse --verify --quiet "$BEFORE_SHA^{commit}" >/dev/null; then
+            uv run cz check --rev-range "$BEFORE_SHA..$HEAD_SHA"
+          else
+            uv run cz check --use-default-range
+          fi
+
+  hygiene:
+    name: Hygiene (pre-commit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: "Hygiene: trailing-whitespace"
+        uses: pre-commit/action@v3.0.1
+        with:
+          extra_args: trailing-whitespace --all-files
+
+      - name: "Hygiene: end-of-file-fixer"
+        uses: pre-commit/action@v3.0.1
+        with:
+          extra_args: end-of-file-fixer --all-files
+
+      - name: "Hygiene: check-yaml"
+        uses: pre-commit/action@v3.0.1
+        with:
+          extra_args: check-yaml --all-files
+
+      - name: "Hygiene: check-added-large-files"
+        uses: pre-commit/action@v3.0.1
+        with:
+          extra_args: check-added-large-files --all-files
+
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python + uv + deps
+        uses: ./.github/actions/setup-python-uv
+
+      - name: Ruff format (check)
+        run: uv run ruff format --check
+
+      - name: Ruff lint
+        run: uv run ruff check --output-format=github
+
+  typecheck:
+    name: Type check (ty)
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python + uv + deps
+        uses: ./.github/actions/setup-python-uv
+
+      - name: Run ty check
+        run: uv run ty check
+
+  tests:
+    name: Tests (pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python + uv + deps
+        uses: ./.github/actions/setup-python-uv
+
+      - name: Run tests
+        run: uv run pytest -q
+
+      - name: Test quality
+        run: uv run check_test_quality
+
+  integration-tests:
+    name: Integration tests (pytest)
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python + uv + deps
+        uses: ./.github/actions/setup-python-uv
+
+      - name: Run integration tests
+        run: uv run pytest -q -m integration
+
+  security:
+    name: Security checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python + uv + deps
+        uses: ./.github/actions/setup-python-uv
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
+
+      - name: Detect secrets (baseline)
+        run: uv run detect-secrets-hook --baseline .detect-secrets.baseline
+
+      - name: Bandit
+        run: uv run bandit --configfile pyproject.toml -r src
+
+      - name: pip-audit
+        run: uv run pip-audit

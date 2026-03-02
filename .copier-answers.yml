@@ -1,0 +1,11 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: 1.2.2
+_src_path: gh:stelewis/copier-uv-template
+author_email: 31178492+stelewis@users.noreply.github.com
+author_name: Stephen Lewis
+description: tq inspects a codebase's tests and enforces quality rules so tests remain
+    discoverable, focused, actionable, and maintainable
+github_repository: stelewis/tq
+package_name: tq
+project_name: Test Quality Toolkit
+project_slug: tq

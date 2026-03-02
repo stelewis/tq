@@ -1,0 +1,113 @@
+[project]
+name = "tq"
+version = "0.1.0"
+description = "tq inspects a codebase's tests and enforces quality rules so tests remain discoverable, focused, actionable, and maintainable"
+readme = "README.md"
+authors = [
+    { name = "Stephen Lewis", email = "31178492+stelewis@users.noreply.github.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "click>=8.3.1",
+    "pyyaml>=6.0.3",
+    "rich>=14.3.2",
+]
+
+[project.scripts]
+check_test_quality = "tq.tools.test_quality.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.9.26,<0.10.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "bandit>=1.9.3",
+    "commitizen>=4.9.1",
+    "detect-secrets>=1.5.0",
+    "pip-audit>=2.10.0",
+    "prek>=0.3.1",
+    "pytest>=9.0.2",
+    "pytest-mock>=3.15.1",
+    "ruff>=0.15.0",
+    "ty>=0.0.14",
+]
+
+[tool.ruff]
+line-length = 88
+src = ["src"]
+extend-exclude = ["tmp"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "C4", "C90", "D", "T", "A", "N", "S", "BLE", "T10", "RUF", "TID", "PL"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "PLR2004"]
+"src/**/test_quality/checks/orphan_check.py" = ["C901", "PLR0911", "PLR0912"]
+
+[tool.ruff.lint.pylint]
+max-returns = 10
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+    "-m",
+    "not integration and not e2e",
+]
+testpaths = ["tests"]
+markers = [
+    "e2e: mark end-to-end tests",
+    "golden: deterministic golden/snapshot fixture tests (offline)",
+    "integration: mark a test as an integration test",
+    "regression: mark tests that exercise known regressions",
+    "smoke: mark quick smoke tests",
+    "slow: mark slow tests that may be skipped in fast CI jobs",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version_provider = "uv"
+version_scheme = "semver"
+update_changelog_on_bump = true
+changelog_file = "CHANGELOG.md"
+template = "CHANGELOG.md.j2"
+gpg_sign = true
+major_version_zero = true
+
+[tool.bandit]
+exclude_dirs = [
+    "tests",
+]
+
+[tool.ty.src]
+exclude = [
+    "tmp/scripts/**",
+]
+
+[tool.test_quality]
+# Patterns to ignore when scanning source and test files
+ignore = []
+# Maximum allowed non-blank lines in a test file
+max_test_lines = 600
+# Whether to ignore __init__.py files in mapping checks
+ignore_init = true
+
+# Allowed suffixes for qualified unit tests:
+# tests/<package>/<path>/test_<module>_<qualifier>.py -> src/<package>/<path>/<module>.py
+allowed_qualifiers = [
+    "fixtures_golden",
+    "fixtures_synthetic",
+    "regression",
+    "config",
+]

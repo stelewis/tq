@@ -1,0 +1,56 @@
+version: "0.2"
+ignorePaths: []
+dictionaryDefinitions: []
+dictionaries: []
+words:
+  - addopts
+  - Antipatterns
+  - arcname
+  - asyncio
+  - auxilary
+  - capsys
+  - chdir
+  - Cloudant
+  - commitizen
+  - Commitizen
+  - configfile
+  - conftest
+  - dataclasses
+  - docstrings
+  - elif
+  - filterwarnings
+  - frontmatter
+  - Frontmatter
+  - getcwd
+  - Hmac
+  - invokable
+  - isinstance
+  - kwargs
+  - mnda
+  - monkeypatch
+  - msgfile
+  - negotiables
+  - OOXML
+  - overengineered
+  - overengineering
+  - pathlib
+  - pdfplumber
+  - prek
+  - pycache
+  - pydantic
+  - pydocstyle
+  - pylint
+  - Pypi
+  - pyproject
+  - pytest
+  - pyyaml
+  - reprioritize
+  - rtype
+  - setattr
+  - Stringly
+  - testpaths
+  - theo
+  - venv
+  - zipf
+ignoreWords: []
+import: []

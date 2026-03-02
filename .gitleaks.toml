@@ -1,0 +1,4 @@
+# Gitleaks configuration to exclude detect-secrets baseline
+[[allowlists]]
+description = "Ignore detect-secrets baseline"
+paths = ['''^\.detect-secrets\.baseline$''']
