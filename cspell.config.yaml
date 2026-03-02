@@ -48,10 +48,12 @@ words:
   - pyyaml
   - reprioritize
   - rtype
+  - sdist
   - setattr
   - Stringly
   - testpaths
   - theo
+  - tqlint
   - venv
   - zipf
 ignoreWords: []

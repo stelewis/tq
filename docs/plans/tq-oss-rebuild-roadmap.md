@@ -106,6 +106,33 @@ Rebuild `tq` as a general-purpose open source test quality linter with a `ruff`/
 - Add stable rule docs page listing rule IDs, examples, and fix guidance.
 - Add CI matrix checks to ensure deterministic outputs across Python versions.
 
+## Phase 7: OSS release and distribution readiness
+
+- Keep repository/module identity as `tq`, but publish under a unique distribution name (`tqlint`) to avoid PyPI name collision.
+- Preserve the operator command as `tq` via console script mapping so users run `tq check` after install.
+- Add explicit install/run docs for all supported paths:
+  - project dependency: `uv add --dev tqlint` then `uv run tq check`
+  - ephemeral tool run: `uvx tqlint check`
+  - persistent tool install: `uv tool install tqlint` then `tq check`
+- Add migration/UX note that `uvx tq check` is not available unless package name ownership for `tq` is acquired.
+- Add OSS legal metadata required for distribution:
+  - `LICENSE` file in repository root
+  - complete PyPI metadata in `pyproject.toml` (classifiers, project URLs, license expression/file)
+  - clear support policy and issue templates
+- Add publish automation with trusted publishing:
+  - tag-triggered GitHub workflow (`<major>.<minor>.<patch>`)
+  - build artifacts with `uv build`
+  - publish with `uv publish`
+  - optional smoke checks against built wheel/sdist before publish
+- Add release checks in CI/CD:
+  - verify build reproducibility (`uv build` on clean runner)
+  - validate CLI entrypoint from built artifacts (`tq --help`, `tq check --help`)
+  - run a fixture-based smoke project via `uvx tqlint check`
+- Define release operations:
+  - semantic versioning and changelog policy
+  - signed tags and release notes template
+  - post-release verification on TestPyPI/PyPI and rollback/playbook guidance
+
 ## Verification
 
 - Quality gates for each phase:

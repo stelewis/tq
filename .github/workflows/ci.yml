@@ -122,6 +122,54 @@ jobs:
       - name: Run tests
         run: uv run pytest -q
 
+  python-matrix:
+    name: Python matrix checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python + uv + deps
+        uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: tq check (text)
+        run: uv run tq check
+
+      - name: tq check (json)
+        run: uv run tq check --output-format json
+
+      - name: Run tests
+        run: uv run pytest -q
+
+  package:
+    name: Package checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python + uv + deps
+        uses: ./.github/actions/setup-python-uv
+
+      - name: Build package
+        run: uv build
+
+      - name: Smoke check wheel entrypoints
+        run: |
+          uv run --isolated --no-project --with dist/*.whl -- tq --help
+          uv run --isolated --no-project --with dist/*.whl -- tq check --help
+
+      - name: Smoke check sdist entrypoint
+        run: uv run --isolated --no-project --with dist/*.tar.gz -- tq --help
+
   integration-tests:
     name: Integration tests (pytest)
     if: ${{ github.event_name == 'workflow_dispatch' }}

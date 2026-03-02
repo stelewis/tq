@@ -2,6 +2,36 @@
 
 `tq` inspects a codebase's tests and enforces quality rules so tests remain discoverable, focused, actionable, and maintainable.
 
+## Installation
+
+PyPI distribution name: `tqlint`
+
+Add to a project:
+
+```sh
+uv add --dev tqlint
+uv run tq check
+```
+
+Run without installing (ephemeral):
+
+```sh
+uvx tqlint check
+```
+
+Install as a persistent global tool:
+
+```sh
+uv tool install tqlint
+tq check
+```
+
+Note: `uvx tq check` is not available because the `tq` package name on PyPI is owned by another project.
+
+## Current scope
+
+`tq` currently analyzes Python source and Python tests (`.py`) only.
+
 ## Usage
 
 Run checks:

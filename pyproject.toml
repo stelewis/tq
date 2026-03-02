@@ -1,12 +1,25 @@
 [project]
-name = "tq"
+name = "tqlint"
 version = "0.3.0"
 description = "tq inspects a codebase's tests and enforces quality rules so tests remain discoverable, focused, actionable, and maintainable"
 readme = "README.md"
+license = "MIT"
+keywords = ["testing", "lint", "pytest", "quality", "developer-tools"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+    "Typing :: Typed",
+]
 authors = [
     { name = "Stephen Lewis", email = "31178492+stelewis@users.noreply.github.com" }
 ]
-requires-python = ">=3.14"
+requires-python = ">=3.11"
 dependencies = [
     "click>=8.3.1",
     "pyyaml>=6.0.3",
@@ -15,10 +28,20 @@ dependencies = [
 
 [project.scripts]
 tq = "tq.cli.main:main"
+tqlint = "tq.cli.main:main"
+
+[project.urls]
+Homepage = "https://github.com/stelewis/tq"
+Repository = "https://github.com/stelewis/tq"
+Issues = "https://github.com/stelewis/tq/issues"
+Changelog = "https://github.com/stelewis/tq/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["uv_build>=0.9.26,<0.10.0"]
 build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "tq"
 
 [dependency-groups]
 dev = [
@@ -78,7 +101,8 @@ convention = "google"
 name = "cz_conventional_commits"
 version_provider = "uv"
 version_scheme = "semver"
-update_changelog_on_bump = true
+tag_format = "$version"
+update_changelog_on_bump = false
 changelog_file = "CHANGELOG.md"
 template = "CHANGELOG.md.j2"
 change_type_order = ["Added", "Changed", "Deprecated", "Removed", "Fixed", "Security"]

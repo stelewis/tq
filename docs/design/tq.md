@@ -44,8 +44,7 @@ The original `check_test_quality` tool was built in a specific codebase and vali
 
 *Cross-module tests, duplicated coverage, misnamed-by-semantics, redundant-by-semantics, and vacuous tests were not included due to noisy heuristics.*
 
-That legacy implementation has now been fully removed in favor of the native
-`tq check` architecture and command surface.
+That legacy implementation has now been fully removed in favor of the native `tq check` architecture and command surface.
 
 ## Problem
 

@@ -1,0 +1,48 @@
+# tq release workflow
+
+This document defines the release workflow for publishing `tq` to PyPI.
+
+## Package identity
+
+- Repository and import package remain `tq`.
+- Published distribution name is `tqlint`.
+- CLI commands exposed by the package are `tq` and `tqlint`.
+
+## User install and run commands
+
+- Project dependency: `uv add --dev tqlint` then `uv run tq check`
+- Ephemeral execution: `uvx tqlint check`
+- Global tool: `uv tool install tqlint` then `tq check`
+
+## Publish automation
+
+Publishing is handled by [publish workflow](../../../.github/workflows/publish.yml)
+on SemVer tags matching `<major>.<minor>.<patch>` (for example `0.4.0`).
+
+The workflow performs:
+
+- `uv build`
+- smoke checks against built wheel and sdist
+- trusted publish with `uv publish`
+- post-publish smoke checks via `uvx tqlint`
+
+## Maintainer checklist
+
+1. Ensure `CHANGELOG.md` and version are ready.
+2. Run quality gates locally:
+   - `uv run ruff format`
+   - `uv run ruff check --fix`
+   - `uv run ty check`
+   - `uv run tq check`
+   - `uv run pytest -q`
+3. Create and push a signed release tag (for example `0.3.1`).
+4. Confirm publish workflow success.
+5. Verify install paths in a clean environment:
+   - `uvx tqlint --help`
+   - `uvx tqlint check --help`
+
+## Rollback guidance
+
+- If publish fails before upload, fix workflow and re-run.
+- If a bad version is published, publish a corrected patch release.
+- Avoid deleting artifacts once consumed; prefer forward fix releases.

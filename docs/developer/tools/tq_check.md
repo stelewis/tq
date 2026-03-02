@@ -13,6 +13,24 @@ This page defines:
 - stable rule IDs and default severities,
 - migration mapping from removed legacy surfaces.
 
+## Distribution and install model
+
+The published package name is `tqlint`.
+
+The CLI command is `tq`, so installed usage is `tq check`.
+
+Supported `uv` install/run paths:
+
+- project dependency: `uv add --dev tqlint` then `uv run tq check`
+- ephemeral run: `uvx tqlint check`
+- global tool install: `uv tool install tqlint` then `tq check`
+
+`uvx tq check` is not supported at this stage due to pre-existing ownership of the `tq` package name on PyPI.
+
+## Language support
+
+`tq` currently supports Python codebases only. Source and test discovery target Python modules and Python test files. If you want language support beyond Python, please open an issue.
+
 ## Command model
 
 Primary entrypoint:

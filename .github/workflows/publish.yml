@@ -1,0 +1,97 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python + uv + deps
+        uses: ./.github/actions/setup-python-uv
+
+      - name: Build package
+        run: uv build
+
+      - name: Validate release tag format
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          if ! [[ "$TAG_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag '$TAG_NAME' is not supported. Use SemVer tags like 0.4.0"
+            exit 1
+          fi
+
+      - name: Smoke check wheel and sdist entrypoints
+        run: |
+          uv run --isolated --no-project --with dist/*.whl -- tq --help
+          uv run --isolated --no-project --with dist/*.whl -- tq check --help
+          uv run --isolated --no-project --with dist/*.tar.gz -- tq --help
+
+      - name: Smoke check fixture from built wheel
+        run: |
+          mkdir -p tmp/release-smoke/src/demo tmp/release-smoke/tests/demo
+          cat > tmp/release-smoke/pyproject.toml <<'TOML'
+          [project]
+          name = "demo"
+          version = "0.0.0"
+          requires-python = ">=3.11"
+
+          [tool.tq]
+          package = "demo"
+          source_root = "src"
+          test_root = "tests"
+          ignore_init_modules = true
+          max_test_file_non_blank_lines = 600
+          qualifier_strategy = "allowlist"
+          allowed_qualifiers = ["regression"]
+          TOML
+          cat > tmp/release-smoke/src/demo/core.py <<'PY'
+          def add(a: int, b: int) -> int:
+              return a + b
+          PY
+          cat > tmp/release-smoke/tests/demo/test_core.py <<'PY'
+          from demo.core import add
+
+
+          def test_add() -> None:
+              assert add(1, 1) == 2
+          PY
+          (
+            cd tmp/release-smoke
+            uv run --isolated --no-project --with ../dist/*.whl -- tq check
+          )
+
+      - name: Publish
+        run: uv publish
+
+      - name: Post-publish smoke (uvx)
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if uvx tqlint --help; then
+              break
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo "Package not visible via uvx after retries"
+              exit 1
+            fi
+            sleep 20
+          done
+          (
+            cd tmp/release-smoke
+            uvx tqlint check
+          )

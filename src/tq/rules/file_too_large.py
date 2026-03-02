@@ -86,5 +86,5 @@ def _count_non_blank_non_comment_lines(path: Path) -> int | None:
                     continue
                 line_count += 1
         return line_count
-    except OSError, UnicodeDecodeError:
+    except (OSError, UnicodeDecodeError):
         return None
