@@ -1,0 +1,16 @@
+{
+  "name": "tq-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  },
+  "devDependencies": {
+    "vitepress": "latest"
+  },
+  "overrides": {
+    "esbuild": "latest"
+  }
+}

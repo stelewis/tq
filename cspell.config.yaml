@@ -59,6 +59,8 @@ words:
   - theo
   - tqlint
   - venv
+  - Vite
+  - vitepress
   - zipf
 ignoreWords: []
 import: []
