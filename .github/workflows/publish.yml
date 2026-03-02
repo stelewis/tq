@@ -13,16 +13,20 @@ jobs:
   publish:
     name: Build and publish
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 3
+    environment: ${{ vars.PYPI_ENVIRONMENT || 'pypi' }}
     permissions:
       contents: read
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Python + uv + deps
         uses: ./.github/actions/setup-python-uv
+
+      - name: Clean previous build artifacts
+        run: rm -rf dist
 
       - name: Build package
         run: uv build
@@ -39,8 +43,10 @@ jobs:
       - name: Smoke check wheel and sdist entrypoints
         run: |
           uv run --isolated --no-project --with dist/*.whl -- tq --help
+          uv run --isolated --no-project --with dist/*.whl -- tqlint --help
           uv run --isolated --no-project --with dist/*.whl -- tq check --help
           uv run --isolated --no-project --with dist/*.tar.gz -- tq --help
+          uv run --isolated --no-project --with dist/*.tar.gz -- tqlint --help
 
       - name: Smoke check fixture from built wheel
         run: |

@@ -16,8 +16,7 @@ This document defines the release workflow for publishing `tq` to PyPI.
 
 ## Publish automation
 
-Publishing is handled by [publish workflow](../../../.github/workflows/publish.yml)
-on SemVer tags matching `<major>.<minor>.<patch>` (for example `0.4.0`).
+Publishing is handled by [publish workflow](../../../.github/workflows/publish.yml) on SemVer tags matching `<major>.<minor>.<patch>` (for example `0.4.0`).
 
 The workflow performs:
 
@@ -25,6 +24,8 @@ The workflow performs:
 - smoke checks against built wheel and sdist
 - trusted publish with `uv publish`
 - post-publish smoke checks via `uvx tqlint`
+
+Publishing runs in the `pypi` GitHub Actions environment. Configure that environment with required reviewers for manual approval before publish runs.
 
 ## Maintainer checklist
 
@@ -36,8 +37,9 @@ The workflow performs:
    - `uv run tq check`
    - `uv run pytest -q`
 3. Create and push a signed release tag (for example `0.3.1`).
-4. Confirm publish workflow success.
-5. Verify install paths in a clean environment:
+4. Approve the pending `pypi` environment deployment in GitHub Actions.
+5. Confirm publish workflow success.
+6. Verify install paths in a clean environment:
    - `uvx tqlint --help`
    - `uvx tqlint check --help`
 
