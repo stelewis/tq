@@ -1,6 +1,12 @@
-# Test Quality Tool
+# Legacy test quality checker
 
-The project includes an automated test quality checker that validates:
+This page documents the legacy checker implementation kept for migration.
+
+Canonical user-facing behavior is defined in [tq check contract (v1)](./tq_check.md).
+
+## Legacy behavior summary
+
+The legacy checker validates:
 
 1. **Mapping**: Each source module has at least one test file
 2. **Structure**: Test files are in the correct directory structure
@@ -9,17 +15,17 @@ The project includes an automated test quality checker that validates:
 
 *Note: Cross-module tests, duplicated coverage, misnamed-by-semantics, redundant-by-semantics, and vacuous tests are not presently checked due to noisy heuristics.*
 
-Run the checker:
+Legacy command:
 
 ```bash
 uv run check_test_quality
 ```
 
-The tool exits with a non-zero code if errors are found.
+This command is migration-only and is scheduled for removal after the compatibility window described in [tq check contract (v1)](./tq_check.md).
 
 ## Configuration
 
-Configure the test quality checker in `pyproject.toml`:
+Legacy configuration namespace in `pyproject.toml`:
 
 ```toml
 [tool.test_quality]
@@ -40,3 +46,5 @@ ignore_init = true
 # If you add a new qualifier-style test, add its suffix here.
 allowed_qualifiers = ["validation", "smoke"]
 ```
+
+Projects should migrate this configuration to `[tool.tq]`.

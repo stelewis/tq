@@ -11,6 +11,7 @@ words:
   - auxilary
   - capsys
   - chdir
+  - CLI
   - Cloudant
   - commitizen
   - Commitizen
