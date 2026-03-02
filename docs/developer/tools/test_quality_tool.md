@@ -23,6 +23,12 @@ uv run check_test_quality
 
 This command is migration-only and is scheduled for removal after the compatibility window described in [tq check contract (v1)](./tq_check.md).
 
+Current behavior:
+
+- `check_test_quality` is a compatibility shim that forwards to `tq check`.
+- The shim emits a deprecation warning on each invocation.
+- Runtime configuration is resolved from `[tool.tq]`.
+
 ## Configuration
 
 Legacy configuration namespace in `pyproject.toml`:
@@ -48,3 +54,6 @@ allowed_qualifiers = ["validation", "smoke"]
 ```
 
 Projects should migrate this configuration to `[tool.tq]`.
+
+Note: the compatibility shim does not treat `[tool.test_quality]` as canonical
+runtime config. Use `[tool.tq]` for active configuration.

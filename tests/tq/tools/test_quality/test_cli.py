@@ -1,135 +1,82 @@
-"""Tests for CLI module."""
+"""Tests for legacy compatibility shim CLI module."""
 
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import MagicMock
+from typing import cast
 
+import click
 import pytest
 
-from tq.tools.test_quality.cli import (
-    main,
-    print_findings_table,
-    print_summary,
-)
-from tq.tools.test_quality.models import Finding, Severity
+import tq.tools.test_quality.cli as legacy_cli
 
 
-def test_print_findings_table_empty(capsys):
-    """Test printing empty findings table."""
-    console = MagicMock()
-    findings = []
+def test_main_emits_deprecation_warning(
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Print deprecation guidance on every shim invocation."""
 
-    print_findings_table(findings, console)
+    def fake_main(**_: object) -> None:
+        raise click.exceptions.Exit(0)
 
-    # Should print success message
-    console.print.assert_called_once()
-    call_args = console.print.call_args[0][0]
-    assert "No issues found" in call_args or "✓" in call_args
+    monkeypatch.setattr(legacy_cli.cli, "main", fake_main)
 
+    exit_code = legacy_cli.main(argv=())
+    captured = capsys.readouterr()
 
-def test_print_findings_table_with_findings():
-    """Test printing findings table with findings."""
-    console = MagicMock()
-    findings = [
-        Finding(
-            category="test_category",
-            severity=Severity.ERROR,
-            path=Path("test/file.py"),
-            message="Test message",
-            suggestion="Test suggestion",
-        )
-    ]
-
-    print_findings_table(findings, console)
-
-    # Should create and print table
-    console.print.assert_called()
-
-
-def test_print_summary_all_passed():
-    """Test summary when all checks passed."""
-    console = MagicMock()
-    summary = {"error": 0, "warning": 0, "info": 0}
-
-    print_summary(summary, console)
-
-    # Should print success message
-    console.print.assert_called()
-
-
-def test_print_summary_with_issues():
-    """Test summary with errors and warnings."""
-    console = MagicMock()
-    summary = {"error": 2, "warning": 3, "info": 1}
-
-    print_summary(summary, console)
-
-    # Should print summary with counts
-    console.print.assert_called()
-
-
-@pytest.fixture
-def temp_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    """Create a temporary project structure for CLI tests."""
-    src = tmp_path / "src" / "tq"
-    tests = tmp_path / "tests"
-    src.mkdir(parents=True)
-    tests.mkdir(parents=True)
-
-    # Create a pyproject.toml
-    pyproject = tmp_path / "pyproject.toml"
-    pyproject.write_text(
-        """
-[tool.test_quality]
-ignore_init = true
-"""
-    )
-
-    # Change to the temp directory
-    monkeypatch.chdir(tmp_path)
-
-    return src, tests
-
-
-def test_main_success(temp_project: tuple[Path, Path]):
-    """Test main function with successful validation."""
-    src, tests = temp_project
-
-    # Create source and test
-    (src / "foo.py").write_text("# foo")
-    (tests / "tq").mkdir()
-    (tests / "tq" / "test_foo.py").write_text("# test foo")
-
-    exit_code = main()
     assert exit_code == 0
+    assert "[deprecated]" in captured.err
+    assert "tq check" in captured.err
 
 
-def test_main_with_errors(temp_project: tuple[Path, Path]):
-    """Test main function with validation errors."""
-    src, _tests = temp_project
+def test_main_prefixes_check_for_forwarding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Forward legacy invocations as tq check subcommand calls."""
+    observed_args: list[str] = []
 
-    # Create source without test
-    (src / "foo.py").write_text("# foo")
+    def fake_main(**kwargs: object) -> None:
+        args = kwargs.get("args")
+        if isinstance(args, list) and all(isinstance(item, str) for item in args):
+            observed_args.extend(cast(list[str], args))
+        raise click.exceptions.Exit(0)
 
-    exit_code = main()
-    assert exit_code == 1
+    monkeypatch.setattr(legacy_cli.cli, "main", fake_main)
+
+    exit_code = legacy_cli.main(argv=("--isolated", "--package", "tq"))
+
+    assert exit_code == 0
+    assert observed_args == ["check", "--isolated", "--package", "tq"]
 
 
-def test_main_source_root_not_found(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    """Test main function when source root doesn't exist."""
-    monkeypatch.chdir(tmp_path)
+def test_main_does_not_double_prefix_check(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Preserve explicit check prefix for backward-safe forwarding."""
+    observed_args: list[str] = []
 
-    exit_code = main()
-    assert exit_code == 1
+    def fake_main(**kwargs: object) -> None:
+        args = kwargs.get("args")
+        if isinstance(args, list) and all(isinstance(item, str) for item in args):
+            observed_args.extend(cast(list[str], args))
+        raise click.exceptions.Exit(0)
+
+    monkeypatch.setattr(legacy_cli.cli, "main", fake_main)
+
+    exit_code = legacy_cli.main(argv=("check", "--isolated"))
+
+    assert exit_code == 0
+    assert observed_args == ["check", "--isolated"]
 
 
-def test_main_test_root_not_found(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    """Test main function when test root doesn't exist."""
-    src = tmp_path / "src" / "tq"
-    src.mkdir(parents=True)
+def test_main_maps_click_exceptions_to_exit_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Return ClickException exit codes from forwarded execution."""
 
-    monkeypatch.chdir(tmp_path)
+    def fake_main(**_: object) -> None:
+        raise click.UsageError("invalid option")
 
-    exit_code = main()
-    assert exit_code == 1
+    monkeypatch.setattr(legacy_cli.cli, "main", fake_main)
+
+    assert legacy_cli.main(argv=("--bad-option",)) == 2
