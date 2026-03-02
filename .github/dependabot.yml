@@ -9,7 +9,7 @@ updates:
       timezone: "UTC"
     open-pull-requests-limit: 5
     commit-message:
-      prefix: "deps"
+      prefix: "chore"
       include: "scope"
     groups:
       github-actions:
@@ -24,7 +24,7 @@ updates:
       timezone: "UTC"
     open-pull-requests-limit: 5
     commit-message:
-      prefix: "deps"
+      prefix: "chore"
       include: "scope"
     groups:
       github-actions-composite:
@@ -40,7 +40,7 @@ updates:
       timezone: "UTC"
     open-pull-requests-limit: 5
     commit-message:
-      prefix: "deps"
+      prefix: "chore"
       include: "scope"
     groups:
       python:
