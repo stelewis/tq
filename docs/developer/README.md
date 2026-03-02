@@ -2,6 +2,10 @@
 
 This folder contains canonical, developer-facing documentation.
 
+## Context
+
+- [tq context](./context.md)
+
 ## Standards
 
 - [Code Standards](./standards/code.md)
