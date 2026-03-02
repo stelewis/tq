@@ -17,7 +17,7 @@ jobs:
     environment: ${{ vars.PYPI_ENVIRONMENT || 'pypi' }}
     permissions:
       attestations: write
-      contents: read
+      contents: write
       id-token: write
     steps:
       - name: Checkout
@@ -176,3 +176,35 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/publish.yml" \
             --deny-self-hosted-runners
+
+      - name: Generate release checksums
+        if: ${{ github.event_name == 'push' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sha256sum dist/*.whl dist/*.tar.gz > dist/SHA256SUMS
+
+      - name: Create GitHub release
+        if: ${{ github.event_name == 'push' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+
+          if gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release '$TAG_NAME' already exists"
+            exit 0
+          fi
+
+          gh release create "$TAG_NAME" \
+            dist/*.whl \
+            dist/*.tar.gz \
+            dist/SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "$TAG_NAME" \
+            --generate-notes

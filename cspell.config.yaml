@@ -19,6 +19,7 @@ words:
   - conftest
   - dataclasses
   - docstrings
+  - duplicative
   - elif
   - filterwarnings
   - frontmatter
@@ -52,6 +53,7 @@ words:
   - rtype
   - sdist
   - setattr
+  - Sigstore
   - Stringly
   - testpaths
   - theo

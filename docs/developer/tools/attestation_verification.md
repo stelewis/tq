@@ -51,3 +51,11 @@ For offline/air-gapped verification, use the GitHub CLI bundle workflow:
 - `gh attestation download ... -R stelewis/tq`
 - `gh attestation trusted-root > trusted_root.jsonl`
 - `gh attestation verify ... --bundle <file>.jsonl --custom-trusted-root trusted_root.jsonl`
+
+## Integrity model
+
+`tq` release verification is provenance-first:
+
+- Attestations are the primary trust signal because they bind artifact identity to repository/workflow identity and runner policy.
+- `SHA256SUMS` is published with each GitHub Release as an integrity convenience for local mirroring and checksum validation.
+- Detached signatures are not currently included for this project.
