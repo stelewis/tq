@@ -7,6 +7,7 @@ from pathlib import Path
 from tq.discovery.index import AnalysisIndex
 from tq.engine.context import AnalysisContext
 from tq.engine.models import Finding, Severity
+from tq.engine.rule_id import RuleId
 from tq.rules.contracts import Rule
 
 
@@ -14,9 +15,9 @@ class DemoRule:
     """Simple protocol-conforming rule for tests."""
 
     @property
-    def rule_id(self) -> str:
+    def rule_id(self) -> RuleId:
         """Return stable demo identifier."""
-        return "demo-rule"
+        return RuleId("demo-rule")
 
     def evaluate(self, context: AnalysisContext) -> tuple[Finding, ...]:
         """Emit one static finding."""
@@ -46,4 +47,4 @@ def test_rule_protocol_shape_runtime() -> None:
     assert isinstance(rule, Rule)
     findings = rule.evaluate(context)
     assert len(findings) == 1
-    assert findings[0].rule_id == "demo-rule"
+    assert findings[0].rule_id == RuleId("demo-rule")

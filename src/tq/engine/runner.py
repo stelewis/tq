@@ -2,21 +2,34 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from tq.engine.context import AnalysisContext
-from tq.engine.models import EngineResult, Finding, FindingSummary, Severity
+from tq.engine.models import (
+    EngineResult,
+    Finding,
+    FindingSummary,
+    Severity,
+    severity_rank,
+)
+from tq.engine.rule_id import RuleId
 from tq.rules.contracts import Rule
 
 
 class RuleEngine:
     """Execute rules against analysis context and aggregate diagnostics."""
 
-    def __init__(self, *, rules: tuple[Rule, ...]):
+    def __init__(self, *, rules: Sequence[Rule]):
         """Initialize the engine with explicit rule dependencies.
 
         Args:
             rules: Ordered collection of rule instances to evaluate.
         """
-        self._rules = rules
+        self._rules = tuple(rules)
+
+        for rule in self._rules:
+            if not isinstance(rule.rule_id, RuleId):
+                raise TypeError("Rule.rule_id must be a RuleId instance")
 
     def run(self, *, context: AnalysisContext) -> EngineResult:
         """Evaluate configured rules and aggregate deterministic results.
@@ -36,13 +49,13 @@ class RuleEngine:
         return EngineResult(findings=sorted_findings, summary=summary)
 
 
-def _finding_sort_key(finding: Finding) -> tuple[str, int, str, str, int, str]:
+def _finding_sort_key(finding: Finding) -> tuple[str, int, int, str, int, str]:
     """Build stable sort key for deterministic output ordering."""
     return (
         finding.path.as_posix(),
         finding.line if finding.line is not None else 0,
-        finding.rule_id,
-        finding.severity.value,
+        severity_rank(finding.severity),
+        finding.rule_id.value,
         len(finding.message),
         finding.message,
     )

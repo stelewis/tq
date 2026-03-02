@@ -4,16 +4,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from tq.discovery.index import AnalysisIndex
 from tq.engine.context import AnalysisContext
 from tq.engine.models import Finding, Severity
+from tq.engine.rule_id import RuleId
 from tq.engine.runner import RuleEngine
 
 
 class _NoFindingRule:
     @property
-    def rule_id(self) -> str:
-        return "no-findings"
+    def rule_id(self) -> RuleId:
+        return RuleId("no-findings")
 
     def evaluate(self, context: AnalysisContext) -> tuple[Finding, ...]:
         _ = context
@@ -22,8 +25,8 @@ class _NoFindingRule:
 
 class _MixedRuleA:
     @property
-    def rule_id(self) -> str:
-        return "rule-a"
+    def rule_id(self) -> RuleId:
+        return RuleId("rule-a")
 
     def evaluate(self, context: AnalysisContext) -> tuple[Finding, ...]:
         _ = context
@@ -47,8 +50,8 @@ class _MixedRuleA:
 
 class _MixedRuleB:
     @property
-    def rule_id(self) -> str:
-        return "rule-b"
+    def rule_id(self) -> RuleId:
+        return RuleId("rule-b")
 
     def evaluate(self, context: AnalysisContext) -> tuple[Finding, ...]:
         _ = context
@@ -113,4 +116,63 @@ def test_engine_executes_rule_instances() -> None:
     result = engine.run(context=_context())
 
     assert len(result.findings) == 1
-    assert result.findings[0].rule_id == "rule-b"
+    assert result.findings[0].rule_id == RuleId("rule-b")
+
+
+def test_engine_rejects_blank_rule_id() -> None:
+    """Reject configured rules with blank identifiers."""
+
+    class _BlankRule:
+        @property
+        def rule_id(self) -> str:
+            return "blank"
+
+        def evaluate(self, context: AnalysisContext) -> tuple[Finding, ...]:
+            _ = context
+            return ()
+
+    with pytest.raises(TypeError):
+        RuleEngine(rules=(_BlankRule(),))
+
+
+def test_engine_sorts_severity_for_same_location_and_rule() -> None:
+    """Order severities as error, warning, info for equivalent locations."""
+
+    class _SeverityRule:
+        @property
+        def rule_id(self) -> RuleId:
+            return RuleId("same-rule")
+
+        def evaluate(self, context: AnalysisContext) -> tuple[Finding, ...]:
+            _ = context
+            return (
+                Finding(
+                    rule_id=self.rule_id,
+                    severity=Severity.INFO,
+                    message="info",
+                    path=Path("tests/tq/test_alpha.py"),
+                    line=1,
+                ),
+                Finding(
+                    rule_id=self.rule_id,
+                    severity=Severity.ERROR,
+                    message="error",
+                    path=Path("tests/tq/test_alpha.py"),
+                    line=1,
+                ),
+                Finding(
+                    rule_id=self.rule_id,
+                    severity=Severity.WARNING,
+                    message="warning",
+                    path=Path("tests/tq/test_alpha.py"),
+                    line=1,
+                ),
+            )
+
+    result = RuleEngine(rules=(_SeverityRule(),)).run(context=_context())
+
+    assert [finding.severity for finding in result.findings] == [
+        Severity.ERROR,
+        Severity.WARNING,
+        Severity.INFO,
+    ]

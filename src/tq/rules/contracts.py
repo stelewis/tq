@@ -6,6 +6,7 @@ from typing import Protocol, runtime_checkable
 
 from tq.engine.context import AnalysisContext
 from tq.engine.models import Finding
+from tq.engine.rule_id import RuleId
 
 
 @runtime_checkable
@@ -13,7 +14,7 @@ class Rule(Protocol):
     """Contract for analysis rules used by the orchestration engine."""
 
     @property
-    def rule_id(self) -> str:
+    def rule_id(self) -> RuleId:
         """Return stable rule identifier for diagnostics and selection."""
 
     def evaluate(self, context: AnalysisContext) -> tuple[Finding, ...]:

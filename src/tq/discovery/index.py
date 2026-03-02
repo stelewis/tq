@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -28,8 +29,8 @@ class AnalysisIndex:
         *,
         source_root: Path,
         test_root: Path,
-        source_files: list[Path] | tuple[Path, ...],
-        test_files: list[Path] | tuple[Path, ...],
+        source_files: Iterable[Path],
+        test_files: Iterable[Path],
     ) -> AnalysisIndex:
         """Create an index with deterministic file ordering.
 
@@ -42,9 +43,12 @@ class AnalysisIndex:
         Returns:
             AnalysisIndex with sorted immutable file collections.
         """
+        normalized_source_root = source_root.resolve()
+        normalized_test_root = test_root.resolve()
+
         return cls(
-            source_root=source_root,
-            test_root=test_root,
-            source_files=tuple(sorted(source_files)),
-            test_files=tuple(sorted(test_files)),
+            source_root=normalized_source_root,
+            test_root=normalized_test_root,
+            source_files=tuple(sorted(set(source_files))),
+            test_files=tuple(sorted(set(test_files))),
         )

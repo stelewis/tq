@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from types import MappingProxyType
+
+from tq.engine.rule_id import RuleId
 
 
 class Severity(StrEnum):
@@ -13,6 +16,20 @@ class Severity(StrEnum):
     ERROR = "error"
     WARNING = "warning"
     INFO = "info"
+
+
+SEVERITY_ORDER = MappingProxyType(
+    {
+        Severity.ERROR: 0,
+        Severity.WARNING: 1,
+        Severity.INFO: 2,
+    }
+)
+
+
+def severity_rank(severity: Severity) -> int:
+    """Return stable numeric rank for severity ordering."""
+    return SEVERITY_ORDER[severity]
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,12 +45,24 @@ class Finding:
         suggestion: Optional remediation guidance.
     """
 
-    rule_id: str
+    rule_id: RuleId
     severity: Severity
     message: str
     path: Path
     line: int | None = None
     suggestion: str | None = None
+
+    def __post_init__(self) -> None:
+        """Validate finding invariants.
+
+        Raises:
+            ValueError: If required values are missing or invalid.
+        """
+        if not self.message.strip():
+            raise ValueError("Finding message must be non-empty")
+
+        if self.line is not None and self.line < 1:
+            raise ValueError("Finding line must be >= 1 when provided")
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,6 +72,15 @@ class FindingSummary:
     errors: int
     warnings: int
     infos: int
+
+    def __post_init__(self) -> None:
+        """Validate summary counters.
+
+        Raises:
+            ValueError: If any summary count is negative.
+        """
+        if self.errors < 0 or self.warnings < 0 or self.infos < 0:
+            raise ValueError("FindingSummary counts must be non-negative")
 
     @property
     def total(self) -> int:
