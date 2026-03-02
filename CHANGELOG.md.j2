@@ -15,7 +15,7 @@
 {%- endif -%}
 {%- endmacro -%}
 {%- for entry in tree -%}
-## {{ entry.version }}{% if entry.date %} ({{ entry.date }}){% endif %}
+## [{{ entry.version }}]{% if entry.date %} - {{ entry.date }}{% endif %}
 {{ '\n' -}}
 
 {%- for change_key, changes in entry.changes.items() %}
