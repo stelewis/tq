@@ -307,3 +307,9 @@ jobs:
 
       - name: pip-audit
         run: uv run pip-audit
+
+      - name: Setup docs toolchain
+        uses: ./.github/actions/setup-mise-docs
+
+      - name: npm audit (docs toolchain)
+        run: mise exec -- npm audit --audit-level=high
