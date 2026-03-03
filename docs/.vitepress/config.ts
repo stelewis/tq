@@ -12,65 +12,82 @@ export default defineConfig({
   outDir: ".vitepress/dist",
   cacheDir: ".vitepress/cache",
   ignoreDeadLinks: false,
-  lastUpdated: true,
+  lastUpdated: false,
+  head: [
+    [
+      "link",
+      { rel: "icon", type: "image/svg+xml", href: "/tq-logo-mini.svg" }
+    ],
+    ["meta", { name: "theme-color", content: "#6366f1" }]
+  ],
   themeConfig: {
+    logo: { src: "/tq-logo-mini.svg", width: 24, height: 24 },
     search: {
       provider: "local"
     },
     nav: [
-      { text: "Docs", link: "/guide/getting-started" },
+      { text: "Docs", link: "/guide/what-is-tq" },
       { text: "Developer", link: "/developer/" }
     ],
     sidebar: {
       "/guide/": [
         {
           text: "Guide",
+          link: "/guide/",
+          collapsed: false,
           items: [
-            { text: "Installation", link: "/guide/installation" },
-            { text: "Getting Started", link: "/guide/getting-started" }
+            { text: "What is tq?", link: "/guide/what-is-tq" },
+            { text: "QuickStart", link: "/guide/quickstart" }
           ]
         },
         {
           text: "Reference",
+          link: "/reference/",
+          collapsed: false,
           items: [
-            {
-              text: "Rules",
-              link: "/reference/rules/",
-              collapsed: true,
-              items: [...rulesSidebarItems]
-            },
             { text: "CLI", link: "/reference/cli" },
             { text: "Configuration", link: "/reference/configuration" },
             { text: "Exit Codes", link: "/reference/exit-codes" }
           ]
+        },
+        {
+          text: "Rules",
+          link: "/reference/rules/",
+          collapsed: false,
+          items: [...rulesSidebarItems]
         }
       ],
       "/reference/": [
         {
           text: "Guide",
+          link: "/guide/",
+          collapsed: false,
           items: [
-            { text: "Installation", link: "/guide/installation" },
-            { text: "Getting Started", link: "/guide/getting-started" }
+            { text: "What is tq?", link: "/guide/what-is-tq" },
+            { text: "QuickStart", link: "/guide/quickstart" }
           ]
         },
         {
           text: "Reference",
+          link: "/reference/",
+          collapsed: false,
           items: [
-            {
-              text: "Rules",
-              link: "/reference/rules/",
-              collapsed: true,
-              items: [...rulesSidebarItems]
-            },
             { text: "CLI", link: "/reference/cli" },
             { text: "Configuration", link: "/reference/configuration" },
             { text: "Exit Codes", link: "/reference/exit-codes" }
           ]
+        },
+        {
+          text: "Rules",
+          link: "/reference/rules/",
+          collapsed: false,
+          items: [...rulesSidebarItems]
         }
       ],
       "/developer/": [
         {
           text: "Developer",
+          collapsed: false,
           items: [
             { text: "Overview", link: "/developer/" },
             { text: "Context", link: "/developer/context" }
@@ -78,6 +95,7 @@ export default defineConfig({
         },
         {
           text: "Standards",
+          collapsed: false,
           items: [
             { text: "Code Standards", link: "/developer/standards/code" },
             { text: "Docs Standards", link: "/developer/standards/docs" },
@@ -91,6 +109,7 @@ export default defineConfig({
         },
         {
           text: "User Contract",
+          collapsed: false,
           items: [
             { text: "CLI", link: "/reference/cli" },
             { text: "Configuration", link: "/reference/configuration" },
@@ -100,6 +119,7 @@ export default defineConfig({
         },
         {
           text: "Project Policy",
+          collapsed: false,
           items: [
             { text: "Versioning", link: "/developer/versioning" },
             { text: "Governance", link: "/developer/governance" }
@@ -107,6 +127,7 @@ export default defineConfig({
         },
         {
           text: "Operations",
+          collapsed: false,
           items: [
             {
               text: "Attestation Verification",
@@ -117,15 +138,12 @@ export default defineConfig({
         },
         {
           text: "Architecture",
+          collapsed: false,
           items: [
             { text: "Architecture", link: "/developer/architecture" }
           ]
         }
       ]
-    },
-    editLink: {
-      pattern: "https://github.com/stelewis/tq/edit/main/docs/:path",
-      text: "Edit this page on GitHub"
     },
     socialLinks: [{ icon: "github", link: "https://github.com/stelewis/tq" }]
   }

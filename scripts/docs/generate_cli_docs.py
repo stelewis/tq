@@ -117,7 +117,7 @@ def _render_cli_table(
     lines = [
         "## `tq check` options",
         "",
-        "The table below documents the command definitions.",
+        "The table below documents command options.",
         "",
         "| Flags | Config key | Default | Description |",
         "| --- | --- | --- | --- |",

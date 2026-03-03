@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="560" viewBox="0 0 560 560" fill="none" role="img" aria-label="tq logo">
+  <defs>
+    <linearGradient id="tq-grad" x1="36" y1="36" x2="524" y2="524" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#41d1ff" />
+      <stop offset="1" stop-color="#bd34fe" />
+    </linearGradient>
+  </defs>
+  <rect x="36" y="36" width="488" height="488" rx="132" fill="url(#tq-grad)" />
+  <g transform="translate(110 154) scale(17 32)">
+    <path
+      d="M4 0H6V1H4V0ZM4 1H6V2H4V1ZM1 2H9V3H1V2ZM12 2H20V3H12V2ZM4 3H6V4H4V3ZM11 3H13V4H11V3ZM18 3H20V4H18V3ZM4 4H6V5H4V4ZM11 4H13V5H11V4ZM18 4H20V5H18V4ZM4 5H6V6H4V5ZM11 5H13V6H11V5ZM17 5H20V6H17V5ZM5 6H9V7H5V6ZM12 6H17V7H12V6ZM18 6H20V7H18V6ZM18 7H20V8H18V7ZM18 8H20V9H18V8Z"
+      fill="white"
+    />
+    <path
+      d="M3 0H4V1H3V0ZM3 1H4V2H3V1ZM0 2H1V3H0V2ZM11 2H12V3H11V2ZM3 3H4V4H3V3ZM10 3H11V4H10V3ZM17 3H18V4H17V3ZM3 4H4V5H3V4ZM10 4H11V5H10V4ZM17 4H18V5H17V4ZM3 5H4V6H3V5ZM10 5H11V6H10V5ZM16 5H17V6H16V5ZM4 6H5V7H4V6ZM11 6H12V7H11V6ZM17 6H18V7H17V6ZM17 7H18V8H17V7ZM17 8H18V9H17V8Z"
+      fill="white"
+      opacity="0.74"
+    />
+  </g>
+</svg>

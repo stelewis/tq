@@ -8,7 +8,4 @@
 
 ## Exit behavior toggles
 
-- `--exit-zero`: return `0` even when diagnostics are found.
-
-Warning escalation behavior is part of the CLI contract direction and will be
-documented here as it is finalized.
+- `--exit-zero`: return `0` even when diagnostics are found

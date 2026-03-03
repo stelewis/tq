@@ -21,7 +21,7 @@ This section contains documentation for contributors and maintainers.
 ## Project policy
 
 - [Versioning policy](./versioning.md)
-- [Reference governance](./governance.md)
+- [Governance](./governance.md)
 
 ## Developer operations
 
@@ -31,4 +31,3 @@ This section contains documentation for contributors and maintainers.
 ## Architecture
 
 - [Architecture](./architecture.md)
-- Architecture Decision Records (ADRs) are maintained in `docs/adr/`.

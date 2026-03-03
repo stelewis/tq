@@ -5,31 +5,31 @@ hero:
   name: tq
   text: Test quality checks for Python codebases
   tagline: Keep tests discoverable, focused, actionable, and maintainable.
+  image:
+    src: /tq-logo-large.svg
+    alt: tq
   actions:
     - theme: brand
-      text: Get Started
-      link: /guide/installation
+      text: What is tq?
+      link: /guide/what-is-tq
+    - theme: alt
+      text: QuickStart
+      link: /guide/quickstart
     - theme: alt
       text: Rules Index
       link: /reference/rules/
+    - theme: alt
+      text: GitHub
+      link: https://github.com/stelewis/tq
 
 features:
-  - title: Stable rule contracts
+  - icon: 📐
+    title: Stable rule contracts
     details: Use stable rule IDs and deterministic diagnostics for reliable CI workflows.
-  - title: ruff and ty inspired ergonomics
+  - icon: ⚡️
+    title: ruff inspired ergonomics
     details: Subcommand-first CLI and strict, explicit reference documentation.
-  - title: Designed for maintainability
+  - icon: 🧭
+    title: Designed for maintainability
     details: Enforce test discoverability and structure to reduce long-term maintenance cost.
 ---
-
-# Overview
-
-`tq` enforces test quality contracts for Python repositories.
-
-## Docs
-
-- [Installation](./guide/installation.md)
-- [Getting started](./guide/getting-started.md)
-- [CLI reference](./reference/cli.md)
-- [Configuration reference](./reference/configuration.md)
-- [Rules reference](./reference/rules/index.md)

@@ -4,9 +4,9 @@
 
 ## Distribution and invocation
 
-The published package name is `tqlint` and the installed command is `tq`.
+The published package name is `tqlint`, and the installed command is `tq`.
 
-For installation and execution modes (`uv` and `pip`), see [Installation](../guide/installation.md).
+For the installation and setup path, see [QuickStart](../guide/quickstart.md).
 
 ## Command model
 
@@ -16,15 +16,15 @@ Primary entrypoint:
 
 Design goals for this command surface:
 
-- deterministic diagnostics,
-- explicit rule selection controls,
-- machine-readable reporting for CI tooling.
+- deterministic diagnostics
+- explicit rule-selection controls
+- machine-readable reporting for CI tooling
 
 <!-- BEGIN GENERATED:check-options -->
 
 ## `tq check` options
 
-The table below documents the command definitions.
+The table below documents command options.
 
 | Flags | Config key | Default | Description |
 | --- | --- | --- | --- |
@@ -51,8 +51,8 @@ Run `tq check --help` for the runtime source of truth.
 
 `tq check` supports:
 
-- `text` (default): concise terminal diagnostics.
-- `json`: machine-readable diagnostics payload.
+- `text` (default): concise terminal diagnostics
+- `json`: machine-readable diagnostics payload
 
 Use:
 
