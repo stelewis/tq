@@ -48,7 +48,7 @@ class OrphanedTestRule:
 
     def evaluate(self, context: AnalysisContext) -> tuple[Finding, ...]:
         """Evaluate orphaned unit tests against the immutable index."""
-        package_name = context.index.source_root.name
+        package_path = _package_path_from_context(context)
         source_files = set(context.index.source_files)
         findings: list[Finding] = []
 
@@ -59,12 +59,13 @@ class OrphanedTestRule:
             if not _is_unit_test_filename(test_file.name):
                 continue
 
-            if test_file.parts[0] != package_name:
+            if not _starts_with_path_prefix(test_file=test_file, prefix=package_path):
                 continue
 
             if self._has_corresponding_source(
                 test_file=test_file,
                 source_files=source_files,
+                package_path=package_path,
             ):
                 continue
 
@@ -90,9 +91,11 @@ class OrphanedTestRule:
         *,
         test_file: Path,
         source_files: set[Path],
+        package_path: Path,
     ) -> bool:
         """Check whether a unit test resolves to any source module."""
-        relative_source_dir = Path(*test_file.parts[1:-1])
+        prefix_len = len(package_path.parts)
+        relative_source_dir = Path(*test_file.parts[prefix_len:-1])
         for module_name in candidate_module_names(
             module_stem=test_file.stem[5:],
             qualifier_strategy=self._qualifier_strategy,
@@ -113,3 +116,21 @@ def _is_non_unit_test_path(test_file: Path) -> bool:
 def _is_unit_test_filename(filename: str) -> bool:
     """Check if filename follows unit test naming shape."""
     return filename.startswith("test_") and filename.endswith(".py")
+
+
+def _package_path_from_context(context: AnalysisContext) -> Path:
+    """Resolve target package path from context settings."""
+    value = context.settings.get("package_path")
+    if isinstance(value, str) and value.strip():
+        return Path(value)
+
+    return Path(context.index.source_root.name)
+
+
+def _starts_with_path_prefix(*, test_file: Path, prefix: Path) -> bool:
+    """Check whether a test path starts with the given prefix path."""
+    prefix_parts = prefix.parts
+    if len(test_file.parts) < len(prefix_parts):
+        return False
+
+    return test_file.parts[: len(prefix_parts)] == prefix_parts

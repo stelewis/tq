@@ -55,7 +55,7 @@ class MappingMissingTestRule:
 
     def evaluate(self, context: AnalysisContext) -> tuple[Finding, ...]:
         """Evaluate mapping coverage against the immutable analysis index."""
-        package_name = context.index.source_root.name
+        package_path = _package_path_from_context(context)
         findings: list[Finding] = []
 
         for source_file in context.index.source_files:
@@ -65,13 +65,13 @@ class MappingMissingTestRule:
             if self._has_matching_test(
                 source_file=source_file,
                 test_files=context.index.test_files,
-                package_name=package_name,
+                package_path=package_path,
             ):
                 continue
 
             expected_test_path = self._expected_test_path(
                 source_file=source_file,
-                package_name=package_name,
+                package_path=package_path,
             )
             findings.append(
                 Finding(
@@ -90,12 +90,12 @@ class MappingMissingTestRule:
         *,
         source_file: Path,
         test_files: tuple[Path, ...],
-        package_name: str,
+        package_path: Path,
     ) -> bool:
         """Check whether at least one matching test path exists."""
         expected_path = self._expected_test_path(
             source_file=source_file,
-            package_name=package_name,
+            package_path=package_path,
         )
         source_stem = source_file.stem
 
@@ -117,11 +117,20 @@ class MappingMissingTestRule:
 
         return False
 
-    def _expected_test_path(self, *, source_file: Path, package_name: str) -> Path:
+    def _expected_test_path(self, *, source_file: Path, package_path: Path) -> Path:
         """Build canonical expected unit test path for a source module."""
         if source_file.name == "__init__.py":
             stem = "test___init__"
         else:
             stem = f"test_{source_file.stem}"
 
-        return Path(package_name) / source_file.parent / f"{stem}.py"
+        return package_path / source_file.parent / f"{stem}.py"
+
+
+def _package_path_from_context(context: AnalysisContext) -> Path:
+    """Resolve target package path from context settings."""
+    value = context.settings.get("package_path")
+    if isinstance(value, str) and value.strip():
+        return Path(value)
+
+    return Path(context.index.source_root.name)

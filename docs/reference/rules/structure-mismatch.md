@@ -2,7 +2,7 @@
 
 ## What it does
 
-Detect unit test files that do not mirror the expected source-relative path layout.
+Detect unit test files that do not mirror the expected source-relative path layout. In multi-target mode, evaluation is scoped to the active target package path and excludes sibling configured target roots.
 
 ## Why this matters
 
@@ -15,6 +15,7 @@ Structure drift makes tests harder to find, weakens navigability, and increases 
 ## Trigger conditions
 
 - A unit test file is discovered.
+- The file belongs to the active target package path.
 - The file resolves to a source target but lives in a different path.
 - Integration and e2e paths are excluded from this rule.
 
@@ -30,8 +31,10 @@ Structure drift makes tests harder to find, weakens navigability, and increases 
 
 ## Related configuration and suppression controls
 
+- `--target`
 - `--select structure-mismatch`
 - `--ignore structure-mismatch`
+- `[tool.tq].targets`
 - `[tool.tq].select / [tool.tq].ignore`
 
 ## Added in

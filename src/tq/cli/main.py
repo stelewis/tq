@@ -178,6 +178,10 @@ def check_command(  # noqa: PLR0913
         _validate_target_paths(target)
 
     target_results = []
+    known_target_package_paths = tuple(
+        configured_target.package_path.as_posix()
+        for configured_target in config.targets
+    )
     for target in active_targets:
         rules = _build_rules(config=target)
         index = build_analysis_index(
@@ -186,7 +190,12 @@ def check_command(  # noqa: PLR0913
         )
         context = AnalysisContext.create(
             index=index,
-            settings={"target_name": target.name},
+            settings={
+                "target_name": target.name,
+                "package_path": target.package_path.as_posix(),
+                "known_target_package_paths": known_target_package_paths,
+                "test_root_display": target.test_root.name,
+            },
         )
         target_results.append(RuleEngine(rules=rules).run(context=context))
 
