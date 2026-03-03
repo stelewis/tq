@@ -1,6 +1,7 @@
 import { defineConfig } from "vitepress";
 
 export default defineConfig({
+  base: "/tq/",
   lang: "en-US",
   title: "tq",
   description:

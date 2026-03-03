@@ -63,8 +63,12 @@ allowed_qualifiers = ["regression"]
 
 ## Documentation
 
-- See [docs/developer/tools/tq_check.md](docs/developer/tools/tq_check.md) for tool usage and configuration details.
-- See [docs/developer/tools/rules.md](docs/developer/tools/rules.md) for built-in rules.
+- Overview: [https://stelewis.github.io/tq/](https://stelewis.github.io/tq/)
+- Getting started: [https://stelewis.github.io/tq/guide/getting-started](https://stelewis.github.io/tq/guide/getting-started)
+- CLI reference: [https://stelewis.github.io/tq/reference/cli](https://stelewis.github.io/tq/reference/cli)
+- Configuration reference: [https://stelewis.github.io/tq/reference/configuration](https://stelewis.github.io/tq/reference/configuration)
+- Exit codes: [https://stelewis.github.io/tq/reference/exit-codes](https://stelewis.github.io/tq/reference/exit-codes)
+- Rules reference: [https://stelewis.github.io/tq/reference/rules/](https://stelewis.github.io/tq/reference/rules/)
 
 ## Development
 

@@ -129,6 +129,20 @@ jobs:
             docs/reference/rules/index.md \
             docs/reference/rules/*.md
 
+  docs-build:
+    name: Docs build (VitePress)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup docs toolchain
+        uses: ./.github/actions/setup-mise-docs
+
+      - name: Build docs
+        run: mise run docs-build
+
   tests:
     name: Tests (pytest)
     runs-on: ubuntu-latest
