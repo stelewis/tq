@@ -133,21 +133,36 @@ def _load_partial_from_pyproject(
         raise ConfigValidationError(msg)
 
     defaults = PartialRuleConfig(
-        ignore_init_modules=_expect_optional_bool(tq_section, "ignore_init_modules"),
+        ignore_init_modules=_expect_optional_bool(
+            tq_section,
+            "ignore_init_modules",
+            location="tool.tq",
+        ),
         max_test_file_non_blank_lines=_expect_optional_positive_int(
             tq_section,
             "max_test_file_non_blank_lines",
+            location="tool.tq",
         ),
         qualifier_strategy=_expect_optional_qualifier_strategy(
             tq_section,
             "qualifier_strategy",
+            location="tool.tq",
         ),
         allowed_qualifiers=_expect_optional_string_tuple(
             tq_section,
             "allowed_qualifiers",
+            location="tool.tq",
         ),
-        select=_expect_optional_rule_ids(tq_section, "select"),
-        ignore=_expect_optional_rule_ids(tq_section, "ignore"),
+        select=_expect_optional_rule_ids(
+            tq_section,
+            "select",
+            location="tool.tq",
+        ),
+        ignore=_expect_optional_rule_ids(
+            tq_section,
+            "ignore",
+            location="tool.tq",
+        ),
     )
 
     targets = _expect_optional_targets(tq_section, "targets")
@@ -331,41 +346,56 @@ def _resolve_path(*, cwd: Path, value: str) -> Path:
     return (cwd / candidate).resolve()
 
 
-def _expect_optional_str(document: dict[str, Any], key: str) -> str | None:
+def _expect_optional_str(
+    document: dict[str, Any],
+    key: str,
+    *,
+    location: str,
+) -> str | None:
     """Read optional non-empty string field from config document."""
     value = document.get(key)
     if value is None:
         return None
     if not isinstance(value, str):
-        msg = f"tool.tq.{key} must be a string"
+        msg = f"{location}.{key} must be a string"
         raise ConfigValidationError(msg)
     if not value.strip():
-        msg = f"tool.tq.{key} must be non-empty"
+        msg = f"{location}.{key} must be non-empty"
         raise ConfigValidationError(msg)
     return value
 
 
-def _expect_optional_bool(document: dict[str, Any], key: str) -> bool | None:
+def _expect_optional_bool(
+    document: dict[str, Any],
+    key: str,
+    *,
+    location: str,
+) -> bool | None:
     """Read optional boolean field from config document."""
     value = document.get(key)
     if value is None:
         return None
     if not isinstance(value, bool):
-        msg = f"tool.tq.{key} must be a boolean"
+        msg = f"{location}.{key} must be a boolean"
         raise ConfigValidationError(msg)
     return value
 
 
-def _expect_optional_positive_int(document: dict[str, Any], key: str) -> int | None:
+def _expect_optional_positive_int(
+    document: dict[str, Any],
+    key: str,
+    *,
+    location: str,
+) -> int | None:
     """Read optional positive integer field from config document."""
     value = document.get(key)
     if value is None:
         return None
     if not isinstance(value, int):
-        msg = f"tool.tq.{key} must be an integer"
+        msg = f"{location}.{key} must be an integer"
         raise ConfigValidationError(msg)
     if value < 1:
-        msg = f"tool.tq.{key} must be >= 1"
+        msg = f"{location}.{key} must be >= 1"
         raise ConfigValidationError(msg)
     return value
 
@@ -373,26 +403,30 @@ def _expect_optional_positive_int(document: dict[str, Any], key: str) -> int | N
 def _expect_optional_qualifier_strategy(
     document: dict[str, Any],
     key: str,
+    *,
+    location: str,
 ) -> QualifierStrategy | None:
     """Read optional qualifier strategy enum value from config document."""
     value = document.get(key)
     if value is None:
         return None
     if not isinstance(value, str):
-        msg = f"tool.tq.{key} must be a string"
+        msg = f"{location}.{key} must be a string"
         raise ConfigValidationError(msg)
 
     try:
         return QualifierStrategy(value)
     except ValueError as error:
         choices = ", ".join(strategy.value for strategy in QualifierStrategy)
-        msg = f"tool.tq.{key} must be one of: {choices}"
+        msg = f"{location}.{key} must be one of: {choices}"
         raise ConfigValidationError(msg) from error
 
 
 def _expect_optional_string_tuple(
     document: dict[str, Any],
     key: str,
+    *,
+    location: str,
 ) -> tuple[str, ...] | None:
     """Read optional list of non-empty strings from config document."""
     value = document.get(key)
@@ -400,13 +434,13 @@ def _expect_optional_string_tuple(
         return None
 
     if not isinstance(value, list):
-        msg = f"tool.tq.{key} must be an array of strings"
+        msg = f"{location}.{key} must be an array of strings"
         raise ConfigValidationError(msg)
 
     items: list[str] = []
     for item in value:
         if not isinstance(item, str) or not item.strip():
-            msg = f"tool.tq.{key} must contain only non-empty strings"
+            msg = f"{location}.{key} must contain only non-empty strings"
             raise ConfigValidationError(msg)
         items.append(item)
 
@@ -416,9 +450,11 @@ def _expect_optional_string_tuple(
 def _expect_optional_rule_ids(
     document: dict[str, Any],
     key: str,
+    *,
+    location: str,
 ) -> tuple[RuleId, ...] | None:
     """Read optional list of rule identifiers from config document."""
-    values = _expect_optional_string_tuple(document, key)
+    values = _expect_optional_string_tuple(document, key, location=location)
     if values is None:
         return None
 
@@ -427,7 +463,7 @@ def _expect_optional_rule_ids(
         try:
             rule_ids.append(RuleId(value))
         except ValueError as error:
-            msg = f"tool.tq.{key} contains invalid rule id: {value}"
+            msg = f"{location}.{key} contains invalid rule id: {value}"
             raise ConfigValidationError(msg) from error
 
     return tuple(rule_ids)
@@ -459,25 +495,56 @@ def _expect_optional_targets(
 
         targets.append(
             PartialTargetConfig(
-                name=_expect_optional_str(item, "name"),
-                package=_expect_optional_str(item, "package"),
-                source_root=_expect_optional_str(item, "source_root"),
-                test_root=_expect_optional_str(item, "test_root"),
-                ignore_init_modules=_expect_optional_bool(item, "ignore_init_modules"),
+                name=_expect_optional_str(
+                    item,
+                    "name",
+                    location="tool.tq.targets",
+                ),
+                package=_expect_optional_str(
+                    item,
+                    "package",
+                    location="tool.tq.targets",
+                ),
+                source_root=_expect_optional_str(
+                    item,
+                    "source_root",
+                    location="tool.tq.targets",
+                ),
+                test_root=_expect_optional_str(
+                    item,
+                    "test_root",
+                    location="tool.tq.targets",
+                ),
+                ignore_init_modules=_expect_optional_bool(
+                    item,
+                    "ignore_init_modules",
+                    location="tool.tq.targets",
+                ),
                 max_test_file_non_blank_lines=_expect_optional_positive_int(
                     item,
                     "max_test_file_non_blank_lines",
+                    location="tool.tq.targets",
                 ),
                 qualifier_strategy=_expect_optional_qualifier_strategy(
                     item,
                     "qualifier_strategy",
+                    location="tool.tq.targets",
                 ),
                 allowed_qualifiers=_expect_optional_string_tuple(
                     item,
                     "allowed_qualifiers",
+                    location="tool.tq.targets",
                 ),
-                select=_expect_optional_rule_ids(item, "select"),
-                ignore=_expect_optional_rule_ids(item, "ignore"),
+                select=_expect_optional_rule_ids(
+                    item,
+                    "select",
+                    location="tool.tq.targets",
+                ),
+                ignore=_expect_optional_rule_ids(
+                    item,
+                    "ignore",
+                    location="tool.tq.targets",
+                ),
             ),
         )
 

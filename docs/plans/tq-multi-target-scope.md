@@ -94,6 +94,19 @@ Project-level `[tool.tq]` keeps shared defaults and operational flags; targets p
 - Add migration notes for replacing single-scope config with target entries.
 - Regenerate any docs artifacts that are source-of-truth generated.
 
+## Phase 6: Additional polish and verification
+
+- Add stricter `package` validation beyond non-empty strings.
+  - Require dotted Python identifier segments.
+  - Fail fast for invalid import package syntax.
+- Improve target-entry error precision for arrays.
+  - Include target index context where possible (for example `tool.tq.targets[1].name`) to speed troubleshooting.
+- Add explicit duplicate-entry policy for list-valued keys.
+  - Consider failing on duplicate `allowed_qualifiers` and duplicate rule IDs in `select` / `ignore` rather than silently normalizing.
+- Introduce an explicit run-planner unit as a separable orchestration boundary.
+  - Keep current behavior identical.
+  - Isolate planning from execution to reduce future change surface.
+
 ## Verification
 
 - `uv run ruff format`
@@ -108,11 +121,3 @@ Functional acceptance criteria:
 - `tq check --target scripts` scopes findings to `scripts` only.
 - Unknown target names fail fast with an actionable error.
 - Invalid target entries fail fast with precise key-level errors.
-
-## Immediate interim usage (before implementation)
-
-Use a second explicit `tq` invocation in CI for scripts scope:
-
-- `uv run tq check --isolated --package scripts --source-root . --test-root tests`
-
-This keeps enforcement strict today while the multi-target model is implemented.

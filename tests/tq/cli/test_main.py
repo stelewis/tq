@@ -208,6 +208,34 @@ def test_target_filter_scopes_output() -> None:
     assert payload["findings"][0]["path"] == "scripts/docs/generate.py"
 
 
+def test_repeated_target_flag_does_not_duplicate_findings() -> None:
+    """Run each selected target at most once even if --target repeats."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        _write_project_config(Path("pyproject.toml"))
+        _write(Path("src/tq/engine/runner.py"), "def run() -> None:\n    pass\n")
+        Path("tests").mkdir(parents=True, exist_ok=True)
+
+        result = runner.invoke(
+            cli,
+            [
+                "check",
+                "--output-format",
+                "json",
+                "--target",
+                "tq",
+                "--target",
+                "tq",
+            ],
+        )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["summary"]["total"] == 1
+    assert len(payload["findings"]) == 1
+    assert payload["findings"][0]["target"] == "tq"
+
+
 def _write_project_config(path: Path) -> None:
     """Write a minimal valid project tq configuration."""
     path.write_text(

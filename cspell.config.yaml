@@ -19,6 +19,7 @@ words:
   - conftest
   - dataclass
   - dataclasses
+  - dedupe
   - docstrings
   - duplicative
   - elif

@@ -74,6 +74,35 @@ def test_resolve_rejects_duplicate_target_names(tmp_path: Path) -> None:
         )
 
 
+def test_resolve_reports_target_key_path_for_invalid_target_field(
+    tmp_path: Path,
+) -> None:
+    """Report precise target key path for invalid target field types."""
+    config_path = tmp_path / "pyproject.toml"
+    config_path.write_text(
+        (
+            "[tool.tq]\n"
+            "[[tool.tq.targets]]\n"
+            "name = 123\n"
+            'package = "tq"\n'
+            'source_root = "src"\n'
+            'test_root = "tests"\n'
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ConfigValidationError,
+        match=r"tool\.tq\.targets\.name must be a string",
+    ):
+        resolve_tq_config(
+            cwd=tmp_path,
+            explicit_config_path=config_path,
+            isolated=False,
+            cli_overrides=CliOverrides(),
+        )
+
+
 def test_cli_overrides_precede_config_defaults(tmp_path: Path) -> None:
     """Apply explicit CLI options over config defaults for all targets."""
     config_path = tmp_path / "pyproject.toml"

@@ -289,7 +289,14 @@ def _select_targets(
         msg = f"Unknown target name(s): {names}"
         raise ConfigValidationError(msg)
 
-    selected = [by_name[name] for name in selected_target_names]
+    selected: list[TqTargetConfig] = []
+    seen_names: set[str] = set()
+    for name in selected_target_names:
+        if name in seen_names:
+            continue
+        selected.append(by_name[name])
+        seen_names.add(name)
+
     return tuple(selected)
 
 
