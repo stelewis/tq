@@ -58,6 +58,7 @@ def test_generate_rules_docs_writes_index_and_rule_pages(
     assert "- `error`" in index_content
     assert "- `warning`" in index_content
     assert "- `info`" in index_content
+    assert "[governance policy](../../developer/governance.md)" in index_content
     assert "# orphaned-test" in page_content
     assert "## Trigger conditions" in page_content
     assert "export const rulesSidebarItems = [" in sidebar_content

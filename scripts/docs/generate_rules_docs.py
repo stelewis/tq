@@ -189,7 +189,7 @@ def _render_index(
             ),
             (
                 "- Rule additions and severity default changes follow "
-                "[governance policy](../governance.md)."
+                "[governance policy](../../developer/governance.md)."
             ),
             "",
             "## Manifest",

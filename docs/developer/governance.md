@@ -1,6 +1,6 @@
-# Reference Governance
+# Governance
 
-This page documents the governance policy for `tq` reference documentation.
+This page documents governance policy for `tq` contract documentation.
 
 ## Reference ownership and review
 
@@ -12,7 +12,7 @@ Reference pages are contract pages. They require a stricter ownership and review
 | `docs/reference/configuration.md` | Runtime config model + `docs/reference/cli/options-manifest.yaml` + `scripts/docs/generate_cli_docs.py` | Key/schema correctness, precedence behavior, and strict validation semantics |
 | `docs/reference/exit-codes.md` | CLI/runtime exit behavior | Exit contract stability and compatibility impact |
 | `docs/reference/rules/index.md` and `docs/reference/rules/*.md` | `docs/reference/rules/manifest.yaml` + `scripts/docs/generate_rules_docs.py` | Rule ID stability, severity defaults, and per-rule contract clarity |
-| `docs/reference/versioning.md` | Project versioning policy for user-visible contracts | Correct classification of breaking vs non-breaking changes |
+| `docs/developer/versioning.md` | Project versioning policy for user-visible contracts | Correct classification of breaking vs non-breaking changes |
 
 Required review baseline for any PR that touches `docs/reference/**`:
 

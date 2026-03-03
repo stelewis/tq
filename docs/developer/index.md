@@ -1,6 +1,6 @@
 # Developer
 
-This section contains the documentation for contributors and maintainers.
+This section contains documentation for contributors and maintainers.
 
 ## Start here
 
@@ -18,12 +18,17 @@ This section contains the documentation for contributors and maintainers.
 - [Exit codes](../reference/exit-codes.md)
 - [Rules reference](../reference/rules/index.md)
 
+## Project policy
+
+- [Versioning policy](./versioning.md)
+- [Reference governance](./governance.md)
+
 ## Developer operations
 
 - [Release workflow](./releasing.md)
 - [Attestation verification](./attestation.md)
 
-## Architecture decisions
+## Architecture
 
-- [ADR index](../adr/README.md)
-- [0001: tq CLI and config contract](../adr/0001-tq-cli-config-contract.md)
+- [Architecture](./architecture.md)
+- Architecture Decision Records (ADRs) are maintained in `docs/adr/`.

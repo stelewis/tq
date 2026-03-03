@@ -19,8 +19,7 @@ export default defineConfig({
     },
     nav: [
       { text: "Docs", link: "/guide/getting-started" },
-      { text: "Developer", link: "/developer/" },
-      { text: "ADR", link: "/adr/README" }
+      { text: "Developer", link: "/developer/" }
     ],
     sidebar: {
       "/guide/": [
@@ -42,9 +41,7 @@ export default defineConfig({
             },
             { text: "CLI", link: "/reference/cli" },
             { text: "Configuration", link: "/reference/configuration" },
-            { text: "Exit Codes", link: "/reference/exit-codes" },
-            { text: "Governance", link: "/reference/governance" },
-            { text: "Versioning", link: "/reference/versioning" }
+            { text: "Exit Codes", link: "/reference/exit-codes" }
           ]
         }
       ],
@@ -67,9 +64,7 @@ export default defineConfig({
             },
             { text: "CLI", link: "/reference/cli" },
             { text: "Configuration", link: "/reference/configuration" },
-            { text: "Exit Codes", link: "/reference/exit-codes" },
-            { text: "Governance", link: "/reference/governance" },
-            { text: "Versioning", link: "/reference/versioning" }
+            { text: "Exit Codes", link: "/reference/exit-codes" }
           ]
         }
       ],
@@ -78,7 +73,12 @@ export default defineConfig({
           text: "Developer",
           items: [
             { text: "Overview", link: "/developer/" },
-            { text: "Context", link: "/developer/context" },
+            { text: "Context", link: "/developer/context" }
+          ]
+        },
+        {
+          text: "Standards",
+          items: [
             { text: "Code Standards", link: "/developer/standards/code" },
             { text: "Docs Standards", link: "/developer/standards/docs" },
             { text: "Git Standards", link: "/developer/standards/git" },
@@ -86,29 +86,39 @@ export default defineConfig({
               text: "Policy Standards",
               link: "/developer/standards/policies"
             },
-            { text: "Test Standards", link: "/developer/standards/tests" },
-            { text: "Rules", link: "/reference/rules/" },
+            { text: "Test Standards", link: "/developer/standards/tests" }
+          ]
+        },
+        {
+          text: "User Contract",
+          items: [
             { text: "CLI", link: "/reference/cli" },
             { text: "Configuration", link: "/reference/configuration" },
             { text: "Exit Codes", link: "/reference/exit-codes" },
+            { text: "Rules", link: "/reference/rules/" }
+          ]
+        },
+        {
+          text: "Project Policy",
+          items: [
+            { text: "Versioning", link: "/developer/versioning" },
+            { text: "Governance", link: "/developer/governance" }
+          ]
+        },
+        {
+          text: "Operations",
+          items: [
             {
               text: "Attestation Verification",
               link: "/developer/attestation"
             },
-            { text: "Releasing", link: "/developer/releasing" },
-            { text: "ADR Index", link: "/adr/README" }
+            { text: "Releasing", link: "/developer/releasing" }
           ]
-        }
-      ],
-      "/adr/": [
+        },
         {
-          text: "Architecture Decisions",
+          text: "Architecture",
           items: [
-            { text: "ADR Index", link: "/adr/README" },
-            {
-              text: "0001 CLI and Config Contract",
-              link: "/adr/0001-tq-cli-config-contract"
-            }
+            { text: "Architecture", link: "/developer/architecture" }
           ]
         }
       ]

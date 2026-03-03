@@ -1,6 +1,6 @@
 # Code Standards
 
-This document guides *how we build* in this repository.
+This document guides the code standards in this repository.
 
 Goals:
 
@@ -44,7 +44,7 @@ Goals:
 - **Narrow interfaces**: depend on small protocols/ABCs that model *what you need*, not the full dependency.
 - **Local reasoning**: keep functions small and side-effect-free where possible; push side effects to the edges.
 - **Intent-driven linting**: treat lint rules as heuristics, not laws; prefer readable design first, tune thresholds and use narrowly scoped ignores only when justified.
-**Clear naming**: choose names that express intent and domain meaning.
+- **Clear naming**: choose names that express intent and domain meaning.
   - Nouns for types, verbs for actions: classes/types are nouns; functions/methods are verbs.
   - Booleans as predicates: use `is_*`, `has_*`, `can_*`, `should_*`.
   - Collections plural: name collection variables in plural (e.g., `orders`).

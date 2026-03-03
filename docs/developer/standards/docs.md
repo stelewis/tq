@@ -16,13 +16,13 @@ We want clean, maintainable docs that achieve the same design excellence as the 
 
 ## Where Things Live
 
-- **Developer docs** ([docs/developer](../index.md)):
+- **Developer docs** (`docs/developer`):
   - How to use, extend, and contribute to the codebase.
-- **ADRs** ([docs/adr](../../adr/README.md)):
+- **ADRs** (`docs/adr`):
   - Architectural Decision Records capturing key design decisions.
-- **Design docs** ([docs/design](https://github.com/stelewis/tq/tree/main/docs/design)) - *ephemeral*:
+- **Design docs** (`docs/design`) - *ephemeral*:
   - Design rationale, higher order vision and context.
-- **Plan docs** ([docs/plans](https://github.com/stelewis/tq/tree/main/docs/plans)) - *ephemeral*:
+- **Plan docs** (`docs/plans`) - *ephemeral*:
   - Implementation plans and specifications for features.
 
 *Note:* Design and plan docs are temporary artifacts used during the development phase. As features are implemented, the documents in these folders should be refactored into enduring developer docs or removed.

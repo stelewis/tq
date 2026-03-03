@@ -45,7 +45,7 @@ Use a minor release for:
 
 ## Governance linkage
 
-Rule/severity procedural requirements and reference ownership/review live in [`governance.md`](./governance.md).
+Rule/severity procedural requirements and reference ownership/review live in [governance.md](./governance.md).
 
 ## Contract stability commitments
 

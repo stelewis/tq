@@ -27,21 +27,21 @@ Use a short, descriptive name with a clear prefix:
 
 ## Keeping Branches Current
 
-- Rebase your branch onto `main` early and often (daily if active).
+- Rebase your branch onto `main` early and often.
 - Prefer resolving conflicts on your branch (before review) rather than on `main`.
 - Avoid large “integration” PRs created by letting a branch drift.
 
 ## Pull Requests
 
-- Every change uses a PR, even for small fixes.
+- Every change uses a PR.
 - Keep PRs small and focused (one intent; one reason to change).
-- Trunk must be protected by required checks and reviews.
+- Trunk must be protected by requiresd checks and reviews.
 
 ## Merge Strategy
 
 Prefer one of these approaches:
 
-- **Squash merge onto `main`** (recommended): produces one meaningful commit per PR.
+- **Squash merge onto `main`**: produces one meaningful commit per PR.
 - **Rebase + fast-forward onto `main`**: preserves individual commits, but requires strict commit hygiene.
 
 Do not merge PRs with merge commits into `main`.
@@ -60,11 +60,11 @@ Do not merge PRs with merge commits into `main`.
 
 ## Repository Settings
 
-- Protect `main`:
-  - require PRs
-  - require status checks
-  - require at least one review
-  - require linear history
-  - disallow force-pushes
+- `main` is protected:
+  - requires PRs
+  - requires status checks
+  - requires at least one review
+  - requires linear history
+  - disallows force-pushes
 - Enable either squash-merge only, or rebase-merge only.
 - Tag releases with annotated tags on `main`.

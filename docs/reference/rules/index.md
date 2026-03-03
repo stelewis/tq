@@ -2,8 +2,6 @@
 
 This page documents the user-facing rules.
 
-Rule metadata is sourced from `manifest.yaml` in this directory.
-
 ## Stable rule IDs
 
 - [`mapping-missing-test`](./mapping-missing-test.md) (default severity: `error`)
@@ -22,8 +20,4 @@ Rule metadata is sourced from `manifest.yaml` in this directory.
 - Rule IDs are stable kebab-case identifiers.
 - Severity defaults are part of the external contract.
 - Rule selection and suppression use `--select`/`--ignore` and `[tool.tq]` values.
-- Rule additions and severity default changes follow [governance policy](../governance.md).
-
-## Manifest
-
-Canonical source of truth: [`manifest.yaml`](./manifest.yaml).
+- Rule additions and severity default changes follow [governance policy](../../developer/governance.md).
