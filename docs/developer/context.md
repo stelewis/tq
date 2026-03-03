@@ -1,6 +1,6 @@
 # tq context
 
-This document explains the design context for `tq`.
+Design context for `tq`.
 
 ## Problem
 

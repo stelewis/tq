@@ -1,6 +1,6 @@
 # Governance
 
-This page documents governance policy for `tq` contract documentation.
+Governance policy for `tq` contract documentation.
 
 ## Reference ownership and review
 

@@ -6,13 +6,7 @@
 
 The published package name is `tqlint` and the installed command is `tq`.
 
-Supported `uv` usage modes:
-
-- project dependency: `uv add --dev tqlint` then `uv run tq check`
-- ephemeral run: `uvx tqlint check`
-- global tool install: `uv tool install tqlint` then `tq check`
-
-`uvx tq check` is not currently supported because the `tq` package name on PyPI is owned by another project.
+For installation and execution modes (`uv` and `pip`), see [Installation](../guide/installation.md).
 
 ## Command model
 

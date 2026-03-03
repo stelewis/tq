@@ -1,5 +1,7 @@
 # `tq` - Test Quality Toolkit
 
+[![Documentation](https://img.shields.io/badge/docs-site-blue)](https://stelewis.github.io/tq/)
+
 `tq` inspects a codebase's tests and enforces quality rules so tests remain discoverable, focused, actionable, and maintainable.
 
 ## Installation
@@ -23,6 +25,13 @@ Install as a persistent global tool:
 
 ```sh
 uv tool install tqlint
+tq check
+```
+
+Install with `pip`:
+
+```sh
+python -m pip install tqlint
 tq check
 ```
 

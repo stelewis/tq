@@ -1,6 +1,6 @@
 # Project policies
 
-This page documents the repository policies enforced by automation.
+Repository policies enforced by automation.
 
 ## GitHub Actions policy
 

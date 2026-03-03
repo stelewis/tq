@@ -1,6 +1,6 @@
 # Versioning
 
-This page documents the policy for versioning user-visible `tq` contracts.
+Policy for versioning user-visible `tq` contracts.
 
 ## Contract surfaces
 

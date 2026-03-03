@@ -1,10 +1,10 @@
 # Attestation verification
 
-This document explains the steps for verifying release artifact provenance for `tq`.
+Verify release artifact provenance for `tq`.
 
 ## Scope
 
-This page defines:
+This guide covers:
 
 - maintainer verification in release automation,
 - consumer verification before install,

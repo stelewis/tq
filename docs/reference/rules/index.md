@@ -1,6 +1,6 @@
 # Rules
 
-This page documents the user-facing rules.
+User-facing rules and default severities.
 
 ## Stable rule IDs
 

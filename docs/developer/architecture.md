@@ -1,6 +1,6 @@
 # Architecture
 
-This page documents the architecture of `tq` for contributors.
+Architecture overview for contributors.
 
 ## ADR usage in this project
 
