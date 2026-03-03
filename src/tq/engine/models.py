@@ -54,6 +54,7 @@ class Finding:
     path: Path
     line: int | None = None
     suggestion: str | None = None
+    target: str | None = None
 
     def __post_init__(self) -> None:
         """Validate finding invariants.
@@ -67,6 +68,10 @@ class Finding:
 
         if self.line is not None and self.line < 1:
             msg = "Finding line must be >= 1 when provided"
+            raise ValueError(msg)
+
+        if self.target is not None and not self.target.strip():
+            msg = "Finding target must be non-empty when provided"
             raise ValueError(msg)
 
 

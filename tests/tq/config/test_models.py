@@ -4,14 +4,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tq.config.models import TqConfig
+from tq.config.models import TqTargetConfig
 from tq.engine.rule_id import RuleId
 from tq.rules.qualifiers import QualifierStrategy
 
 
-def test_tq_config_package_paths() -> None:
+def test_tq_target_config_package_paths() -> None:
     """Expose derived package path helpers from canonical package name."""
-    config = TqConfig(
+    config = TqTargetConfig(
+        name="core",
         package="pkg.subpkg",
         source_root=Path("src").resolve(),
         test_root=Path("tests").resolve(),

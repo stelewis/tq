@@ -36,10 +36,7 @@ def test_generate_cli_docs_updates_marked_section(
     generate_cli_docs.generate_cli_docs()
 
     generated = cli_doc_path.read_text(encoding="utf-8")
-    assert (
-        "| `--package` | [`package`](./configuration.md#package-required) |"
-        in generated
-    )
+    assert "| `--target` | — | `[]` | Run only listed target names. |" in generated
     assert "Run `tq check --help` for the runtime source of truth." in generated
 
 
@@ -96,12 +93,8 @@ def _write_valid_manifest(path: Path) -> None:
             "    config_key: null\n"
             "  - param: isolated\n"
             "    config_key: null\n"
-            "  - param: package\n"
-            "    config_key: package\n"
-            "  - param: source_root\n"
-            "    config_key: source_root\n"
-            "  - param: test_root\n"
-            "    config_key: test_root\n"
+            "  - param: target_names\n"
+            "    config_key: null\n"
             "  - param: max_test_file_non_blank_lines\n"
             "    config_key: max_test_file_non_blank_lines\n"
             "  - param: qualifier_strategy\n"

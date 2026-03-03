@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from tq.engine.models import (
@@ -46,23 +47,67 @@ class RuleEngine:
             EngineResult with sorted findings and severity summary.
         """
         findings: list[Finding] = []
+        target_name = _target_name_from_context(context)
         for rule in self._rules:
-            findings.extend(rule.evaluate(context))
+            findings.extend(
+                _attach_target_name(
+                    findings=rule.evaluate(context),
+                    target_name=target_name,
+                ),
+            )
 
         sorted_findings = tuple(sorted(findings, key=_finding_sort_key))
         summary = _build_summary(sorted_findings)
         return EngineResult(findings=sorted_findings, summary=summary)
 
 
-def _finding_sort_key(finding: Finding) -> tuple[str, int, int, str, int, str]:
+def aggregate_results(*, results: Sequence[EngineResult]) -> EngineResult:
+    """Aggregate many engine results into one deterministic result."""
+    findings: list[Finding] = []
+    for result in results:
+        findings.extend(result.findings)
+
+    sorted_findings = tuple(sorted(findings, key=_finding_sort_key))
+    return EngineResult(
+        findings=sorted_findings, summary=_build_summary(sorted_findings)
+    )
+
+
+def _finding_sort_key(
+    finding: Finding,
+) -> tuple[str, str, int, int, str, int, str]:
     """Build stable sort key for deterministic output ordering."""
     return (
+        finding.target or "",
         finding.path.as_posix(),
         finding.line if finding.line is not None else 0,
         severity_rank(finding.severity),
         finding.rule_id.value,
         len(finding.message),
         finding.message,
+    )
+
+
+def _target_name_from_context(context: AnalysisContext) -> str | None:
+    """Read target name from context settings if configured."""
+    value = context.settings.get("target_name")
+    if isinstance(value, str) and value.strip():
+        return value
+    return None
+
+
+def _attach_target_name(
+    *,
+    findings: tuple[Finding, ...],
+    target_name: str | None,
+) -> tuple[Finding, ...]:
+    """Attach target name to findings if missing and available."""
+    if target_name is None:
+        return findings
+
+    return tuple(
+        finding if finding.target is not None else replace(finding, target=target_name)
+        for finding in findings
     )
 
 

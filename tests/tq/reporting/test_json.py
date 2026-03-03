@@ -76,5 +76,6 @@ def test_print_json_report_renders_finding_fields(
             "path": "src/tq/foo.py",
             "line": 7,
             "suggestion": "create tests/tq/test_foo.py",
+            "target": None,
         },
     ]

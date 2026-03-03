@@ -82,3 +82,27 @@ def test_print_report_can_show_suggestions(
     captured = capsys.readouterr()
 
     assert "suggestion:" in captured.out
+
+
+def test_print_report_renders_target_prefix_when_present(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Render target context prefix in each finding line."""
+    console = Console(file=None, force_terminal=False)
+    result = EngineResult(
+        findings=(
+            Finding(
+                rule_id=RuleId("mapping-missing-test"),
+                severity=Severity.ERROR,
+                message="missing test",
+                path=Path("src/tq/foo.py"),
+                target="core",
+            ),
+        ),
+        summary=FindingSummary(errors=1, warnings=0, infos=0),
+    )
+
+    print_report(result=result, console=console, cwd=Path.cwd())
+    captured = capsys.readouterr()
+
+    assert "target=core src/tq/foo.py" in captured.out

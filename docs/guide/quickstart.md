@@ -25,6 +25,8 @@ Create or update `pyproject.toml`:
 
 ```toml
 [tool.tq]
+[[tool.tq.targets]]
+name = "app"
 package = "your_package"
 source_root = "src"
 test_root = "tests"

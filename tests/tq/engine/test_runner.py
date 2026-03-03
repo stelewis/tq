@@ -10,7 +10,7 @@ from tq.discovery.index import AnalysisIndex
 from tq.engine.context import AnalysisContext
 from tq.engine.models import Finding, Severity
 from tq.engine.rule_id import RuleId
-from tq.engine.runner import RuleEngine
+from tq.engine.runner import RuleEngine, aggregate_results
 
 
 class _NoFindingRule:
@@ -176,3 +176,32 @@ def test_engine_sorts_severity_for_same_location_and_rule() -> None:
         Severity.WARNING,
         Severity.INFO,
     ]
+
+
+def test_engine_attaches_target_name_from_context_settings() -> None:
+    """Attach context target name to each emitted finding."""
+    context = AnalysisContext.create(
+        index=_context().index,
+        settings={"target_name": "scripts"},
+    )
+
+    result = RuleEngine(rules=(_MixedRuleB(),)).run(context=context)
+
+    assert result.findings[0].target == "scripts"
+
+
+def test_aggregate_results_merges_and_sorts_findings() -> None:
+    """Aggregate deterministic findings and summary across target runs."""
+    result_a = RuleEngine(rules=(_MixedRuleA(),)).run(context=_context())
+    result_b = RuleEngine(rules=(_MixedRuleB(),)).run(context=_context())
+
+    merged = aggregate_results(results=(result_b, result_a))
+
+    assert [finding.path.as_posix() for finding in merged.findings] == [
+        "tests/tq/test_alpha.py",
+        "tests/tq/test_alpha.py",
+        "tests/tq/test_beta.py",
+    ]
+    assert merged.summary.errors == 1
+    assert merged.summary.warnings == 1
+    assert merged.summary.infos == 1

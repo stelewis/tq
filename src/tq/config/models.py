@@ -16,9 +16,22 @@ class ConfigValidationError(ValueError):
 
 
 @dataclass(frozen=True, slots=True)
-class PartialTqConfig:
-    """Partial tq configuration loaded from config files and CLI flags."""
+class PartialRuleConfig:
+    """Partial per-target or global rule configuration."""
 
+    ignore_init_modules: bool | None = None
+    max_test_file_non_blank_lines: int | None = None
+    qualifier_strategy: QualifierStrategy | None = None
+    allowed_qualifiers: tuple[str, ...] | None = None
+    select: tuple[RuleId, ...] | None = None
+    ignore: tuple[RuleId, ...] | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PartialTargetConfig:
+    """Partial target configuration loaded from `[tool.tq.targets]`."""
+
+    name: str | None = None
     package: str | None = None
     source_root: str | None = None
     test_root: str | None = None
@@ -31,9 +44,18 @@ class PartialTqConfig:
 
 
 @dataclass(frozen=True, slots=True)
-class TqConfig:
-    """Resolved tq configuration used by the command runtime."""
+class PartialTqConfig:
+    """Partial tq configuration loaded from config files and CLI flags."""
 
+    defaults: PartialRuleConfig = PartialRuleConfig()
+    targets: tuple[PartialTargetConfig, ...] | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class TqTargetConfig:
+    """Resolved tq target configuration used by one analysis run."""
+
+    name: str
     package: str
     source_root: Path
     test_root: Path
@@ -56,12 +78,16 @@ class TqConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class TqConfig:
+    """Resolved tq configuration used by the command runtime."""
+
+    targets: tuple[TqTargetConfig, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class CliOverrides:
     """CLI-level configuration overrides."""
 
-    package: str | None = None
-    source_root: str | None = None
-    test_root: str | None = None
     ignore_init_modules: bool | None = None
     max_test_file_non_blank_lines: int | None = None
     qualifier_strategy: QualifierStrategy | None = None

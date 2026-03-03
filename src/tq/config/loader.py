@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -9,8 +10,11 @@ from typing import Any
 from tq.config.models import (
     CliOverrides,
     ConfigValidationError,
+    PartialRuleConfig,
+    PartialTargetConfig,
     PartialTqConfig,
     TqConfig,
+    TqTargetConfig,
 )
 from tq.engine.rule_id import RuleId
 from tq.rules.qualifiers import QualifierStrategy
@@ -19,7 +23,20 @@ DEFAULT_IGNORE_INIT_MODULES = False
 DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES = 600
 DEFAULT_QUALIFIER_STRATEGY = QualifierStrategy.ANY_SUFFIX
 
-_CONFIG_KEYS = {
+_TARGET_NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+_TQ_KEYS = {
+    "ignore_init_modules",
+    "max_test_file_non_blank_lines",
+    "qualifier_strategy",
+    "allowed_qualifiers",
+    "select",
+    "ignore",
+    "targets",
+}
+
+_TARGET_KEYS = {
+    "name",
     "package",
     "source_root",
     "test_root",
@@ -66,8 +83,12 @@ def resolve_tq_config(
             )
             discovered = _merge_partial(discovered, project_partial)
 
-    merged = _merge_partial(discovered, _partial_from_cli(cli_overrides))
-    return _materialize_config(cwd=cwd, partial=merged)
+    cli_partial = _partial_from_cli(cli_overrides)
+    return _materialize_config(
+        cwd=cwd,
+        partial=discovered,
+        cli_defaults=cli_partial.defaults,
+    )
 
 
 def _find_project_pyproject(cwd: Path) -> Path | None:
@@ -98,25 +119,20 @@ def _load_partial_from_pyproject(
     if tq_section is None:
         if require_section:
             msg = f"Missing [tool.tq] section in config file: {path}"
-            raise ConfigValidationError(
-                msg,
-            )
+            raise ConfigValidationError(msg)
         return PartialTqConfig()
 
     if not isinstance(tq_section, dict):
         msg = "[tool.tq] must be a table"
         raise ConfigValidationError(msg)
 
-    unknown_keys = set(tq_section) - _CONFIG_KEYS
+    unknown_keys = set(tq_section) - _TQ_KEYS
     if unknown_keys:
         keys = ", ".join(sorted(unknown_keys))
         msg = f"Unknown [tool.tq] key(s): {keys}"
         raise ConfigValidationError(msg)
 
-    return PartialTqConfig(
-        package=_expect_optional_str(tq_section, "package"),
-        source_root=_expect_optional_str(tq_section, "source_root"),
-        test_root=_expect_optional_str(tq_section, "test_root"),
+    defaults = PartialRuleConfig(
         ignore_init_modules=_expect_optional_bool(tq_section, "ignore_init_modules"),
         max_test_file_non_blank_lines=_expect_optional_positive_int(
             tq_section,
@@ -134,34 +150,38 @@ def _load_partial_from_pyproject(
         ignore=_expect_optional_rule_ids(tq_section, "ignore"),
     )
 
+    targets = _expect_optional_targets(tq_section, "targets")
+    return PartialTqConfig(defaults=defaults, targets=targets)
+
 
 def _partial_from_cli(overrides: CliOverrides) -> PartialTqConfig:
     """Convert CLI overrides into a partial config representation."""
     return PartialTqConfig(
-        package=overrides.package,
-        source_root=overrides.source_root,
-        test_root=overrides.test_root,
-        ignore_init_modules=overrides.ignore_init_modules,
-        max_test_file_non_blank_lines=overrides.max_test_file_non_blank_lines,
-        qualifier_strategy=overrides.qualifier_strategy,
-        allowed_qualifiers=overrides.allowed_qualifiers,
-        select=overrides.select,
-        ignore=overrides.ignore,
+        defaults=PartialRuleConfig(
+            ignore_init_modules=overrides.ignore_init_modules,
+            max_test_file_non_blank_lines=overrides.max_test_file_non_blank_lines,
+            qualifier_strategy=overrides.qualifier_strategy,
+            allowed_qualifiers=overrides.allowed_qualifiers,
+            select=overrides.select,
+            ignore=overrides.ignore,
+        ),
     )
 
 
 def _merge_partial(base: PartialTqConfig, override: PartialTqConfig) -> PartialTqConfig:
     """Merge two partial configs where ``override`` takes precedence."""
     return PartialTqConfig(
-        package=override.package if override.package is not None else base.package,
-        source_root=(
-            override.source_root
-            if override.source_root is not None
-            else base.source_root
-        ),
-        test_root=(
-            override.test_root if override.test_root is not None else base.test_root
-        ),
+        defaults=_merge_rule_partial(base.defaults, override.defaults),
+        targets=override.targets if override.targets is not None else base.targets,
+    )
+
+
+def _merge_rule_partial(
+    base: PartialRuleConfig,
+    override: PartialRuleConfig,
+) -> PartialRuleConfig:
+    """Merge per-rule partial values with override precedence."""
+    return PartialRuleConfig(
         ignore_init_modules=(
             override.ignore_init_modules
             if override.ignore_init_modules is not None
@@ -187,58 +207,120 @@ def _merge_partial(base: PartialTqConfig, override: PartialTqConfig) -> PartialT
     )
 
 
-def _materialize_config(*, cwd: Path, partial: PartialTqConfig) -> TqConfig:
+def _materialize_config(
+    *,
+    cwd: Path,
+    partial: PartialTqConfig,
+    cli_defaults: PartialRuleConfig,
+) -> TqConfig:
     """Validate and materialize a final runtime config."""
-    if not partial.package:
-        msg = "Missing required configuration key: tool.tq.package"
-        raise ConfigValidationError(
-            msg,
-        )
-    if not partial.source_root:
-        msg = "Missing required configuration key: tool.tq.source_root"
-        raise ConfigValidationError(
-            msg,
-        )
-    if not partial.test_root:
-        msg = "Missing required configuration key: tool.tq.test_root"
-        raise ConfigValidationError(
-            msg,
+    if not partial.targets:
+        msg = "Missing required configuration key: tool.tq.targets"
+        raise ConfigValidationError(msg)
+
+    normalized_targets: list[TqTargetConfig] = []
+    seen_names: set[str] = set()
+    seen_source_package_roots: set[Path] = set()
+
+    for target in partial.targets:
+        resolved = _materialize_target(
+            cwd=cwd,
+            target=target,
+            defaults=partial.defaults,
+            cli_defaults=cli_defaults,
         )
 
-    allowed_qualifiers = tuple(sorted(set(partial.allowed_qualifiers or ())))
-    qualifier_strategy = partial.qualifier_strategy or DEFAULT_QUALIFIER_STRATEGY
+        if resolved.name in seen_names:
+            msg = f"Duplicate target name in tool.tq.targets: {resolved.name}"
+            raise ConfigValidationError(msg)
+        seen_names.add(resolved.name)
+
+        if resolved.source_package_root in seen_source_package_roots:
+            path = resolved.source_package_root.as_posix()
+            msg = f"Duplicate source package root across targets: {path}"
+            raise ConfigValidationError(msg)
+        seen_source_package_roots.add(resolved.source_package_root)
+
+        normalized_targets.append(resolved)
+
+    return TqConfig(
+        targets=tuple(sorted(normalized_targets, key=lambda item: item.name)),
+    )
+
+
+def _materialize_target(
+    *,
+    cwd: Path,
+    target: PartialTargetConfig,
+    defaults: PartialRuleConfig,
+    cli_defaults: PartialRuleConfig,
+) -> TqTargetConfig:
+    """Resolve one target with strict required and default semantics."""
+    name = _require_target_key(target=target, key="name")
+    if _TARGET_NAME_PATTERN.fullmatch(name) is None:
+        msg = f"tool.tq.targets.name must be kebab-case: {name}"
+        raise ConfigValidationError(msg)
+
+    package = _require_target_key(target=target, key="package")
+    source_root_value = _require_target_key(target=target, key="source_root")
+    test_root_value = _require_target_key(target=target, key="test_root")
+
+    merged_rules = _merge_rule_partial(
+        defaults,
+        PartialRuleConfig(
+            ignore_init_modules=target.ignore_init_modules,
+            max_test_file_non_blank_lines=target.max_test_file_non_blank_lines,
+            qualifier_strategy=target.qualifier_strategy,
+            allowed_qualifiers=target.allowed_qualifiers,
+            select=target.select,
+            ignore=target.ignore,
+        ),
+    )
+
+    final_rules = _merge_rule_partial(merged_rules, cli_defaults)
+
+    allowed_qualifiers = tuple(sorted(set(final_rules.allowed_qualifiers or ())))
+    qualifier_strategy = final_rules.qualifier_strategy or DEFAULT_QUALIFIER_STRATEGY
 
     if qualifier_strategy is QualifierStrategy.ALLOWLIST and not allowed_qualifiers:
         msg = (
             "tool.tq.allowed_qualifiers must be non-empty when "
             "tool.tq.qualifier_strategy is 'allowlist'"
         )
-        raise ConfigValidationError(
-            msg,
-        )
+        raise ConfigValidationError(msg)
 
-    source_root = _resolve_path(cwd=cwd, value=partial.source_root)
-    test_root = _resolve_path(cwd=cwd, value=partial.test_root)
-
-    return TqConfig(
-        package=partial.package,
-        source_root=source_root,
-        test_root=test_root,
+    return TqTargetConfig(
+        name=name,
+        package=package,
+        source_root=_resolve_path(cwd=cwd, value=source_root_value),
+        test_root=_resolve_path(cwd=cwd, value=test_root_value),
         ignore_init_modules=(
-            partial.ignore_init_modules
-            if partial.ignore_init_modules is not None
+            final_rules.ignore_init_modules
+            if final_rules.ignore_init_modules is not None
             else DEFAULT_IGNORE_INIT_MODULES
         ),
         max_test_file_non_blank_lines=(
-            partial.max_test_file_non_blank_lines
-            if partial.max_test_file_non_blank_lines is not None
+            final_rules.max_test_file_non_blank_lines
+            if final_rules.max_test_file_non_blank_lines is not None
             else DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES
         ),
         qualifier_strategy=qualifier_strategy,
         allowed_qualifiers=allowed_qualifiers,
-        select=partial.select or (),
-        ignore=partial.ignore or (),
+        select=final_rules.select or (),
+        ignore=final_rules.ignore or (),
     )
+
+
+def _require_target_key(*, target: PartialTargetConfig, key: str) -> str:
+    """Read a required non-empty target key."""
+    value = getattr(target, key)
+    if value is None:
+        msg = f"Missing required target key: tool.tq.targets.{key}"
+        raise ConfigValidationError(msg)
+    if not value.strip():
+        msg = f"tool.tq.targets.{key} must be non-empty"
+        raise ConfigValidationError(msg)
+    return value
 
 
 def _resolve_path(*, cwd: Path, value: str) -> Path:
@@ -305,9 +387,7 @@ def _expect_optional_qualifier_strategy(
     except ValueError as error:
         choices = ", ".join(strategy.value for strategy in QualifierStrategy)
         msg = f"tool.tq.{key} must be one of: {choices}"
-        raise ConfigValidationError(
-            msg,
-        ) from error
+        raise ConfigValidationError(msg) from error
 
 
 def _expect_optional_string_tuple(
@@ -318,6 +398,7 @@ def _expect_optional_string_tuple(
     value = document.get(key)
     if value is None:
         return None
+
     if not isinstance(value, list):
         msg = f"tool.tq.{key} must be an array of strings"
         raise ConfigValidationError(msg)
@@ -326,9 +407,7 @@ def _expect_optional_string_tuple(
     for item in value:
         if not isinstance(item, str) or not item.strip():
             msg = f"tool.tq.{key} must contain only non-empty strings"
-            raise ConfigValidationError(
-                msg,
-            )
+            raise ConfigValidationError(msg)
         items.append(item)
 
     return tuple(items)
@@ -349,8 +428,57 @@ def _expect_optional_rule_ids(
             rule_ids.append(RuleId(value))
         except ValueError as error:
             msg = f"tool.tq.{key} contains invalid rule id: {value}"
-            raise ConfigValidationError(
-                msg,
-            ) from error
+            raise ConfigValidationError(msg) from error
 
     return tuple(rule_ids)
+
+
+def _expect_optional_targets(
+    document: dict[str, Any],
+    key: str,
+) -> tuple[PartialTargetConfig, ...] | None:
+    """Read optional list of target mappings from `[tool.tq.targets]`."""
+    value = document.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, list):
+        msg = "tool.tq.targets must be an array of tables"
+        raise ConfigValidationError(msg)
+
+    targets: list[PartialTargetConfig] = []
+    for item in value:
+        if not isinstance(item, dict):
+            msg = "tool.tq.targets entries must be tables"
+            raise ConfigValidationError(msg)
+
+        unknown_keys = set(item) - _TARGET_KEYS
+        if unknown_keys:
+            keys = ", ".join(sorted(unknown_keys))
+            msg = f"Unknown tool.tq.targets key(s): {keys}"
+            raise ConfigValidationError(msg)
+
+        targets.append(
+            PartialTargetConfig(
+                name=_expect_optional_str(item, "name"),
+                package=_expect_optional_str(item, "package"),
+                source_root=_expect_optional_str(item, "source_root"),
+                test_root=_expect_optional_str(item, "test_root"),
+                ignore_init_modules=_expect_optional_bool(item, "ignore_init_modules"),
+                max_test_file_non_blank_lines=_expect_optional_positive_int(
+                    item,
+                    "max_test_file_non_blank_lines",
+                ),
+                qualifier_strategy=_expect_optional_qualifier_strategy(
+                    item,
+                    "qualifier_strategy",
+                ),
+                allowed_qualifiers=_expect_optional_string_tuple(
+                    item,
+                    "allowed_qualifiers",
+                ),
+                select=_expect_optional_rule_ids(item, "select"),
+                ignore=_expect_optional_rule_ids(item, "ignore"),
+            ),
+        )
+
+    return tuple(targets)

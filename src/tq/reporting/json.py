@@ -45,6 +45,7 @@ def _finding_payload(*, finding: Finding, cwd: Path) -> dict[str, str | int | No
         "path": _display_path(path=finding.path, cwd=cwd),
         "line": finding.line,
         "suggestion": finding.suggestion,
+        "target": finding.target,
     }
 
 

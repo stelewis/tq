@@ -62,7 +62,7 @@ def _render_finding(
     }[finding.severity]
 
     rendered = (
-        f"{display_path}{line_part}: "
+        f"{_target_prefix(finding.target)}{display_path}{line_part}: "
         f"{severity_style} "
         f"({finding.rule_id.value}) {finding.message}"
     )
@@ -71,3 +71,10 @@ def _render_finding(
         return f"{rendered} (suggestion: {finding.suggestion})"
 
     return rendered
+
+
+def _target_prefix(target_name: str | None) -> str:
+    """Render a stable target prefix when a finding has target context."""
+    if target_name is None:
+        return ""
+    return f"target={target_name} "

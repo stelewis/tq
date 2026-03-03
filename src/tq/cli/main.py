@@ -10,11 +10,11 @@ import click
 from rich.console import Console
 
 from tq.config.loader import resolve_tq_config
-from tq.config.models import CliOverrides, ConfigValidationError, TqConfig
+from tq.config.models import CliOverrides, ConfigValidationError, TqTargetConfig
 from tq.discovery.filesystem import build_analysis_index
 from tq.engine.context import AnalysisContext
 from tq.engine.rule_id import RuleId
-from tq.engine.runner import RuleEngine
+from tq.engine.runner import RuleEngine, aggregate_results
 from tq.reporting.json import print_json_report
 from tq.reporting.terminal import print_report
 from tq.rules.file_too_large import FileTooLargeRule
@@ -56,9 +56,13 @@ def cli() -> None:
     default=False,
     help="Ignore discovered configuration files.",
 )
-@click.option("--package", type=str, default=None, help="Target package import path.")
-@click.option("--source-root", type=str, default=None, help="Source tree root path.")
-@click.option("--test-root", type=str, default=None, help="Test tree root path.")
+@click.option(
+    "--target",
+    "target_names",
+    multiple=True,
+    type=str,
+    help="Run only listed target names.",
+)
 @click.option(
     "--max-test-file-non-blank-lines",
     type=click.IntRange(min=1),
@@ -129,9 +133,7 @@ def check_command(  # noqa: PLR0913
     *,
     config_path: Path | None,
     isolated: bool,
-    package: str | None,
-    source_root: str | None,
-    test_root: str | None,
+    target_names: tuple[str, ...],
     max_test_file_non_blank_lines: int | None,
     qualifier_strategy: str | None,
     allowed_qualifiers: tuple[str, ...],
@@ -142,15 +144,12 @@ def check_command(  # noqa: PLR0913
     show_suggestions: bool,
     output_format: str,
 ) -> None:
-    """Run built-in tq quality rules against discovered modules and tests."""
+    """Run built-in tq quality rules against configured analysis targets."""
     cwd = Path.cwd()
     console = Console(stderr=False)
 
     try:
         overrides = CliOverrides(
-            package=package,
-            source_root=source_root,
-            test_root=test_root,
             ignore_init_modules=ignore_init_modules,
             max_test_file_non_blank_lines=max_test_file_non_blank_lines,
             qualifier_strategy=(
@@ -168,30 +167,30 @@ def check_command(  # noqa: PLR0913
             isolated=isolated,
             cli_overrides=overrides,
         )
+        active_targets = _select_targets(
+            configured_targets=config.targets,
+            selected_target_names=target_names,
+        )
     except (ConfigValidationError, ValueError, tomllib.TOMLDecodeError) as error:
         raise click.UsageError(str(error)) from error
 
-    if not config.source_package_root.exists():
-        msg = (
-            "Configured source package root does not exist: "
-            f"{config.source_package_root}"
-        )
-        raise click.UsageError(
-            msg,
-        )
-    if not config.test_root.exists():
-        msg = f"Configured test root does not exist: {config.test_root}"
-        raise click.UsageError(
-            msg,
-        )
+    for target in active_targets:
+        _validate_target_paths(target)
 
-    rules = _build_rules(config=config)
-    index = build_analysis_index(
-        source_root=config.source_package_root,
-        test_root=config.test_root,
-    )
-    context = AnalysisContext.create(index=index)
-    result = RuleEngine(rules=rules).run(context=context)
+    target_results = []
+    for target in active_targets:
+        rules = _build_rules(config=target)
+        index = build_analysis_index(
+            source_root=target.source_package_root,
+            test_root=target.test_root,
+        )
+        context = AnalysisContext.create(
+            index=index,
+            settings={"target_name": target.name},
+        )
+        target_results.append(RuleEngine(rules=rules).run(context=context))
+
+    result = aggregate_results(results=tuple(target_results))
 
     if output_format == "json":
         print_json_report(result=result, console=console, cwd=cwd)
@@ -209,7 +208,7 @@ def check_command(  # noqa: PLR0913
     raise click.exceptions.Exit(1 if result.has_errors else 0)
 
 
-def _build_rules(*, config: TqConfig) -> tuple[Rule, ...]:
+def _build_rules(*, config: TqTargetConfig) -> tuple[Rule, ...]:
     """Build active built-in rule set using select/ignore resolution."""
     selected_rule_ids = _resolve_rule_selection(config=config)
     selected_set = set(selected_rule_ids)
@@ -235,7 +234,7 @@ def _build_rules(*, config: TqConfig) -> tuple[Rule, ...]:
     )
 
 
-def _resolve_rule_selection(*, config: TqConfig) -> tuple[RuleId, ...]:
+def _resolve_rule_selection(*, config: TqTargetConfig) -> tuple[RuleId, ...]:
     """Resolve active rule IDs deterministically from select/ignore."""
     builtin_set = set(_BUILTIN_RULE_IDS)
 
@@ -272,6 +271,43 @@ def _parse_rule_id_tuple(*, values: tuple[str, ...]) -> tuple[RuleId, ...] | Non
             raise ConfigValidationError(msg) from error
 
     return tuple(rule_ids)
+
+
+def _select_targets(
+    *,
+    configured_targets: tuple[TqTargetConfig, ...],
+    selected_target_names: tuple[str, ...],
+) -> tuple[TqTargetConfig, ...]:
+    """Select active targets from configured targets and CLI target names."""
+    if not selected_target_names:
+        return configured_targets
+
+    by_name = {target.name: target for target in configured_targets}
+    unknown_names = sorted(set(selected_target_names) - set(by_name))
+    if unknown_names:
+        names = ", ".join(unknown_names)
+        msg = f"Unknown target name(s): {names}"
+        raise ConfigValidationError(msg)
+
+    selected = [by_name[name] for name in selected_target_names]
+    return tuple(selected)
+
+
+def _validate_target_paths(target: TqTargetConfig) -> None:
+    """Validate filesystem paths for one configured target."""
+    if not target.source_package_root.exists():
+        msg = (
+            "Configured source package root does not exist "
+            f"for target '{target.name}': {target.source_package_root}"
+        )
+        raise click.UsageError(msg)
+
+    if not target.test_root.exists():
+        msg = (
+            f"Configured test root does not exist "
+            f"for target '{target.name}': {target.test_root}"
+        )
+        raise click.UsageError(msg)
 
 
 def main() -> None:

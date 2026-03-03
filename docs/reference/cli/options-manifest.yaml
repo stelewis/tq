@@ -4,12 +4,8 @@ cli_options:
     config_key: null
   - param: isolated
     config_key: null
-  - param: package
-    config_key: package
-  - param: source_root
-    config_key: source_root
-  - param: test_root
-    config_key: test_root
+  - param: target_names
+    config_key: null
   - param: max_test_file_non_blank_lines
     config_key: max_test_file_non_blank_lines
   - param: qualifier_strategy

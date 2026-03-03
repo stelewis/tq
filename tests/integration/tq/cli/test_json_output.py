@@ -45,6 +45,7 @@ def test_json_output_is_deterministic_for_representative_project() -> None:
                 "path": "src/tq/beta.py",
                 "line": None,
                 "suggestion": "Create test file at: tq/test_beta.py",
+                "target": "tq",
             },
             {
                 "rule_id": "orphaned-test",
@@ -58,6 +59,7 @@ def test_json_output_is_deterministic_for_representative_project() -> None:
                     "Verify this test is still needed or move it "
                     "to integration/e2e scope"
                 ),
+                "target": "tq",
             },
         ],
         "summary": {
@@ -74,12 +76,14 @@ def _write_project_config(path: Path) -> None:
     path.write_text(
         (
             "[tool.tq]\n"
+            "ignore_init_modules = true\n"
+            "max_test_file_non_blank_lines = 600\n"
+            'qualifier_strategy = "any-suffix"\n\n'
+            "[[tool.tq.targets]]\n"
+            'name = "tq"\n'
             'package = "tq"\n'
             'source_root = "src"\n'
             'test_root = "tests"\n'
-            "ignore_init_modules = true\n"
-            "max_test_file_non_blank_lines = 600\n"
-            'qualifier_strategy = "any-suffix"'
         ),
         encoding="utf-8",
     )

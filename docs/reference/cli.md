@@ -30,9 +30,7 @@ The table below documents command options.
 | --- | --- | --- | --- |
 | `--config` | — | `none` | Use this pyproject file instead of discovered configuration. |
 | `--isolated` | — | `false` | Ignore discovered configuration files. |
-| `--package` | [`package`](./configuration.md#package-required) | `none` | Target package import path. |
-| `--source-root` | [`source_root`](./configuration.md#source_root-required) | `none` | Source tree root path. |
-| `--test-root` | [`test_root`](./configuration.md#test_root-required) | `none` | Test tree root path. |
+| `--target` | — | `[]` | Run only listed target names. |
 | `--max-test-file-non-blank-lines` | [`max_test_file_non_blank_lines`](./configuration.md#max_test_file_non_blank_lines-optional) | `none` | Maximum non-blank, non-comment lines per test file. |
 | `--qualifier-strategy` | [`qualifier_strategy`](./configuration.md#qualifier_strategy-optional) | `none` | Module-name qualifier policy for qualified test files. |
 | `--allowed-qualifier` | [`allowed_qualifiers`](./configuration.md#allowed_qualifiers-optional) | `[]` | Allowed qualifier suffix for allowlist strategy. |
