@@ -147,6 +147,10 @@ def _render_index(*, entries: tuple[RuleManifestEntry, ...]) -> str:
                 "- Rule selection and suppression use "
                 "`--select`/`--ignore` and `[tool.tq]` values."
             ),
+            (
+                "- Rule additions and severity default changes follow "
+                "[governance policy](../governance.md)."
+            ),
             "",
             "## Manifest",
             "",

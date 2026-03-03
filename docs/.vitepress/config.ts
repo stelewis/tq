@@ -37,6 +37,7 @@ export default defineConfig({
             { text: "Configuration", link: "/reference/configuration" },
             { text: "Exit Codes", link: "/reference/exit-codes" },
             { text: "Rules", link: "/reference/rules/" },
+            { text: "Governance", link: "/reference/governance" },
             { text: "Versioning", link: "/reference/versioning" }
           ]
         }

@@ -26,7 +26,7 @@ features:
 
 `tq` enforces test quality contracts for Python repositories.
 
-## User journey
+## User docs
 
 - [Installation](./guide/installation.md)
 - [Getting started](./guide/getting-started.md)
@@ -35,8 +35,8 @@ features:
 - [Exit codes](./reference/exit-codes.md)
 - [Rules reference](./reference/rules/index.md)
 
-## Developer journey
+## Developer docs
 
-- [Developer landing](./developer/index.md)
+- [Developer docs index](./developer/index.md)
 - [Project context](./developer/context.md)
 - [Architecture Decision Records](./adr/README.md)

@@ -22,6 +22,7 @@ Rule metadata is sourced from `manifest.yaml` in this directory.
 - Rule IDs are stable kebab-case identifiers.
 - Severity defaults are part of the external contract.
 - Rule selection and suppression use `--select`/`--ignore` and `[tool.tq]` values.
+- Rule additions and severity default changes follow [governance policy](../governance.md).
 
 ## Manifest
 
