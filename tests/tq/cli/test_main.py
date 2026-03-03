@@ -183,6 +183,29 @@ def test_unknown_target_fails_fast() -> None:
     assert "Unknown target name(s)" in result.output
 
 
+def test_duplicate_select_rule_id_fails_fast() -> None:
+    """Fail fast when --select includes duplicate rule IDs."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        _write_project_config(Path("pyproject.toml"))
+
+        result = runner.invoke(
+            cli,
+            [
+                "check",
+                "--target",
+                "tq",
+                "--select",
+                "mapping-missing-test",
+                "--select",
+                "mapping-missing-test",
+            ],
+        )
+
+    assert result.exit_code == 2
+    assert "Duplicate rule ID in CLI values" in result.output
+
+
 def test_target_filter_scopes_output() -> None:
     """Scope findings to one configured target using --target."""
     runner = CliRunner()

@@ -93,13 +93,147 @@ def test_resolve_reports_target_key_path_for_invalid_target_field(
 
     with pytest.raises(
         ConfigValidationError,
-        match=r"tool\.tq\.targets\.name must be a string",
+        match=r"tool\.tq\.targets\[0\]\.name must be a string",
     ):
         resolve_tq_config(
             cwd=tmp_path,
             explicit_config_path=config_path,
             isolated=False,
             cli_overrides=CliOverrides(),
+        )
+
+
+def test_resolve_reports_indexed_error_for_invalid_targets_entry_type(
+    tmp_path: Path,
+) -> None:
+    """Include array index when target entry is not a TOML table."""
+    config_path = tmp_path / "pyproject.toml"
+    config_path.write_text(
+        "[tool.tq]\ntargets = [123]\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ConfigValidationError,
+        match=r"tool\.tq\.targets\[0\] must be a table",
+    ):
+        resolve_tq_config(
+            cwd=tmp_path,
+            explicit_config_path=config_path,
+            isolated=False,
+            cli_overrides=CliOverrides(),
+        )
+
+
+def test_resolve_rejects_invalid_target_package_import_syntax(tmp_path: Path) -> None:
+    """Reject package values that are not dotted Python identifiers."""
+    config_path = tmp_path / "pyproject.toml"
+    config_path.write_text(
+        (
+            "[tool.tq]\n"
+            "[[tool.tq.targets]]\n"
+            'name = "core"\n'
+            'package = "pkg..core"\n'
+            'source_root = "src"\n'
+            'test_root = "tests"\n'
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ConfigValidationError,
+        match=r"tool\.tq\.targets\[0\]\.package must be dotted Python identifiers",
+    ):
+        resolve_tq_config(
+            cwd=tmp_path,
+            explicit_config_path=config_path,
+            isolated=False,
+            cli_overrides=CliOverrides(),
+        )
+
+
+def test_resolve_rejects_duplicate_allowed_qualifiers_in_target(tmp_path: Path) -> None:
+    """Reject duplicate allowed qualifiers in one target configuration."""
+    config_path = tmp_path / "pyproject.toml"
+    config_path.write_text(
+        (
+            "[tool.tq]\n"
+            "[[tool.tq.targets]]\n"
+            'name = "core"\n'
+            'package = "tq"\n'
+            'source_root = "src"\n'
+            'test_root = "tests"\n'
+            'allowed_qualifiers = ["regression", "regression"]\n'
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ConfigValidationError,
+        match=r"tool\.tq\.targets\[0\]\.allowed_qualifiers contains duplicate value",
+    ):
+        resolve_tq_config(
+            cwd=tmp_path,
+            explicit_config_path=config_path,
+            isolated=False,
+            cli_overrides=CliOverrides(),
+        )
+
+
+def test_resolve_rejects_duplicate_rule_ids_in_select(tmp_path: Path) -> None:
+    """Reject duplicate rule IDs in one target select list."""
+    config_path = tmp_path / "pyproject.toml"
+    config_path.write_text(
+        (
+            "[tool.tq]\n"
+            "[[tool.tq.targets]]\n"
+            'name = "core"\n'
+            'package = "tq"\n'
+            'source_root = "src"\n'
+            'test_root = "tests"\n'
+            'select = ["mapping-missing-test", "mapping-missing-test"]\n'
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ConfigValidationError,
+        match=r"tool\.tq\.targets\[0\]\.select contains duplicate value",
+    ):
+        resolve_tq_config(
+            cwd=tmp_path,
+            explicit_config_path=config_path,
+            isolated=False,
+            cli_overrides=CliOverrides(),
+        )
+
+
+def test_resolve_rejects_duplicate_cli_allowed_qualifiers(tmp_path: Path) -> None:
+    """Reject duplicate CLI allowed qualifier overrides."""
+    config_path = tmp_path / "pyproject.toml"
+    config_path.write_text(
+        (
+            "[tool.tq]\n"
+            "[[tool.tq.targets]]\n"
+            'name = "core"\n'
+            'package = "tq"\n'
+            'source_root = "src"\n'
+            'test_root = "tests"\n'
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ConfigValidationError,
+        match=r"cli\.allowed_qualifiers contains duplicate value",
+    ):
+        resolve_tq_config(
+            cwd=tmp_path,
+            explicit_config_path=config_path,
+            isolated=False,
+            cli_overrides=CliOverrides(
+                allowed_qualifiers=("regression", "regression"),
+            ),
         )
 
 

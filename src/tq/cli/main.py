@@ -11,8 +11,7 @@ from rich.console import Console
 
 from tq.config.loader import resolve_tq_config
 from tq.config.models import CliOverrides, ConfigValidationError, TqTargetConfig
-from tq.discovery.filesystem import build_analysis_index
-from tq.engine.context import AnalysisContext
+from tq.engine.planner import plan_target_runs
 from tq.engine.rule_id import RuleId
 from tq.engine.runner import RuleEngine, aggregate_results
 from tq.reporting.json import print_json_report
@@ -178,26 +177,13 @@ def check_command(  # noqa: PLR0913
         _validate_target_paths(target)
 
     target_results = []
-    known_target_package_paths = tuple(
-        configured_target.package_path.as_posix()
-        for configured_target in config.targets
+    planned_runs = plan_target_runs(
+        configured_targets=config.targets,
+        active_targets=active_targets,
     )
-    for target in active_targets:
-        rules = _build_rules(config=target)
-        index = build_analysis_index(
-            source_root=target.source_package_root,
-            test_root=target.test_root,
-        )
-        context = AnalysisContext.create(
-            index=index,
-            settings={
-                "target_name": target.name,
-                "package_path": target.package_path.as_posix(),
-                "known_target_package_paths": known_target_package_paths,
-                "test_root_display": target.test_root.name,
-            },
-        )
-        target_results.append(RuleEngine(rules=rules).run(context=context))
+    for planned_run in planned_runs:
+        rules = _build_rules(config=planned_run.target)
+        target_results.append(RuleEngine(rules=rules).run(context=planned_run.context))
 
     result = aggregate_results(results=tuple(target_results))
 
@@ -272,7 +258,12 @@ def _parse_rule_id_tuple(*, values: tuple[str, ...]) -> tuple[RuleId, ...] | Non
         return None
 
     rule_ids: list[RuleId] = []
+    seen_values: set[str] = set()
     for value in values:
+        if value in seen_values:
+            msg = f"Duplicate rule ID in CLI values: {value}"
+            raise ConfigValidationError(msg)
+        seen_values.add(value)
         try:
             rule_ids.append(RuleId(value))
         except ValueError as error:

@@ -152,6 +152,7 @@ def _load_partial_from_pyproject(
             tq_section,
             "allowed_qualifiers",
             location="tool.tq",
+            require_unique=True,
         ),
         select=_expect_optional_rule_ids(
             tq_section,
@@ -171,6 +172,12 @@ def _load_partial_from_pyproject(
 
 def _partial_from_cli(overrides: CliOverrides) -> PartialTqConfig:
     """Convert CLI overrides into a partial config representation."""
+    if overrides.allowed_qualifiers is not None:
+        _raise_on_duplicate_strings(
+            values=overrides.allowed_qualifiers,
+            location="cli.allowed_qualifiers",
+        )
+
     return PartialTqConfig(
         defaults=PartialRuleConfig(
             ignore_init_modules=overrides.ignore_init_modules,
@@ -234,27 +241,40 @@ def _materialize_config(
         raise ConfigValidationError(msg)
 
     normalized_targets: list[TqTargetConfig] = []
-    seen_names: set[str] = set()
-    seen_source_package_roots: set[Path] = set()
+    seen_names: dict[str, int] = {}
+    seen_source_package_roots: dict[Path, int] = {}
 
-    for target in partial.targets:
+    for target_index, target in enumerate(partial.targets):
         resolved = _materialize_target(
             cwd=cwd,
             target=target,
             defaults=partial.defaults,
             cli_defaults=cli_defaults,
+            target_index=target_index,
         )
 
-        if resolved.name in seen_names:
-            msg = f"Duplicate target name in tool.tq.targets: {resolved.name}"
+        first_index = seen_names.get(resolved.name)
+        if first_index is not None:
+            msg = (
+                "Duplicate target name in "
+                f"tool.tq.targets[{first_index}].name and "
+                f"tool.tq.targets[{target_index}].name: {resolved.name}"
+            )
             raise ConfigValidationError(msg)
-        seen_names.add(resolved.name)
+        seen_names[resolved.name] = target_index
 
-        if resolved.source_package_root in seen_source_package_roots:
+        first_source_root_index = seen_source_package_roots.get(
+            resolved.source_package_root,
+        )
+        if first_source_root_index is not None:
             path = resolved.source_package_root.as_posix()
-            msg = f"Duplicate source package root across targets: {path}"
+            msg = (
+                "Duplicate source package root across "
+                f"tool.tq.targets[{first_source_root_index}] and "
+                f"tool.tq.targets[{target_index}]: {path}"
+            )
             raise ConfigValidationError(msg)
-        seen_source_package_roots.add(resolved.source_package_root)
+        seen_source_package_roots[resolved.source_package_root] = target_index
 
         normalized_targets.append(resolved)
 
@@ -269,16 +289,39 @@ def _materialize_target(
     target: PartialTargetConfig,
     defaults: PartialRuleConfig,
     cli_defaults: PartialRuleConfig,
+    target_index: int,
 ) -> TqTargetConfig:
     """Resolve one target with strict required and default semantics."""
-    name = _require_target_key(target=target, key="name")
+    target_location = f"tool.tq.targets[{target_index}]"
+
+    name = _require_target_key(
+        target=target,
+        key="name",
+        target_location=target_location,
+    )
     if _TARGET_NAME_PATTERN.fullmatch(name) is None:
-        msg = f"tool.tq.targets.name must be kebab-case: {name}"
+        msg = f"{target_location}.name must be kebab-case: {name}"
         raise ConfigValidationError(msg)
 
-    package = _require_target_key(target=target, key="package")
-    source_root_value = _require_target_key(target=target, key="source_root")
-    test_root_value = _require_target_key(target=target, key="test_root")
+    package = _require_target_key(
+        target=target,
+        key="package",
+        target_location=target_location,
+    )
+    _validate_python_package_name(
+        package,
+        location=f"{target_location}.package",
+    )
+    source_root_value = _require_target_key(
+        target=target,
+        key="source_root",
+        target_location=target_location,
+    )
+    test_root_value = _require_target_key(
+        target=target,
+        key="test_root",
+        target_location=target_location,
+    )
 
     merged_rules = _merge_rule_partial(
         defaults,
@@ -294,13 +337,13 @@ def _materialize_target(
 
     final_rules = _merge_rule_partial(merged_rules, cli_defaults)
 
-    allowed_qualifiers = tuple(sorted(set(final_rules.allowed_qualifiers or ())))
+    allowed_qualifiers = final_rules.allowed_qualifiers or ()
     qualifier_strategy = final_rules.qualifier_strategy or DEFAULT_QUALIFIER_STRATEGY
 
     if qualifier_strategy is QualifierStrategy.ALLOWLIST and not allowed_qualifiers:
         msg = (
-            "tool.tq.allowed_qualifiers must be non-empty when "
-            "tool.tq.qualifier_strategy is 'allowlist'"
+            f"{target_location}.allowed_qualifiers must be non-empty when "
+            "effective qualifier_strategy is 'allowlist'"
         )
         raise ConfigValidationError(msg)
 
@@ -326,16 +369,29 @@ def _materialize_target(
     )
 
 
-def _require_target_key(*, target: PartialTargetConfig, key: str) -> str:
+def _require_target_key(
+    *,
+    target: PartialTargetConfig,
+    key: str,
+    target_location: str,
+) -> str:
     """Read a required non-empty target key."""
     value = getattr(target, key)
     if value is None:
-        msg = f"Missing required target key: tool.tq.targets.{key}"
+        msg = f"Missing required target key: {target_location}.{key}"
         raise ConfigValidationError(msg)
     if not value.strip():
-        msg = f"tool.tq.targets.{key} must be non-empty"
+        msg = f"{target_location}.{key} must be non-empty"
         raise ConfigValidationError(msg)
     return value
+
+
+def _validate_python_package_name(value: str, *, location: str) -> None:
+    """Validate package string as dotted Python identifier segments."""
+    segments = value.split(".")
+    if any(not segment or not segment.isidentifier() for segment in segments):
+        msg = f"{location} must be dotted Python identifiers"
+        raise ConfigValidationError(msg)
 
 
 def _resolve_path(*, cwd: Path, value: str) -> Path:
@@ -423,10 +479,7 @@ def _expect_optional_qualifier_strategy(
 
 
 def _expect_optional_string_tuple(
-    document: dict[str, Any],
-    key: str,
-    *,
-    location: str,
+    document: dict[str, Any], key: str, *, location: str, require_unique: bool
 ) -> tuple[str, ...] | None:
     """Read optional list of non-empty strings from config document."""
     value = document.get(key)
@@ -438,13 +491,37 @@ def _expect_optional_string_tuple(
         raise ConfigValidationError(msg)
 
     items: list[str] = []
-    for item in value:
+    seen_indices: dict[str, int] = {}
+    for index, item in enumerate(value):
         if not isinstance(item, str) or not item.strip():
-            msg = f"{location}.{key} must contain only non-empty strings"
+            msg = f"{location}.{key}[{index}] must be a non-empty string"
             raise ConfigValidationError(msg)
+        if require_unique:
+            first_index = seen_indices.get(item)
+            if first_index is not None:
+                msg = (
+                    f"{location}.{key} contains duplicate value {item!r} "
+                    f"at indices {first_index} and {index}"
+                )
+                raise ConfigValidationError(msg)
+            seen_indices[item] = index
         items.append(item)
 
     return tuple(items)
+
+
+def _raise_on_duplicate_strings(*, values: tuple[str, ...], location: str) -> None:
+    """Raise if tuple of strings includes duplicate values."""
+    seen_indices: dict[str, int] = {}
+    for index, value in enumerate(values):
+        first_index = seen_indices.get(value)
+        if first_index is not None:
+            msg = (
+                f"{location} contains duplicate value {value!r} "
+                f"at indices {first_index} and {index}"
+            )
+            raise ConfigValidationError(msg)
+        seen_indices[value] = index
 
 
 def _expect_optional_rule_ids(
@@ -454,16 +531,21 @@ def _expect_optional_rule_ids(
     location: str,
 ) -> tuple[RuleId, ...] | None:
     """Read optional list of rule identifiers from config document."""
-    values = _expect_optional_string_tuple(document, key, location=location)
+    values = _expect_optional_string_tuple(
+        document,
+        key,
+        location=location,
+        require_unique=True,
+    )
     if values is None:
         return None
 
     rule_ids: list[RuleId] = []
-    for value in values:
+    for index, value in enumerate(values):
         try:
             rule_ids.append(RuleId(value))
         except ValueError as error:
-            msg = f"{location}.{key} contains invalid rule id: {value}"
+            msg = f"{location}.{key}[{index}] contains invalid rule id: {value}"
             raise ConfigValidationError(msg) from error
 
     return tuple(rule_ids)
@@ -482,15 +564,16 @@ def _expect_optional_targets(
         raise ConfigValidationError(msg)
 
     targets: list[PartialTargetConfig] = []
-    for item in value:
+    for target_index, item in enumerate(value):
+        target_location = f"tool.tq.targets[{target_index}]"
         if not isinstance(item, dict):
-            msg = "tool.tq.targets entries must be tables"
+            msg = f"{target_location} must be a table"
             raise ConfigValidationError(msg)
 
         unknown_keys = set(item) - _TARGET_KEYS
         if unknown_keys:
             keys = ", ".join(sorted(unknown_keys))
-            msg = f"Unknown tool.tq.targets key(s): {keys}"
+            msg = f"Unknown key(s) in {target_location}: {keys}"
             raise ConfigValidationError(msg)
 
         targets.append(
@@ -498,52 +581,53 @@ def _expect_optional_targets(
                 name=_expect_optional_str(
                     item,
                     "name",
-                    location="tool.tq.targets",
+                    location=target_location,
                 ),
                 package=_expect_optional_str(
                     item,
                     "package",
-                    location="tool.tq.targets",
+                    location=target_location,
                 ),
                 source_root=_expect_optional_str(
                     item,
                     "source_root",
-                    location="tool.tq.targets",
+                    location=target_location,
                 ),
                 test_root=_expect_optional_str(
                     item,
                     "test_root",
-                    location="tool.tq.targets",
+                    location=target_location,
                 ),
                 ignore_init_modules=_expect_optional_bool(
                     item,
                     "ignore_init_modules",
-                    location="tool.tq.targets",
+                    location=target_location,
                 ),
                 max_test_file_non_blank_lines=_expect_optional_positive_int(
                     item,
                     "max_test_file_non_blank_lines",
-                    location="tool.tq.targets",
+                    location=target_location,
                 ),
                 qualifier_strategy=_expect_optional_qualifier_strategy(
                     item,
                     "qualifier_strategy",
-                    location="tool.tq.targets",
+                    location=target_location,
                 ),
                 allowed_qualifiers=_expect_optional_string_tuple(
                     item,
                     "allowed_qualifiers",
-                    location="tool.tq.targets",
+                    location=target_location,
+                    require_unique=True,
                 ),
                 select=_expect_optional_rule_ids(
                     item,
                     "select",
-                    location="tool.tq.targets",
+                    location=target_location,
                 ),
                 ignore=_expect_optional_rule_ids(
                     item,
                     "ignore",
-                    location="tool.tq.targets",
+                    location=target_location,
                 ),
             ),
         )
