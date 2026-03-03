@@ -9,7 +9,7 @@ The goal is to keep docs:
 - **Stable**: describe contracts and workflows, not incidental details.
 - **Small**: minimal surface area to reduce drift and improve maintainability.
 - **Concise**: get to the point quickly without unnecessary exposition.
-- **Purposeful**: avoid “docs for docs sake” especially where code is the source of truth.
+- **Purposeful**: avoid “docs for docs’ sake,” especially where code is the source of truth.
 - **Correct**: avoid drift and outdated information; revisit and update regularly.
 
 We want clean, maintainable docs that achieve the same design excellence as the code itself.
@@ -21,7 +21,7 @@ We want clean, maintainable docs that achieve the same design excellence as the 
 - **ADRs** (`docs/adr`):
   - Architectural Decision Records capturing key design decisions.
 - **Design docs** (`docs/design`) - *ephemeral*:
-  - Design rationale, higher order vision and context.
+  - Design rationale and vision/context.
 - **Plan docs** (`docs/plans`) - *ephemeral*:
   - Implementation plans and specifications for features.
 

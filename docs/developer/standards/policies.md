@@ -1,4 +1,4 @@
-# Project policies
+# Project Policies
 
 Repository policies enforced by automation.
 

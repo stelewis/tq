@@ -1,4 +1,4 @@
-# tq context
+# Context
 
 Design context for `tq`.
 

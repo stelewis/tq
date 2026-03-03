@@ -1,6 +1,6 @@
-# tq release workflow
+# Release Workflow
 
-This document defines the release workflow for publishing `tq` to PyPI.
+Release workflow for publishing `tq` to PyPI.
 
 ## Package identity
 

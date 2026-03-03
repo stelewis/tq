@@ -1,4 +1,4 @@
-# Attestation verification
+# Attestation Verification
 
 Verify release artifact provenance for `tq`.
 

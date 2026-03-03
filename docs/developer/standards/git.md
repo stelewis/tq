@@ -35,7 +35,7 @@ Use a short, descriptive name with a clear prefix:
 
 - Every change uses a PR.
 - Keep PRs small and focused (one intent; one reason to change).
-- Trunk must be protected by requiresd checks and reviews.
+- Trunk is protected by required checks and reviews.
 
 ## Merge Strategy
 
