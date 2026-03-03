@@ -17,6 +17,7 @@ words:
   - Commitizen
   - configfile
   - conftest
+  - dataclass
   - dataclasses
   - docstrings
   - duplicative
