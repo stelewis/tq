@@ -1,4 +1,4 @@
-"""Generate CLI and configuration option docs from click + manifest."""
+"""Generate CLI option docs from click + manifest."""
 
 from __future__ import annotations
 
@@ -13,12 +13,9 @@ from tq.cli.main import cli
 
 _MANIFEST_PATH = Path("docs/reference/cli/options-manifest.yaml")
 _CLI_DOC_PATH = Path("docs/reference/cli.md")
-_CONFIG_DOC_PATH = Path("docs/reference/configuration.md")
 
 _CLI_MARKER_START = "<!-- BEGIN GENERATED:check-options -->"
 _CLI_MARKER_END = "<!-- END GENERATED:check-options -->"
-_CONFIG_MARKER_START = "<!-- BEGIN GENERATED:config-cli-mapping -->"
-_CONFIG_MARKER_END = "<!-- END GENERATED:config-cli-mapping -->"
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,7 +24,6 @@ class OptionSpec:
 
     param: str
     config_key: str | None
-    notes: str
 
 
 def _load_manifest() -> tuple[OptionSpec, ...]:
@@ -56,12 +52,10 @@ def _load_manifest() -> tuple[OptionSpec, ...]:
         ):
             msg = "config_key must be null or a non-empty string"
             raise ValueError(msg)
-        notes = _require_text(item=item, key="notes")
         specs.append(
             OptionSpec(
                 param=param,
                 config_key=config_key.strip() if isinstance(config_key, str) else None,
-                notes=notes,
             ),
         )
 
@@ -195,33 +189,6 @@ def _config_key_ref(config_key: str | None) -> str:
     return f"[`{config_key}`](./configuration.md#{anchor})"
 
 
-def _render_config_mapping(
-    *,
-    specs: tuple[OptionSpec, ...],
-    options: dict[str, tuple[click.Option, ...]],
-) -> str:
-    """Render generated configuration-to-CLI mapping table."""
-    lines = [
-        "## CLI mapping",
-        "",
-        "The table below is generated from the Click command definition and",
-        "`docs/reference/cli/options-manifest.yaml`.",
-        "",
-        "| Config key | CLI flag(s) | Notes |",
-        "| --- | --- | --- |",
-    ]
-
-    for spec in specs:
-        if spec.config_key is None:
-            continue
-        flags = _join_flags(options[spec.param])
-        notes = spec.notes.replace("|", "\\|")
-        lines.append(f"| `{spec.config_key}` | `{flags}` | {notes} |")
-
-    lines.append("")
-    return "\n".join(lines)
-
-
 def _replace_between_markers(
     *,
     path: Path,
@@ -245,7 +212,7 @@ def _replace_between_markers(
 
 
 def generate_cli_docs() -> None:
-    """Generate CLI and config docs sections from click and manifest data."""
+    """Generate CLI docs section from click and manifest data."""
     specs = _load_manifest()
     options = _load_check_options()
     _validate_manifest(specs=specs, options=options)
@@ -255,12 +222,6 @@ def generate_cli_docs() -> None:
         start=_CLI_MARKER_START,
         end=_CLI_MARKER_END,
         replacement=_render_cli_table(specs=specs, options=options),
-    )
-    _replace_between_markers(
-        path=_CONFIG_DOC_PATH,
-        start=_CONFIG_MARKER_START,
-        end=_CONFIG_MARKER_END,
-        replacement=_render_config_mapping(specs=specs, options=options),
     )
 
 

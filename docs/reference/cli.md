@@ -30,8 +30,7 @@ Design goals for this command surface:
 
 ## `tq check` options
 
-The table below is generated from the Click command definition and
-`docs/reference/cli/options-manifest.yaml`.
+The table below documents the command definitions.
 
 | Flags | Config key | Default | Description |
 | --- | --- | --- | --- |
