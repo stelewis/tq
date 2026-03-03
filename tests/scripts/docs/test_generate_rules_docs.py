@@ -54,11 +54,13 @@ def test_generate_rules_docs_writes_index_and_rule_pages(
     ).read_text(encoding="utf-8")
 
     assert "# Rules" in index_content
+    assert "User-facing rules and default severities." in index_content
     assert "[`orphaned-test`](./orphaned-test.md)" in index_content
     assert "- `error`" in index_content
     assert "- `warning`" in index_content
     assert "- `info`" in index_content
     assert "[governance policy](../../developer/governance.md)" in index_content
+    assert "## Manifest" not in index_content
     assert "# orphaned-test" in page_content
     assert "## Trigger conditions" in page_content
     assert "export const rulesSidebarItems = [" in sidebar_content

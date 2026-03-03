@@ -151,9 +151,7 @@ def _render_index(
     lines = [
         "# Rules",
         "",
-        "This page documents the user-facing rules.",
-        "",
-        "Rule metadata is sourced from `manifest.yaml` in this directory.",
+        "User-facing rules and default severities.",
         "",
         "## Stable rule IDs",
         "",
@@ -191,10 +189,6 @@ def _render_index(
                 "- Rule additions and severity default changes follow "
                 "[governance policy](../../developer/governance.md)."
             ),
-            "",
-            "## Manifest",
-            "",
-            "Canonical source of truth: [`manifest.yaml`](./manifest.yaml).",
             "",
         ],
     )
