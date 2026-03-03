@@ -25,8 +25,16 @@ class RuleManifestEntry:
     related_controls: tuple[str, ...]
 
 
-def _load_manifest(*, manifest_path: Path) -> tuple[RuleManifestEntry, ...]:
-    """Load and validate rule entries from a manifest YAML file."""
+@dataclass(frozen=True, slots=True)
+class RulesManifest:
+    """Canonical rules manifest payload."""
+
+    severity_vocabulary: tuple[str, ...]
+    entries: tuple[RuleManifestEntry, ...]
+
+
+def _load_manifest(*, manifest_path: Path) -> RulesManifest:
+    """Load and validate rule docs manifest."""
     with manifest_path.open(encoding="utf-8") as handle:
         payload = yaml.safe_load(handle)
 
@@ -39,6 +47,8 @@ def _load_manifest(*, manifest_path: Path) -> tuple[RuleManifestEntry, ...]:
         msg = "Rules manifest must contain a 'rules' list"
         raise TypeError(msg)
 
+    severity_vocabulary = _read_severity_vocabulary(payload=payload)
+
     entries: list[RuleManifestEntry] = []
     for item in raw_rules:
         if not isinstance(item, dict):
@@ -47,7 +57,31 @@ def _load_manifest(*, manifest_path: Path) -> tuple[RuleManifestEntry, ...]:
 
         entries.append(_parse_entry(item=item))
 
-    return tuple(entries)
+    return RulesManifest(
+        severity_vocabulary=severity_vocabulary,
+        entries=tuple(entries),
+    )
+
+
+def _read_severity_vocabulary(*, payload: dict[str, Any]) -> tuple[str, ...]:
+    """Read severity vocabulary from rules manifest."""
+    raw_value = payload.get("severity_vocabulary")
+    if not isinstance(raw_value, list):
+        msg = "Rules manifest must contain a 'severity_vocabulary' list"
+        raise TypeError(msg)
+
+    vocabulary: list[str] = []
+    for value in raw_value:
+        if not isinstance(value, str) or not value.strip():
+            msg = "Rules manifest severity_vocabulary must contain text values"
+            raise ValueError(msg)
+        vocabulary.append(value.strip())
+
+    if not vocabulary:
+        msg = "Rules manifest severity_vocabulary must not be empty"
+        raise ValueError(msg)
+
+    return tuple(vocabulary)
 
 
 def _parse_entry(*, item: dict[str, Any]) -> RuleManifestEntry:
@@ -108,7 +142,11 @@ def _require_text_list(*, item: dict[str, Any], key: str) -> list[str]:
     return values
 
 
-def _render_index(*, entries: tuple[RuleManifestEntry, ...]) -> str:
+def _render_index(
+    *,
+    entries: tuple[RuleManifestEntry, ...],
+    severity_vocabulary: tuple[str, ...],
+) -> str:
     """Render canonical rules index markdown from manifest entries."""
     lines = [
         "# Rules",
@@ -135,9 +173,11 @@ def _render_index(*, entries: tuple[RuleManifestEntry, ...]) -> str:
             "",
             "## Severity vocabulary",
             "",
-            "- `error`",
-            "- `warning`",
-            "- `info`",
+        ],
+    )
+    lines.extend([f"- `{severity}`" for severity in severity_vocabulary])
+    lines.extend(
+        [
             "",
             "## Rule policy",
             "",
@@ -261,20 +301,23 @@ def generate_rules_docs() -> None:
     rules_dir = Path("docs/reference/rules")
     manifest_path = rules_dir / "manifest.yaml"
     vitepress_generated_dir = Path("docs/.vitepress/generated")
-    entries = _load_manifest(manifest_path=manifest_path)
+    manifest = _load_manifest(manifest_path=manifest_path)
 
     (rules_dir / "index.md").write_text(
-        _render_index(entries=entries),
+        _render_index(
+            entries=manifest.entries,
+            severity_vocabulary=manifest.severity_vocabulary,
+        ),
         encoding="utf-8",
     )
 
-    for entry in entries:
+    for entry in manifest.entries:
         page_path = rules_dir / f"{entry.rule_id}.md"
         page_path.write_text(_render_rule_page(entry=entry), encoding="utf-8")
 
     vitepress_generated_dir.mkdir(parents=True, exist_ok=True)
     (vitepress_generated_dir / "rules-sidebar.ts").write_text(
-        _render_rules_sidebar_items(entries=entries),
+        _render_rules_sidebar_items(entries=manifest.entries),
         encoding="utf-8",
     )
 

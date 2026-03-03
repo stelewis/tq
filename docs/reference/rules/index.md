@@ -1,6 +1,6 @@
 # Rules
 
-This is the canonical user-facing rules index.
+This page documents the user-facing rules.
 
 Rule metadata is sourced from `manifest.yaml` in this directory.
 

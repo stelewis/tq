@@ -20,6 +20,10 @@ def test_generate_rules_docs_writes_index_and_rule_pages(
     rules_dir.mkdir(parents=True, exist_ok=True)
     (rules_dir / "manifest.yaml").write_text(
         (
+            "severity_vocabulary:\n"
+            "  - error\n"
+            "  - warning\n"
+            "  - info\n"
             "rules:\n"
             "  - id: orphaned-test\n"
             "    default_severity: warning\n"
@@ -51,6 +55,9 @@ def test_generate_rules_docs_writes_index_and_rule_pages(
 
     assert "# Rules" in index_content
     assert "[`orphaned-test`](./orphaned-test.md)" in index_content
+    assert "- `error`" in index_content
+    assert "- `warning`" in index_content
+    assert "- `info`" in index_content
     assert "# orphaned-test" in page_content
     assert "## Trigger conditions" in page_content
     assert "export const rulesSidebarItems = [" in sidebar_content
@@ -69,4 +76,38 @@ def test_generate_rules_docs_fails_for_invalid_manifest(
 
     monkeypatch.chdir(tmp_path)
     with pytest.raises(TypeError, match="'rules' list"):
+        generate_rules_docs.generate_rules_docs()
+
+
+def test_generate_rules_docs_fails_when_severity_vocabulary_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Fail fast when severity vocabulary is missing from manifest."""
+    rules_dir = tmp_path / "docs" / "reference" / "rules"
+    rules_dir.mkdir(parents=True, exist_ok=True)
+    (rules_dir / "manifest.yaml").write_text(
+        (
+            "rules:\n"
+            "  - id: orphaned-test\n"
+            "    default_severity: warning\n"
+            "    added_in: 0.4.0\n"
+            "    behavior_changes: none\n"
+            "    what_it_does: detects tests with no source module\n"
+            "    why_this_matters: avoids stale tests\n"
+            "    trigger_conditions:\n"
+            "      - no corresponding source module exists\n"
+            "    examples:\n"
+            "      - source: n/a\n"
+            "        test: tests/tq/rules/test_obsolete.py\n"
+            "    how_to_address:\n"
+            "      - delete stale test or restore source module\n"
+            "    related_controls:\n"
+            "      - --ignore\n"
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(TypeError, match="severity_vocabulary"):
         generate_rules_docs.generate_rules_docs()

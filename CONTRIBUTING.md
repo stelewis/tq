@@ -31,7 +31,7 @@ Longer explanations of the repository conventions are kept in `docs/developer`:
 - **Git workflow** – branch naming, commit message conventions, PR guidelines.
 - **Testing standards** – how to write tests, run them, and use the test-quality tool itself.
 
-Read or search the documents before starting larger changes; links can be found in the [Developer docs index](docs/developer/README.md).
+Read or search the documents before starting larger changes; links can be found in the [Developer docs index](docs/developer/index.md).
 
 ## Issues and pull requests
 
