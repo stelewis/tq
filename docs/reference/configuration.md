@@ -1,6 +1,6 @@
 # Configuration
 
-Canonical configuration namespace:
+Configuration namespace:
 
 - `[tool.tq]`
 

@@ -45,11 +45,17 @@ def test_generate_rules_docs_writes_index_and_rule_pages(
 
     index_content = (rules_dir / "index.md").read_text(encoding="utf-8")
     page_content = (rules_dir / "orphaned-test.md").read_text(encoding="utf-8")
+    sidebar_content = (
+        tmp_path / "docs" / ".vitepress" / "generated" / "rules-sidebar.ts"
+    ).read_text(encoding="utf-8")
 
     assert "# Rules" in index_content
     assert "[`orphaned-test`](./orphaned-test.md)" in index_content
     assert "# orphaned-test" in page_content
     assert "## Trigger conditions" in page_content
+    assert "export const rulesSidebarItems = [" in sidebar_content
+    assert 'text: "orphaned-test"' in sidebar_content
+    assert 'link: "/reference/rules/orphaned-test"' in sidebar_content
 
 
 def test_generate_rules_docs_fails_for_invalid_manifest(

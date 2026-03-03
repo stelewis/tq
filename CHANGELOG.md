@@ -55,7 +55,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Added `tq check` as the canonical CLI entrypoint with deterministic output, strict exit semantics, and rule selection controls.
+- Added `tq check` as the CLI entrypoint with deterministic output, strict exit semantics, and rule selection controls.
 - Added a strict analysis architecture with immutable indexing, explicit rule contracts, deterministic finding aggregation, and terminal reporting.
 - Added built-in rule coverage for mapping, structure alignment, test file size limits, and orphaned tests.
 

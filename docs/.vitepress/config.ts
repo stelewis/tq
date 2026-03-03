@@ -1,4 +1,5 @@
 import { defineConfig } from "vitepress";
+import { rulesSidebarItems } from "./generated/rules-sidebar";
 
 export default defineConfig({
   base: "/tq/",
@@ -17,10 +18,9 @@ export default defineConfig({
       provider: "local"
     },
     nav: [
-      { text: "Guide", link: "/guide/getting-started" },
-      { text: "Reference", link: "/reference/cli" },
+      { text: "Docs", link: "/guide/getting-started" },
       { text: "Developer", link: "/developer/" },
-      { text: "ADR", link: "/adr/" }
+      { text: "ADR", link: "/adr/README" }
     ],
     sidebar: {
       "/guide/": [
@@ -30,16 +30,44 @@ export default defineConfig({
             { text: "Installation", link: "/guide/installation" },
             { text: "Getting Started", link: "/guide/getting-started" }
           ]
+        },
+        {
+          text: "Reference",
+          items: [
+            {
+              text: "Rules",
+              link: "/reference/rules/",
+              collapsed: true,
+              items: [...rulesSidebarItems]
+            },
+            { text: "CLI", link: "/reference/cli" },
+            { text: "Configuration", link: "/reference/configuration" },
+            { text: "Exit Codes", link: "/reference/exit-codes" },
+            { text: "Governance", link: "/reference/governance" },
+            { text: "Versioning", link: "/reference/versioning" }
+          ]
         }
       ],
       "/reference/": [
         {
+          text: "Guide",
+          items: [
+            { text: "Installation", link: "/guide/installation" },
+            { text: "Getting Started", link: "/guide/getting-started" }
+          ]
+        },
+        {
           text: "Reference",
           items: [
+            {
+              text: "Rules",
+              link: "/reference/rules/",
+              collapsed: true,
+              items: [...rulesSidebarItems]
+            },
             { text: "CLI", link: "/reference/cli" },
             { text: "Configuration", link: "/reference/configuration" },
             { text: "Exit Codes", link: "/reference/exit-codes" },
-            { text: "Rules", link: "/reference/rules/" },
             { text: "Governance", link: "/reference/governance" },
             { text: "Versioning", link: "/reference/versioning" }
           ]

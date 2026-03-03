@@ -1,6 +1,6 @@
 # Project policies
 
-This page is the canonical reference for repository policies enforced by automation.
+This page documents the repository policies enforced by automation.
 
 ## GitHub Actions policy
 

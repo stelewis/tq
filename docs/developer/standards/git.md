@@ -1,6 +1,6 @@
 # Git Workflow Standards
 
-This document defines the canonical Git workflow for this repository.
+This document defines the Git workflow for this repository.
 
 ## Goals
 

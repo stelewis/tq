@@ -126,6 +126,7 @@ jobs:
           git diff --exit-code \
             docs/reference/cli.md \
             docs/reference/configuration.md \
+            docs/.vitepress/generated/rules-sidebar.ts \
             docs/reference/rules/index.md \
             docs/reference/rules/*.md
 

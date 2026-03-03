@@ -1,6 +1,6 @@
 # Developer
 
-This section is the canonical landing page for contributors and maintainers.
+This section contains the documentation for contributors and maintainers.
 
 ## Start here
 

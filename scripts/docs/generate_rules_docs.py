@@ -113,7 +113,7 @@ def _render_index(*, entries: tuple[RuleManifestEntry, ...]) -> str:
     lines = [
         "# Rules",
         "",
-        "This is the canonical user-facing rules index.",
+        "This page documents the user-facing rules.",
         "",
         "Rule metadata is sourced from `manifest.yaml` in this directory.",
         "",
@@ -231,10 +231,36 @@ def _render_rule_page(*, entry: RuleManifestEntry) -> str:
     return "\n".join(lines)
 
 
+def _render_rules_sidebar_items(*, entries: tuple[RuleManifestEntry, ...]) -> str:
+    """Render generated VitePress sidebar rule items from manifest entries."""
+    lines = [
+        "export const rulesSidebarItems = [",
+    ]
+
+    for entry in entries:
+        lines.extend(
+            [
+                "  {",
+                f'    text: "{entry.rule_id}",',
+                f'    link: "/reference/rules/{entry.rule_id}"',
+                "  },",
+            ],
+        )
+
+    lines.extend(
+        [
+            "] as const;",
+            "",
+        ],
+    )
+    return "\n".join(lines)
+
+
 def generate_rules_docs() -> None:
-    """Generate index and per-rule reference pages from canonical manifest."""
+    """Generate rule reference pages and VitePress sidebar items from manifest."""
     rules_dir = Path("docs/reference/rules")
     manifest_path = rules_dir / "manifest.yaml"
+    vitepress_generated_dir = Path("docs/.vitepress/generated")
     entries = _load_manifest(manifest_path=manifest_path)
 
     (rules_dir / "index.md").write_text(
@@ -245,6 +271,12 @@ def generate_rules_docs() -> None:
     for entry in entries:
         page_path = rules_dir / f"{entry.rule_id}.md"
         page_path.write_text(_render_rule_page(entry=entry), encoding="utf-8")
+
+    vitepress_generated_dir.mkdir(parents=True, exist_ok=True)
+    (vitepress_generated_dir / "rules-sidebar.ts").write_text(
+        _render_rules_sidebar_items(entries=entries),
+        encoding="utf-8",
+    )
 
 
 if __name__ == "__main__":

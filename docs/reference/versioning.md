@@ -1,6 +1,6 @@
 # Versioning
 
-This page is the canonical policy for versioning user-visible `tq` contracts.
+This page documents the policy for versioning user-visible `tq` contracts.
 
 ## Contract surfaces
 
