@@ -37,10 +37,6 @@ tq check
 
 Note: `uvx tq check` is not available because the `tq` package name on PyPI is owned by another project.
 
-## Current scope
-
-`tq` currently analyzes Python source and Python tests (`.py`) only.
-
 ## Usage
 
 Run checks:
@@ -66,10 +62,14 @@ allowed_qualifiers = ["regression"]
 
 ## Documentation
 
-Documentation homepage: [tq docs](https://stelewis.github.io/tq/)
+[`tq` documentation](https://stelewis.github.io/tq/)
+
+## Language support
+
+`tq` currently only analyzes Python source and Python tests (`.py`).
 
 ## Development
 
-Your contributions are welcome!
+Contributions are welcomed!
 
-Contribution guidelines and development setup steps are in [CONTRIBUTING.md](CONTRIBUTING.md).
+Contribution guidelines and development setup steps are documented in [CONTRIBUTING.md](CONTRIBUTING.md).
