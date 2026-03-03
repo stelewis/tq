@@ -23,6 +23,8 @@ Choose one installation mode:
 
 Create or update `pyproject.toml`:
 
+<!-- BEGIN GENERATED:quickstart-minimal-config -->
+
 ```toml
 [tool.tq]
 [[tool.tq.targets]]
@@ -31,6 +33,7 @@ package = "your_package"
 source_root = "src"
 test_root = "tests"
 ```
+<!-- END GENERATED:quickstart-minimal-config -->
 
 ## 3. Run a check
 

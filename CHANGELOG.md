@@ -8,7 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Introduced strict multi-target configuration model; `[[tool.tq.targets]]` is now required with unique kebab-case names and explicit source/test roots.
+
 ### Changed
+
+- Refactored analysis engine to execute and aggregate across multiple targets by default.
+- Updated CLI to support `--target` filtering and validate unknown target names.
+- Migrated documentation and examples to use the new target-based schema.
 
 ## [0.4.3] - 2026-03-03
 

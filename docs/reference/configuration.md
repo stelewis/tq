@@ -36,17 +36,17 @@ Isolated mode (`--isolated`) ignores discovered configuration files.
 - `tq check` runs all configured targets by default.
 - `tq check --target <name>` runs only selected targets.
 
-## Top-level keys
+### TOML shape for targets
 
-### `targets` (required)
+In TOML, `targets` is represented as an array-of-tables under `[tool.tq]`. Each `[[tool.tq.targets]]` block appends one entry to the same `targets` list.
 
-- Type: `array[table]`
-- Meaning: explicit list of analysis targets
-- Validation:
-  - at least one target is required
-  - each target `name` must be unique and kebab-case
-  - target required fields must be non-empty
-  - duplicate effective source package roots across targets are rejected
+- This is equivalent to a `targets = [...]` key at the data-model level.
+- You must declare at least one `[[tool.tq.targets]]` block.
+- Each target entry is validated strictly.
+
+## Shared top-level keys
+
+Top-level keys in `[tool.tq]` (other than `targets`) are shared defaults.
 
 ### `ignore_init_modules` (optional)
 
@@ -91,7 +91,16 @@ Isolated mode (`--isolated`) ignores discovered configuration files.
 - Meaning: rule IDs to skip after selection is resolved
 - Validation: values must be valid kebab-case rule IDs and known built-ins
 
-## Target keys
+## Target entries (`[[tool.tq.targets]]`)
+
+`targets` is required and must contain one or more entries.
+
+Validation for the full targets set:
+
+- at least one target is required
+- each target `name` must be unique and kebab-case
+- target required fields must be non-empty
+- duplicate effective source package roots across targets are rejected
 
 Each `[[tool.tq.targets]]` entry supports:
 
@@ -123,7 +132,7 @@ Each `[[tool.tq.targets]]` entry supports:
 
 ### Optional target overrides
 
-A target may override any top-level optional key:
+A target may override any shared top-level optional key:
 
 - `ignore_init_modules`
 - `max_test_file_non_blank_lines`
@@ -151,18 +160,23 @@ Severity remapping may be applied at CLI/config boundaries without changing rule
 
 ## Examples
 
-## Minimal required configuration
+### Minimal required configuration
+
+<!-- BEGIN GENERATED:configuration-minimal-config -->
 
 ```toml
 [tool.tq]
 [[tool.tq.targets]]
-name = "tq"
-package = "tq"
+name = "app"
+package = "your_package"
 source_root = "src"
 test_root = "tests"
 ```
+<!-- END GENERATED:configuration-minimal-config -->
 
-## Typical project configuration
+### Typical project configuration
+
+<!-- BEGIN GENERATED:configuration-typical-config -->
 
 ```toml
 [tool.tq]
@@ -172,8 +186,8 @@ qualifier_strategy = "allowlist"
 allowed_qualifiers = ["regression", "config", "fixtures_golden"]
 
 [[tool.tq.targets]]
-name = "tq"
-package = "tq"
+name = "app"
+package = "your_package"
 source_root = "src"
 test_root = "tests"
 
@@ -183,6 +197,7 @@ package = "scripts"
 source_root = "."
 test_root = "tests"
 ```
+<!-- END GENERATED:configuration-typical-config -->
 
 ## CLI override example
 
