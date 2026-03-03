@@ -14,10 +14,16 @@ export default defineConfig({
   ignoreDeadLinks: false,
   lastUpdated: false,
   head: [
+    ["link", { rel: "icon", href: "/tq/favicon.ico" }],
     [
       "link",
-      { rel: "icon", type: "image/svg+xml", href: "/tq-logo-mini.svg" }
+      { rel: "icon", type: "image/png", href: "/tq/tq-logo-mini.png" }
     ],
+    [
+      "link",
+      { rel: "icon", type: "image/svg+xml", href: "/tq/tq-logo-mini.svg" }
+    ],
+    ["link", { rel: "apple-touch-icon", href: "/tq/tq-logo-mini.png" }],
     ["meta", { name: "theme-color", content: "#6366f1" }]
   ],
   themeConfig: {
