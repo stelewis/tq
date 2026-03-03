@@ -40,12 +40,6 @@ Run checks:
 uv run tq check
 ```
 
-Emit machine-readable diagnostics:
-
-```sh
-uv run tq check --output-format json
-```
-
 ## Configuration
 
 Configure `tq` in `pyproject.toml` under `[tool.tq]`:
@@ -63,31 +57,10 @@ allowed_qualifiers = ["regression"]
 
 ## Documentation
 
-- Overview: [https://stelewis.github.io/tq/](https://stelewis.github.io/tq/)
-- Getting started: [https://stelewis.github.io/tq/guide/getting-started](https://stelewis.github.io/tq/guide/getting-started)
-- CLI reference: [https://stelewis.github.io/tq/reference/cli](https://stelewis.github.io/tq/reference/cli)
-- Configuration reference: [https://stelewis.github.io/tq/reference/configuration](https://stelewis.github.io/tq/reference/configuration)
-- Exit codes: [https://stelewis.github.io/tq/reference/exit-codes](https://stelewis.github.io/tq/reference/exit-codes)
-- Rules reference: [https://stelewis.github.io/tq/reference/rules/](https://stelewis.github.io/tq/reference/rules/)
+Documentation homepage: [tq docs](https://stelewis.github.io/tq/)
 
 ## Development
 
-Contribution guidelines are in [CONTRIBUTING.md](CONTRIBUTING.md). For local development, follow below steps.
+Your contributions are welcome!
 
-Install dependencies:
-
-```sh
-uv sync
-```
-
-Install pre-commit hooks (including `pre-commit`, `commit-msg`, and `pre-push`):
-
-```sh
-uv run prek install
-```
-
-Run tests:
-
-```sh
-uv run pytest -q
-```
+Contribution guidelines and development setup steps are in [CONTRIBUTING.md](CONTRIBUTING.md).

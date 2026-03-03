@@ -11,9 +11,14 @@ Because `tq` is a developer tool used by multiple teams, we strive for consisten
 3. Install the development environment and tools:
 
    ```sh
-   uv sync                 # install project dependencies
-   uv run prek install     # install pre‑commit hooks
+   uv sync                   # install project dependencies
+   uv run prek install       # install pre‑commit hooks
+   mise trust                # trust project mise.toml tasks/tools in this repo
+   mise install              # install tool versions declared in mise.toml
+   mise exec -- npm install  # install node dependencies for docs
    ```
+
+   Optional: activate `mise` in your shell if you want tools available without `mise exec`.
 
 4. Make your changes and run the full quality gate locally:
 
@@ -22,6 +27,12 @@ Because `tq` is a developer tool used by multiple teams, we strive for consisten
    ```
 
    The same sequence of commands is executed by CI on every pull request.
+
+   For docs changes, also run:
+
+   ```sh
+   mise run docs-build
+   ```
 
 ## Development documentation
 
