@@ -13,6 +13,9 @@ export default defineConfig({
   ignoreDeadLinks: false,
   lastUpdated: true,
   themeConfig: {
+    search: {
+      provider: "local"
+    },
     nav: [
       { text: "Guide", link: "/guide/getting-started" },
       { text: "Reference", link: "/reference/cli" },
