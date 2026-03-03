@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="560" height="560" viewBox="0 0 560 560" fill="none" role="img" aria-label="tq logo">
   <defs>
     <linearGradient id="tq-grad" x1="36" y1="36" x2="524" y2="524" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#41d1ff" />
-      <stop offset="1" stop-color="#bd34fe" />
+      <stop offset="0" stop-color="#6366f1" />
+      <stop offset="1" stop-color="#06b6d4" />
     </linearGradient>
   </defs>
   <rect x="36" y="36" width="488" height="488" rx="132" fill="url(#tq-grad)" />
