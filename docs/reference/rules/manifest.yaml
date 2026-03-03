@@ -10,7 +10,7 @@ rules:
     added_in: pre-1.0
     behavior_changes: None to date.
     what_it_does: >-
-      Ensures each discovered source module has at least one matching unit test
+      Ensure each discovered source module has at least one matching unit test
       module in the mirrored tests path.
     why_this_matters: >-
       Missing unit tests reduce discoverability and leave source modules without
@@ -23,7 +23,7 @@ rules:
       - source: src/tq/engine/runner.py
         test: tests/tq/engine/test_runner.py (missing)
     how_to_address:
-      - Add a mirrored unit test module under tests/{package}/... .
+      - Add a mirrored unit test module under `tests/{package}/...`.
       - Use `test_<module>.py` or an allowed qualified form.
     related_controls:
       - --select mapping-missing-test
@@ -38,7 +38,7 @@ rules:
     added_in: pre-1.0
     behavior_changes: None to date.
     what_it_does: >-
-      Detects unit test files that do not mirror the expected source-relative
+      Detect unit test files that do not mirror the expected source-relative
       path layout.
     why_this_matters: >-
       Structure drift makes tests harder to find, weakens navigability, and
@@ -63,7 +63,7 @@ rules:
     added_in: pre-1.0
     behavior_changes: None to date.
     what_it_does: >-
-      Flags unit test files that exceed the configured non-blank,
+      Flag unit test files that exceed the configured non-blank,
       non-comment-only line budget.
     why_this_matters: >-
       Oversized test modules tend to become monolithic and less actionable when
@@ -76,7 +76,7 @@ rules:
         test: tests/tq/engine/test_runner.py (over configured line limit)
     how_to_address:
       - Split the suite by concern using stable qualifiers.
-      - Move shared setup into nearby conftest.py fixtures.
+      - Move shared setup into nearby `conftest.py` fixtures.
     related_controls:
       - --select test-file-too-large
       - --ignore test-file-too-large
@@ -88,10 +88,9 @@ rules:
     added_in: pre-1.0
     behavior_changes: None to date.
     what_it_does: >-
-      Identifies unit test files that do not map to an existing source module.
+      Identify unit test files that do not map to an existing source module.
     why_this_matters: >-
-      Orphaned tests often encode stale behavior and add noise to maintenance
-      and review.
+      Orphaned tests often encode stale behavior and add noise in maintenance and review.
     trigger_conditions:
       - A unit test file is discovered.
       - No source module resolves for the test's target module name.

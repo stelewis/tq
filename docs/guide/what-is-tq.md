@@ -1,19 +1,19 @@
 # What is tq?
 
-`tq` is a test-quality checker that enforces test quality contracts for Python repositories.
+`tq` enforces test quality contracts for Python repositories.
 
-It inspects the relationship between source modules and test modules, then reports deterministic findings with stable rule IDs. The goal is simple: keep test suites discoverable, focused, actionable, and maintainable as your codebase evolves.
+It inspects how source modules map to tests and reports deterministic findings with stable rule IDs. Use it to keep test suites discoverable, focused, actionable, and maintainable as your codebase evolves.
 
 ## Why use tq?
 
-- Protect long-term test structure quality during refactors.
-- Catch missing, orphaned, or structurally inconsistent tests early.
-- Keep CI output machine-readable and stable for automation.
-- Apply explicit quality contracts inspired by `ruff` and `ty`.
+- Keep test structure healthy through refactors.
+- Catch missing, orphaned, and mismatched tests early.
+- Feed stable, machine-readable output into CI automation.
+- Apply explicit quality contracts with `ruff`/`ty`-style ergonomics.
 
 ## What tq checks
 
-Built-in rules currently cover:
+Built-in rules cover:
 
 - source-to-test mapping
 - structure alignment
@@ -33,4 +33,4 @@ See the full [Rules Index](../reference/rules/index.md) for rule IDs and behavio
 
 ## Next step
 
-Go to [QuickStart](./quickstart.md) to install and run `tq` in a project.
+Go to [QuickStart](./quickstart.md) to install and run `tq`.

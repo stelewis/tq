@@ -1,8 +1,8 @@
 # Testing Standards
 
-This project treats the test suite as a first-class part of the codebase.
+Treat the test suite as a first-class part of the codebase.
 
-The goal is to keep tests:
+Keep tests:
 
 - **Discoverable**: easy to find the test for a module.
 - **Focused**: small surface area, minimal cross-module coupling.
@@ -22,7 +22,7 @@ Required mapping:
 
 This is intentionally strict. It prevents "mystery tests" and keeps the suite aligned as the architecture evolves.
 
-It is totally acceptable for a module’s first test to be a placeholder smoke test (e.g., exercising an import or a minimal happy-path). The point is to make expanding coverage easy and keep the suite navigable.
+A module’s first test can be a placeholder smoke test (for example, exercising an import or a minimal happy path). The goal is to keep coverage growth easy and the suite navigable.
 
 ### Splitting tests (qualifiers)
 
@@ -30,7 +30,7 @@ If a test suite is too large for one file, split into multiple files by concern.
 
 - `test_<module>_<qualifier>.py`
 
-Only add a qualifier when it improves clarity and separation of concerns. Qualifiers should be stable and describe a single responsibility.
+Add a qualifier only when it improves clarity and separation of concerns. Qualifiers should be stable and describe a single responsibility.
 
 Avoid qualifiers that encode implementation details or ephemeral refactors.
 
@@ -38,14 +38,14 @@ Note: pytest runs with `--import-mode=importlib` (see `pyproject.toml`) to avoid
 
 ### Single-target rule (unit tests)
 
-As a default, a unit test module targets exactly one source module: the one implied by its path/name.
+By default, a unit test module targets exactly one source module: the one implied by its path/name.
 
 This means:
 
 - Do not keep a monolithic test file after splitting a large source module into smaller modules.
 - Do not "reach across" and assert behavior that belongs to other modules.
 
-If you need behavior across modules, that is usually a sign the contract belongs in a higher-level integration test.
+If you need behavior across modules, the contract usually belongs in a higher-level integration test.
 
 ### Integration tests
 
@@ -82,7 +82,7 @@ Placement:
 
 ### Excluded Tests
 
-Some marked tests may be excluded from test runs to keep `pytest` fast and deterministic. Run excluded tests explicitly when needed:
+Some marked tests may be excluded to keep `pytest` fast and deterministic. Run them explicitly when needed:
 
 ```bash
 uv run pytest -m e2e
@@ -102,13 +102,13 @@ uv run pytest -m e2e
 - **Vacuous tests**: tests that pass without meaningfully exercising behavior.
 - **Very large test modules**: tests that try to cover too much in one suite.
 
-Practical refactor rule:
+Use this practical refactor rule:
 
 - If you split `foo.py` into `foo/alpha.py` and `foo/beta.py`, the tests should split too. Keeping `test_foo.py` as a grab-bag is the failure mode to avoid.
 
 ### Use pytest markers
 
-Markers should communicate intent and allow selective runs.
+Use markers to communicate intent and enable selective runs.
 
 Use the project markers registered in `pyproject.toml` if the test is one of:
 
@@ -121,11 +121,11 @@ Use the project markers registered in `pyproject.toml` if the test is one of:
 
 ### Fixtures
 
-Place reusable fixtures in `conftest.py` files at appropriate levels to share them across test modules to avoid duplication and reduce the future refactor surface.
+Place reusable fixtures in `conftest.py` at appropriate levels to share them across test modules, avoid duplication, and reduce refactor surface.
 
 ## Workflow
 
-This project includes an automated test quality checker which can be run via:
+Run the automated test-quality checker with:
 
 ```bash
 uv run tq check

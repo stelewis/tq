@@ -1,10 +1,10 @@
-# Implementation Plans
+# Plans
 
-This folder contains implementation plans: short, execution-ready documents that translate architecture decisions and goals into concrete tasks and verification steps.
+Use this folder for implementation plans: short, execution-ready documents that translate architecture decisions and goals into concrete tasks and verification steps.
 
-Implementation plans are meant to be actionable and time-bounded. Prefer describing stable contracts, service boundaries, and verification criteria over transient coding details.
+Implementation plans should be actionable and time-bounded. Prefer stable contracts, service boundaries, and verification criteria over transient coding details.
 
-Plans are removed or refactored into enduring developer docs once the feature is implemented. They are not meant to be long-lived artifacts.
+Remove plans or refactor them into enduring developer docs once the feature is implemented. They are not long-lived artifacts.
 
 ## Where plans live
 

@@ -2,11 +2,11 @@
 
 ## What it does
 
-Identifies unit test files that do not map to an existing source module.
+Identify unit test files that do not map to an existing source module.
 
 ## Why this matters
 
-Orphaned tests often encode stale behavior and add noise to maintenance and review.
+Orphaned tests often encode stale behavior and add noise in maintenance and review.
 
 ## Default severity
 

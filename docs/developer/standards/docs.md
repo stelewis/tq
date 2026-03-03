@@ -1,8 +1,8 @@
 # Documentation Standards
 
-This project treats documentation as a first-class part of the codebase.
+Treat documentation as a first-class part of the codebase.
 
-The goal is to keep docs:
+Keep docs:
 
 - **Useful**: answer a concrete question someone will have.
 - **Non-redundant**: one canonical place per concept.
@@ -12,7 +12,7 @@ The goal is to keep docs:
 - **Purposeful**: avoid “docs for docs’ sake,” especially where code is the source of truth.
 - **Correct**: avoid drift and outdated information; revisit and update regularly.
 
-We want clean, maintainable docs that achieve the same design excellence as the code itself.
+Aim for clean, maintainable docs with the same design quality as the code.
 
 ## Where Things Live
 
@@ -25,7 +25,7 @@ We want clean, maintainable docs that achieve the same design excellence as the 
 - **Plan docs** (`docs/plans`) - *ephemeral*:
   - Implementation plans and specifications for features.
 
-*Note:* Design and plan docs are temporary artifacts used during the development phase. As features are implemented, the documents in these folders should be refactored into enduring developer docs or removed.
+*Note:* Design and plan docs are temporary artifacts used during development. As features ship, refactor these docs into enduring developer docs or remove them.
 
 ## Rules For Enduring Developer Docs
 

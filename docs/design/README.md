@@ -1,5 +1,5 @@
 # Design Docs
 
-This folder contains temporary design rationale and exploratory documents.
+Use this folder for temporary design rationale and exploratory documents.
 
-Design docs are ephemeral and should be refactored into enduring developer docs or removed once implementation lands.
+Design docs are ephemeral. Refactor them into enduring developer docs or remove them once implementation lands.

@@ -1,8 +1,8 @@
 # Architecture Decision Records (ADRs)
 
-This project uses Architecture Decision Records (ADRs) to capture important engineering decisions, their context, and consequences.
+Use Architecture Decision Records (ADRs) to capture important engineering decisions, context, and consequences.
 
-ADRs are meant to be enduring reference documents. Prefer describing stable contracts and boundaries over transient implementation details.
+ADRs are enduring reference documents. Prefer stable contracts and boundaries over transient implementation details.
 
 ## Where ADRs live
 

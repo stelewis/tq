@@ -2,7 +2,7 @@
 
 ## What it does
 
-Ensures each discovered source module has at least one matching unit test module in the mirrored tests path.
+Ensure each discovered source module has at least one matching unit test module in the mirrored tests path.
 
 ## Why this matters
 
@@ -25,7 +25,7 @@ Missing unit tests reduce discoverability and leave source modules without direc
 
 ## How to address
 
-- Add a mirrored unit test module under tests/{package}/... .
+- Add a mirrored unit test module under `tests/{package}/...`.
 - Use `test_<module>.py` or an allowed qualified form.
 
 ## Related configuration and suppression controls

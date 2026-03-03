@@ -2,7 +2,7 @@
 
 ## What it does
 
-Detects unit test files that do not mirror the expected source-relative path layout.
+Detect unit test files that do not mirror the expected source-relative path layout.
 
 ## Why this matters
 

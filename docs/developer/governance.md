@@ -4,7 +4,7 @@ Governance policy for `tq` contract documentation.
 
 ## Reference ownership and review
 
-Reference pages are contract pages. They require a stricter ownership and review model than narrative docs.
+Reference pages are contract pages and require stricter ownership and review than narrative docs.
 
 | Reference section | Canonical source(s) | Required reviewer focus |
 | --- | --- | --- |
@@ -14,7 +14,7 @@ Reference pages are contract pages. They require a stricter ownership and review
 | `docs/reference/rules/index.md` and `docs/reference/rules/*.md` | `docs/reference/rules/manifest.yaml` + `scripts/docs/generate_rules_docs.py` | Rule ID stability, severity defaults, and per-rule contract clarity |
 | `docs/developer/versioning.md` | Project versioning policy for user-visible contracts | Correct classification of breaking vs non-breaking changes |
 
-Required review baseline for any PR that touches `docs/reference/**`:
+Use this review baseline for any PR that touches `docs/reference/**`:
 
 - Include at least one reviewer for the touched contract surface.
 - Keep one canonical source of truth; link instead of duplicating contract text.

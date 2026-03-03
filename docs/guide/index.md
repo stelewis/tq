@@ -1,12 +1,12 @@
 # Guide
 
-Onboarding and first-use setup guide.
+Get `tq` running quickly and confidently.
 
 ## Start here
 
-- [What is tq?](./what-is-tq.md): project purpose, scope, and design stance
+- [What is tq?](./what-is-tq.md): understand the problem `tq` solves and what it checks
 - [QuickStart](./quickstart.md): install, configure, and run your first check
 
 ## Outcome
 
-After this guide, you should be able to run `tq check` with a valid `[tool.tq]` configuration and interpret its diagnostics.
+After this guide, you can run `tq check` with a valid `[tool.tq]` configuration and interpret the output.

@@ -1,6 +1,8 @@
 examples:
   quickstart_minimal: |
     [tool.tq]
+    ignore_init_modules = true
+
     [[tool.tq.targets]]
     name = "app"
     package = "your_package"
@@ -9,6 +11,8 @@ examples:
 
   configuration_minimal: |
     [tool.tq]
+    ignore_init_modules = true
+
     [[tool.tq.targets]]
     name = "app"
     package = "your_package"

@@ -1,6 +1,6 @@
 # Git Workflow Standards
 
-This document defines the Git workflow for this repository.
+Use this workflow to keep `main` stable and changes easy to review.
 
 ## Goals
 

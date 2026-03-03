@@ -30,7 +30,7 @@ The workflow performs:
 - post-publish smoke checks via `uvx tqlint`
 - post-publish consumer provenance verification against the PyPI wheel
 
-Manual `workflow_dispatch` runs are supported for dry-run build and smoke validation without publishing to PyPI.
+Manual `workflow_dispatch` runs support dry-run build and smoke validation without publishing to PyPI.
 
 ## Run a dry-run release validation
 

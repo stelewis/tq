@@ -10,7 +10,7 @@ superseded_by: null
 
 ## Context
 
-What problem are we solving? What constraints matter?
+What problem are we solving? Which constraints matter?
 
 ## Decision
 
@@ -22,7 +22,7 @@ What are the consequences of this decision?
 
 ## Alternatives considered
 
-What options did we consider and why did we / did we not choose them?
+Which options did we consider, and why did we or did we not choose them?
 
 ## Related
 

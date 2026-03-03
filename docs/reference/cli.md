@@ -1,20 +1,20 @@
 # CLI Reference
 
-`tq` uses a subcommand-first CLI and a strict contract surface.
+Use `tq` through a subcommand-first CLI with a strict contract surface.
 
 ## Distribution and invocation
 
 The published package name is `tqlint`, and the installed command is `tq`.
 
-For the installation and setup path, see [QuickStart](../guide/quickstart.md).
+For install and setup, see [QuickStart](../guide/quickstart.md).
 
 ## Command model
 
-Primary entrypoint:
+Primary command:
 
 - `tq check`
 
-Design goals for this command surface:
+This command surface is designed for:
 
 - deterministic diagnostics
 - explicit rule-selection controls

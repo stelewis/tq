@@ -6,7 +6,7 @@ Design context for `tq`.
 
 Test quality standards drift over time, especially in fast-moving codebases and agentic workflows. Monolithic tests, orphaned tests, and structure drift make failures less actionable and refactors harder.
 
-`tq` exists to enforce stable quality contracts so test suites remain navigable and maintainable.
+`tq` enforces stable quality contracts so test suites stay navigable and maintainable.
 
 ## Goals
 
@@ -17,7 +17,7 @@ Test quality standards drift over time, especially in fast-moving codebases and 
 - actionable,
 - maintainable.
 
-These map directly to the testing standards in [docs/developer/standards/tests.md](./standards/tests.md).
+These goals map directly to the [testing standards](./standards/tests.md) in this project.
 
 ## Design stance
 
@@ -30,7 +30,7 @@ These map directly to the testing standards in [docs/developer/standards/tests.m
 
 ## Rule scope
 
-The initial built-in rules cover:
+Built-in rules cover:
 
 - source-to-test mapping,
 - structure alignment,
@@ -41,10 +41,12 @@ See [docs/reference/rules/index.md](../reference/rules/index.md) for canonical r
 
 ## Current non-goals
 
-The first public release does not yet include:
+The first public release does not include:
 
 - semantic misnaming detection,
 - cross-module coupling detection,
 - redundant-by-semantics detection,
 - vacuous-test detection,
 - auto-fix mode.
+
+These are on the roadmap for future release.

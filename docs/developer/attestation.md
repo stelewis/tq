@@ -30,7 +30,7 @@ gh attestation verify dist/tqlint-<version>-py3-none-any.whl \
 ## Consumer verification before install
 
 1. Download the exact artifact you plan to install.
-2. Verify provenance before install.
+2. Verify provenance before installing.
 
 Example:
 
@@ -42,7 +42,7 @@ gh attestation verify tqlint-<version>-py3-none-any.whl \
   --deny-self-hosted-runners
 ```
 
-Release automation runs an equivalent consumer check after publish by downloading from PyPI and verifying the wheel attestation before the workflow is marked green.
+Release automation runs an equivalent consumer check after publish by downloading from PyPI and verifying the wheel attestation before marking the workflow green.
 
 ## Offline verification
 

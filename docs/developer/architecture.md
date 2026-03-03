@@ -1,10 +1,10 @@
 # Architecture
 
-Architecture overview for contributors.
+Use this page to understand `tq`'s architecture boundaries.
 
 ## ADR usage in this project
 
-`tq` uses Architectural Decision Records (ADRs) to record significant architecture decisions.
+`tq` uses Architectural Decision Records (ADRs) to capture significant architecture decisions.
 
 ADRs are stored in `docs/adr/`.
 
@@ -19,4 +19,4 @@ ADRs are stored in `docs/adr/`.
 - **Rule implementations:** `src/tq/rules/` contains focused rules with stable `RuleId` contracts.
 - **Output adapters:** `src/tq/reporting/terminal.py` and `src/tq/reporting/json.py` format results for human and machine consumers.
 
-The core design emphasis is strict boundaries, immutable analysis inputs, stable rule contracts, and deterministic output ordering.
+The core design emphasizes strict boundaries, immutable analysis inputs, stable rule contracts, and deterministic output ordering.

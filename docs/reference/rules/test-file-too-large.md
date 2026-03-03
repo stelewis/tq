@@ -2,7 +2,7 @@
 
 ## What it does
 
-Flags unit test files that exceed the configured non-blank, non-comment-only line budget.
+Flag unit test files that exceed the configured non-blank, non-comment-only line budget.
 
 ## Why this matters
 
@@ -25,7 +25,7 @@ Oversized test modules tend to become monolithic and less actionable when failur
 ## How to address
 
 - Split the suite by concern using stable qualifiers.
-- Move shared setup into nearby conftest.py fixtures.
+- Move shared setup into nearby `conftest.py` fixtures.
 
 ## Related configuration and suppression controls
 

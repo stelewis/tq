@@ -15,7 +15,7 @@ superseded_by: null
 
 `tq` needs a stable, long-lived operator contract so CI integrations, automation, and contributor workflows do not drift over time.
 
-The design target is alignment with the operator ergonomics used by Ruff and Ty:
+The design target aligns with operator ergonomics used by Ruff and Ty:
 
 - subcommand-first interface (`<tool> check`),
 - strict and predictable exit code semantics,
@@ -29,7 +29,7 @@ The design target is alignment with the operator ergonomics used by Ruff and Ty:
 
 `tq` uses a subcommand interface with `tq check` as the canonical command.
 
-Output is designed for both human and machine use.
+Output serves both human and machine consumers.
 
 ### 2. Exit code policy
 
@@ -43,7 +43,7 @@ This mirrors Ruff and Ty conventions for normal and abnormal termination.
 
 ### 3. Configuration namespace and precedence
 
-Configuration namespace exists as `[tool.tq]` in `pyproject.toml`.
+The configuration namespace is `[tool.tq]` in `pyproject.toml`.
 
 Precedence policy:
 

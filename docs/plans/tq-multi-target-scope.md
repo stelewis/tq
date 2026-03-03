@@ -5,7 +5,7 @@ date_created: 2026-03-03
 
 # Implementation Plan: Multi-target project scope for tq check
 
-`tq` currently models one package/source/test scope per run, which means the default project configuration can miss first-party Python modules that live outside the main package path (for example `scripts/`). The clean long-term fix is to make scope explicit and first-class: define one or more analysis targets in config, then run `tq check` across all targets by default with deterministic ordering and strict validation. This aligns with Ruff and Ty ergonomics: explicit target selection, strict config, predictable precedence, and CLI overrides that do not silently change meaning.
+`tq` currently models one package/source/test scope per run, so default project configuration can miss first-party Python modules outside the main package path (for example `scripts/`). The long-term fix is to make scope explicit and first-class: define one or more analysis targets in config, then run `tq check` across all targets by default with deterministic ordering and strict validation. This aligns with Ruff and Ty ergonomics: explicit target selection, strict config, predictable precedence, and CLI overrides that do not silently change meaning.
 
 ## Architecture and design
 

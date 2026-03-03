@@ -15,7 +15,7 @@ Allowed exceptions:
 - local actions (`./...`)
 - `docker://` references
 
-Why:
+Why this matters:
 
 - protects workflows from mutable tag drift,
 - supports reproducible and auditable CI behavior,
@@ -30,7 +30,7 @@ Tag-triggered release runs must:
 - verify those attestations before publish,
 - publish only after successful provenance verification.
 
-Why:
+Why this matters:
 
 - establishes cryptographic provenance for released artifacts,
 - gives maintainers and consumers a verifiable trust signal,
@@ -53,7 +53,7 @@ Enforcement:
 - CI package checks run `scripts/release/verify_artifact_contents.py`
 - publish workflow runs the same guard before metadata validation and publish
 
-Why:
+Why this matters:
 
 - keeps installed artifacts minimal and predictable,
 - reduces accidental leakage of internal automation or repository-only files,

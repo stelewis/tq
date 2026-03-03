@@ -1,14 +1,14 @@
 # Configuration
 
-Configuration namespace:
+Configure `tq` under:
 
 - `[tool.tq]`
 
-`tq` loads configuration strictly and fails fast on unknown keys or invalid types.
+`tq` loads configuration strictly and fails fast on unknown keys and invalid types.
 
 ## Config file locations
 
-`tq` reads from `pyproject.toml` files using this model:
+`tq` reads `pyproject.toml` using this model:
 
 - explicit config: file passed via `--config`
 - project config: nearest `pyproject.toml` from current working directory upward
@@ -18,14 +18,14 @@ Only the `[tool.tq]` table is read.
 
 ## Precedence
 
-Configuration is applied in this order (highest precedence first):
+Configuration is applied in this order (highest first):
 
 1. Dedicated CLI flags
 2. Explicit CLI config overrides (`--config`)
 3. Discovered project configuration (`pyproject.toml` nearest cwd)
 4. Discovered user configuration (`~/.config/tq/pyproject.toml`)
 
-Isolated mode (`--isolated`) ignores discovered configuration files.
+Use `--isolated` to ignore discovered configuration files.
 
 ## Targets model
 
@@ -36,9 +36,9 @@ Isolated mode (`--isolated`) ignores discovered configuration files.
 - `tq check` runs all configured targets by default.
 - `tq check --target <name>` runs only selected targets.
 
-### TOML shape for targets
+### How targets are represented in TOML
 
-In TOML, `targets` is represented as an array-of-tables under `[tool.tq]`. Each `[[tool.tq.targets]]` block appends one entry to the same `targets` list.
+In TOML, `targets` is an array-of-tables under `[tool.tq]`. Each `[[tool.tq.targets]]` block appends one entry to the same `targets` list.
 
 - This is equivalent to a `targets = [...]` key at the data-model level.
 - You must declare at least one `[[tool.tq.targets]]` block.
@@ -46,7 +46,7 @@ In TOML, `targets` is represented as an array-of-tables under `[tool.tq]`. Each 
 
 ## Shared top-level keys
 
-Top-level keys in `[tool.tq]` (other than `targets`) are shared defaults.
+Top-level keys in `[tool.tq]` (other than `targets`) act as shared defaults.
 
 ### `ignore_init_modules` (optional)
 
@@ -95,7 +95,7 @@ Top-level keys in `[tool.tq]` (other than `targets`) are shared defaults.
 
 `targets` is required and must contain one or more entries.
 
-Validation for the full targets set:
+The full `targets` set is validated as follows:
 
 - at least one target is required
 - each target `name` must be unique and kebab-case
@@ -166,6 +166,8 @@ Severity remapping may be applied at CLI/config boundaries without changing rule
 
 ```toml
 [tool.tq]
+ignore_init_modules = true
+
 [[tool.tq.targets]]
 name = "app"
 package = "your_package"
@@ -201,13 +203,13 @@ test_root = "tests"
 
 ## CLI override example
 
-Run with discovered config but tighten the file-size limit for one invocation:
+Use discovered config but tighten the file-size limit for one run:
 
 ```sh
 tq check --max-test-file-non-blank-lines 300
 ```
 
-Run only one configured target:
+Run one configured target:
 
 ```sh
 tq check --target scripts

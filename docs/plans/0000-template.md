@@ -5,16 +5,16 @@ date_created: {YYYY-MM-DD}
 
 # Implementation Plan: {feature}
 
-{TL;DR — what, how, why. Brief description of the requirements and goals of the feature (30-200 words, depending on complexity)}
+{TL;DR — what, how, why. Briefly describe the feature requirements and goals (30-200 words, depending on complexity).}
 
 ## Architecture and design
 
-{Describe the high-level architecture and design considerations, referencing key decisions (if required). Keep it concise.}
+{Describe high-level architecture and design considerations, and reference key decisions when needed. Keep it concise.}
 
 ## Tasks
 
-{Break down the implementation into tasks and actions, including links to relevant files}
+{Break implementation into tasks and actions, including links to relevant files.}
 
 ## Verification
 
-{Quality gates, tests}
+{Quality gates and tests.}

@@ -1,6 +1,6 @@
 # Code Standards
 
-This document guides the code standards in this repository.
+Use these standards to keep code correct, maintainable, and easy to evolve.
 
 Goals:
 

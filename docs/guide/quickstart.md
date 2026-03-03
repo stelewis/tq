@@ -1,10 +1,10 @@
 # QuickStart
 
-This guide gets `tq` running in a Python repository.
+Get `tq` running in a Python repository in a few steps.
 
 ## 1. Install
 
-Choose one installation mode:
+Choose an install mode:
 
 - project dependency: `uv add --dev tqlint`
 - ephemeral run: `uvx tqlint check`
@@ -27,6 +27,8 @@ Create or update `pyproject.toml`:
 
 ```toml
 [tool.tq]
+ignore_init_modules = true
+
 [[tool.tq.targets]]
 name = "app"
 package = "your_package"
@@ -41,7 +43,7 @@ test_root = "tests"
 uv run tq check
 ```
 
-For CI or editor integrations, use JSON output:
+For CI or editor integrations, emit JSON output:
 
 ```sh
 uv run tq check --output-format json
@@ -49,7 +51,7 @@ uv run tq check --output-format json
 
 ## 4. Tune behavior
 
-Common tuning flags:
+Use these common flags:
 
 - `--select` / `--ignore` for rule selection
 - `--max-test-file-non-blank-lines` for file size threshold
@@ -57,6 +59,6 @@ Common tuning flags:
 
 ## Next steps
 
-- Read [Configuration](../reference/configuration.md) for all keys and precedence.
-- Browse the [Rules Index](../reference/rules/index.md) for diagnostics behavior.
+- Read [Configuration](../reference/configuration.md) for keys and precedence.
+- Browse the [Rules Index](../reference/rules/index.md) for rule behavior.
 - See [CLI Reference](../reference/cli.md) for command options.

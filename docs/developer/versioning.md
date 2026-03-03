@@ -4,7 +4,7 @@ Policy for versioning user-visible `tq` contracts.
 
 ## Contract surfaces
 
-Contract surfaces covered by this policy:
+This policy covers:
 
 - CLI flags and behavior (`tq check`)
 - Configuration keys and validation semantics (`[tool.tq]`)
@@ -25,7 +25,7 @@ After `1.0`, major-version SemVer semantics apply for breaking changes.
 
 ### Patch changes
 
-Use a patch release for:
+Choose a patch release for:
 
 - bug fixes that preserve documented contract intent
 - additive optional configuration keys that are inert by default
@@ -34,7 +34,7 @@ Use a patch release for:
 
 ### Minor changes
 
-Use a minor release for:
+Choose a minor release for:
 
 - adding a new stable rule enabled by default behavior
 - changing a stable rule's trigger intent or widening behavior beyond bug-fix scope
