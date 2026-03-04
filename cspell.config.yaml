@@ -12,14 +12,17 @@ words:
   - capsys
   - chdir
   - CLI
+  - clippy
   - Cloudant
   - commitizen
   - Commitizen
   - configfile
   - conftest
+  - cutover
   - dataclass
   - dataclasses
   - dedupe
+  - docsgen
   - docstrings
   - duplicative
   - elif
@@ -35,6 +38,7 @@ words:
   - mnda
   - monkeypatch
   - msgfile
+  - MSRV
   - negotiables
   - OOXML
   - overengineered
@@ -59,6 +63,7 @@ words:
   - Stringly
   - testpaths
   - theo
+  - thiserror
   - tqlint
   - venv
   - Vite
