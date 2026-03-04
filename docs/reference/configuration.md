@@ -120,14 +120,14 @@ Each `[[tool.tq.targets]]` entry supports:
 
 - Type: `string`
 - Meaning: root directory that contains source packages
-- Resolution: relative paths resolve from current working directory
+- Resolution: relative paths resolve from the directory containing the `pyproject.toml` file that defines `[[tool.tq.targets]]`
 - Validation: non-empty string
 
 ### `test_root` (required)
 
 - Type: `string`
 - Meaning: root directory that contains tests
-- Resolution: relative paths resolve from current working directory
+- Resolution: relative paths resolve from the directory containing the `pyproject.toml` file that defines `[[tool.tq.targets]]`
 - Validation: non-empty string
 
 ### Optional target overrides

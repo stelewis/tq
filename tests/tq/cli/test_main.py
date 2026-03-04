@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -257,6 +258,32 @@ def test_repeated_target_flag_does_not_duplicate_findings() -> None:
     assert payload["summary"]["total"] == 1
     assert len(payload["findings"]) == 1
     assert payload["findings"][0]["target"] == "tq"
+
+
+def test_check_from_subdirectory_uses_project_config_root() -> None:
+    """Resolve target roots from discovered project config location."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        _write_project_config(Path("pyproject.toml"))
+        _write(Path("scripts/docs/generate.py"), "def gen() -> None:\n    pass\n")
+        Path("tests/scripts").mkdir(parents=True, exist_ok=True)
+        Path("docs/developer").mkdir(parents=True, exist_ok=True)
+
+        original_cwd = Path.cwd()
+        os.chdir(Path("docs/developer").resolve())
+        try:
+            result = runner.invoke(
+                cli,
+                ["check", "--output-format", "json", "--target", "scripts"],
+            )
+        finally:
+            os.chdir(original_cwd)
+
+    assert result.exit_code == 1
+    payload = json.loads(result.output)
+    assert payload["summary"]["errors"] == 1
+    assert payload["findings"][0]["target"] == "scripts"
+    assert payload["findings"][0]["path"].endswith("scripts/docs/generate.py")
 
 
 def _write_project_config(path: Path) -> None:

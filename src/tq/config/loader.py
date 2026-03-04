@@ -58,12 +58,18 @@ def resolve_tq_config(
 ) -> TqConfig:
     """Resolve final tq config with strict precedence and validation."""
     discovered = PartialTqConfig()
+    targets_base_dir: Path | None = None
 
     if explicit_config_path is not None:
         config_path = explicit_config_path.resolve()
         discovered = _load_partial_from_pyproject(
             path=config_path,
             require_section=True,
+        )
+        targets_base_dir = _resolve_targets_base_dir(
+            current=targets_base_dir,
+            loaded=discovered,
+            config_path=config_path,
         )
     elif not isolated:
         user_config_path = Path.home() / ".config" / "tq" / "pyproject.toml"
@@ -75,6 +81,11 @@ def resolve_tq_config(
                 require_section=False,
             )
             discovered = _merge_partial(discovered, user_partial)
+            targets_base_dir = _resolve_targets_base_dir(
+                current=targets_base_dir,
+                loaded=user_partial,
+                config_path=user_config_path,
+            )
 
         if project_config_path is not None:
             project_partial = _load_partial_from_pyproject(
@@ -82,13 +93,31 @@ def resolve_tq_config(
                 require_section=False,
             )
             discovered = _merge_partial(discovered, project_partial)
+            targets_base_dir = _resolve_targets_base_dir(
+                current=targets_base_dir,
+                loaded=project_partial,
+                config_path=project_config_path,
+            )
 
     cli_partial = _partial_from_cli(cli_overrides)
     return _materialize_config(
         cwd=cwd,
         partial=discovered,
         cli_defaults=cli_partial.defaults,
+        targets_base_dir=targets_base_dir,
     )
+
+
+def _resolve_targets_base_dir(
+    *,
+    current: Path | None,
+    loaded: PartialTqConfig,
+    config_path: Path,
+) -> Path | None:
+    """Track directory origin for the currently active targets payload."""
+    if loaded.targets is None:
+        return current
+    return config_path.parent.resolve()
 
 
 def _find_project_pyproject(cwd: Path) -> Path | None:
@@ -234,6 +263,7 @@ def _materialize_config(
     cwd: Path,
     partial: PartialTqConfig,
     cli_defaults: PartialRuleConfig,
+    targets_base_dir: Path | None,
 ) -> TqConfig:
     """Validate and materialize a final runtime config."""
     if not partial.targets:
@@ -246,7 +276,7 @@ def _materialize_config(
 
     for target_index, target in enumerate(partial.targets):
         resolved = _materialize_target(
-            cwd=cwd,
+            targets_base_dir=targets_base_dir or cwd,
             target=target,
             defaults=partial.defaults,
             cli_defaults=cli_defaults,
@@ -285,7 +315,7 @@ def _materialize_config(
 
 def _materialize_target(
     *,
-    cwd: Path,
+    targets_base_dir: Path,
     target: PartialTargetConfig,
     defaults: PartialRuleConfig,
     cli_defaults: PartialRuleConfig,
@@ -350,8 +380,8 @@ def _materialize_target(
     return TqTargetConfig(
         name=name,
         package=package,
-        source_root=_resolve_path(cwd=cwd, value=source_root_value),
-        test_root=_resolve_path(cwd=cwd, value=test_root_value),
+        source_root=_resolve_path(base_dir=targets_base_dir, value=source_root_value),
+        test_root=_resolve_path(base_dir=targets_base_dir, value=test_root_value),
         ignore_init_modules=(
             final_rules.ignore_init_modules
             if final_rules.ignore_init_modules is not None
@@ -394,12 +424,12 @@ def _validate_python_package_name(value: str, *, location: str) -> None:
         raise ConfigValidationError(msg)
 
 
-def _resolve_path(*, cwd: Path, value: str) -> Path:
-    """Resolve a config path relative to cwd."""
+def _resolve_path(*, base_dir: Path, value: str) -> Path:
+    """Resolve a config path relative to its owning config directory."""
     candidate = Path(value)
     if candidate.is_absolute():
         return candidate
-    return (cwd / candidate).resolve()
+    return (base_dir / candidate).resolve()
 
 
 def _expect_optional_str(
