@@ -71,6 +71,38 @@ def test_json_output_is_deterministic_for_representative_project() -> None:
     }
 
 
+@pytest.mark.integration
+def test_json_output_supports_multi_target_default_and_filtering() -> None:
+    """Cover default multi-target execution and --target filtering."""
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        _write_project_config_multi_target(Path("pyproject.toml"))
+        _write(Path("src/tq/alpha.py"), "def alpha() -> None:\n    pass\n")
+        _write(Path("scripts/docs/generate.py"), "def generate() -> None:\n    pass\n")
+        Path("tests").mkdir(parents=True, exist_ok=True)
+
+        default_result = runner.invoke(cli, ["check", "--output-format", "json"])
+        scripts_only_result = runner.invoke(
+            cli,
+            ["check", "--output-format", "json", "--target", "scripts"],
+        )
+
+    assert default_result.exit_code == 1
+    default_payload = json.loads(default_result.output)
+    assert default_payload["summary"]["total"] == 2
+    assert sorted(finding["target"] for finding in default_payload["findings"]) == [
+        "scripts",
+        "tq",
+    ]
+
+    assert scripts_only_result.exit_code == 1
+    scripts_only_payload = json.loads(scripts_only_result.output)
+    assert scripts_only_payload["summary"]["total"] == 1
+    assert [finding["target"] for finding in scripts_only_payload["findings"]] == [
+        "scripts"
+    ]
+
+
 def _write_project_config(path: Path) -> None:
     """Write a minimal valid project tq configuration."""
     path.write_text(
@@ -83,6 +115,27 @@ def _write_project_config(path: Path) -> None:
             'name = "tq"\n'
             'package = "tq"\n'
             'source_root = "src"\n'
+            'test_root = "tests"\n'
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_project_config_multi_target(path: Path) -> None:
+    """Write a minimal valid two-target project configuration."""
+    path.write_text(
+        (
+            "[tool.tq]\n"
+            "ignore_init_modules = true\n\n"
+            "[[tool.tq.targets]]\n"
+            'name = "tq"\n'
+            'package = "tq"\n'
+            'source_root = "src"\n'
+            'test_root = "tests"\n\n'
+            "[[tool.tq.targets]]\n"
+            'name = "scripts"\n'
+            'package = "scripts"\n'
+            'source_root = "."\n'
             'test_root = "tests"\n'
         ),
         encoding="utf-8",

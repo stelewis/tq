@@ -66,6 +66,7 @@ JSON findings include stable fields:
 - `path`
 - `line`
 - `suggestion`
+- `target`
 
 JSON summary includes:
 

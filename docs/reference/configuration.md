@@ -114,7 +114,7 @@ Each `[[tool.tq.targets]]` entry supports:
 
 - Type: `string`
 - Meaning: import package path to analyze (for example `tq` or `scripts`)
-- Validation: non-empty string
+- Validation: dotted Python identifier segments (for example `tq`, `scripts`, `my_pkg.tools`)
 
 ### `source_root` (required)
 
