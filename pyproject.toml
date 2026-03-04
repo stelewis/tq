@@ -1,6 +1,6 @@
 [project]
 name = "tqlint"
-version = "0.6.0"
+version = "0.6.1"
 description = "tq inspects a codebase's tests and enforces quality rules so tests remain discoverable, focused, actionable, and maintainable"
 readme = "README.md"
 license = "MIT"
