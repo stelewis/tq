@@ -80,13 +80,16 @@ jobs:
           requires-python = ">=3.11"
 
           [tool.tq]
-          package = "demo"
-          source_root = "src"
-          test_root = "tests"
           ignore_init_modules = true
           max_test_file_non_blank_lines = 600
           qualifier_strategy = "allowlist"
           allowed_qualifiers = ["regression"]
+
+          [[tool.tq.targets]]
+          name = "demo"
+          package = "demo"
+          source_root = "src"
+          test_root = "tests"
           TOML
           cat > tmp/release-smoke/src/demo/core.py <<'PY'
           def add(a: int, b: int) -> int:
