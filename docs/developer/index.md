@@ -27,6 +27,7 @@ This section contains documentation for contributors and maintainers.
 
 - [Release workflow](./releasing.md)
 - [Attestation verification](./attestation.md)
+- [Developer tools](./tools/index.md)
 
 ## Architecture
 
