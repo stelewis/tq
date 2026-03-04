@@ -8,10 +8,10 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import yaml
-
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+import yaml
 
 LOGGER = logging.getLogger(__name__)
 MAX_SKILL_MD_SIZE = 1_000_000
@@ -280,7 +280,7 @@ def validate_skill(skill_path: str | Path) -> tuple[bool, str]:
 
     try:
         frontmatter = _parse_frontmatter(frontmatter_text)
-    except (TypeError, ValueError) as error:
+    except TypeError as error:
         return False, str(error)
 
     for validator in (_validate_allowed_keys, _validate_required_fields):

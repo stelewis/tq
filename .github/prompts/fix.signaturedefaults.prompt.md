@@ -51,4 +51,5 @@ Eliminate default values in function/method signatures that hide dependencies, m
 - `uv run ruff format`
 - `uv run ruff check --fix`
 - `uv run ty check`
+- `uv run tq check`
 - `uv run pytest -q`

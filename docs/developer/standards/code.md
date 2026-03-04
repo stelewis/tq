@@ -32,7 +32,7 @@ Goals:
 - **Silent defaults in runtime models/config**: defaulting missing/invalid fields instead of failing fast (defaults belong in the composition root or boundary config).
 - **Compatibility coercion**: do not auto-upgrade legacy shapes at runtime; fix the boundary inputs.
 - **“Forever fixtures” mindset**: fixtures are not a compatibility promise; when schemas change, regenerate/update fixtures.
-- **Blind lint-rule compliance**: do not contort otherwise clear code just to satisfy a generic metric; align with the rule intent and use scoped exceptions when needed.
+- **Blind lint-rule compliance**: do not contort otherwise clear code to satisfy linting heuristics; align with the rule intent and use scoped exceptions when needed.
 
 ## Preferred Patterns
 
@@ -43,7 +43,6 @@ Goals:
 - **No runtime migrations / backward compatibility**: if a schema or contract changes, break intentionally and update the callers/fixtures rather than carrying adapters in core code.
 - **Narrow interfaces**: depend on small protocols/ABCs that model *what you need*, not the full dependency.
 - **Local reasoning**: keep functions small and side-effect-free where possible; push side effects to the edges.
-- **Intent-driven linting**: treat lint rules as heuristics, not laws; prefer readable design first, tune thresholds and use narrowly scoped ignores only when justified.
 - **Clear naming**: choose names that express intent and domain meaning.
   - Nouns for types, verbs for actions: classes/types are nouns; functions/methods are verbs.
   - Booleans as predicates: use `is_*`, `has_*`, `can_*`, `should_*`.

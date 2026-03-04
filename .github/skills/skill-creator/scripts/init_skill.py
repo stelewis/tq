@@ -191,9 +191,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Initialize a new skill scaffold.")
     parser.add_argument("skill_name", help="Kebab-case skill identifier.")
     parser.add_argument(
-        "--path",
-        required=True,
-        help="Directory where skill is created.",
+        "--path", required=True, help="Directory where skill is created."
     )
     return parser
 

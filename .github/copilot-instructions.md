@@ -13,6 +13,7 @@ Project uses `uv`.
 - Format: `uv run ruff format`
 - Lint: `uv run ruff check --fix`
 - Type check: `uv run ty check`
+- Test quality: `uv run tq check`
 - Tests: `uv run pytest`
 
 ### Common Tool Calls
@@ -47,8 +48,7 @@ uv run ruff format && uv run ruff check --fix && uv run ty check && uv run tq ch
   - MUST NOT take a convenience driven approach that compromises design quality.
 - MUST ensure that test modules are properly refactored when source code changes (split, merge, replace, delete).
 - MUST develop clean, maintainable, well factored, and elegant code.
-- MUST keep package `__init__.py` files lightweight:
-  - MUST NOT use `__init__.py` as a re-export hub (`__all__` barrels).
-  - MUST prefer importing exact module paths.
+- MUST NOT use `__init__.py` as a re-export hub (`__all__` barrels); prefer importing exact module paths.
+- MUST NOT blindly comply with lint rules or contort otherwise clear code to satisfy linting heuristics.
 
 **Correctness first, design forward.**

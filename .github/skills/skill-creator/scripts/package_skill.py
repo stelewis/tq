@@ -9,41 +9,16 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import logging
 import zipfile
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
+from quick_validate import validate_skill
 
 LOGGER = logging.getLogger(__name__)
 EXCLUDED_NAMES = {".DS_Store"}
 EXCLUDED_DIR_NAMES = {".git", "__pycache__"}
 EXCLUDED_SUFFIXES = {".pyc", ".pyo"}
-
-
-def _load_validate_skill() -> Callable[[str | Path], tuple[bool, str]]:
-    """Load sibling validator module in a script-safe way."""
-    module_path = Path(__file__).with_name("quick_validate.py")
-    spec = importlib.util.spec_from_file_location("quick_validate", module_path)
-    if spec is None or spec.loader is None:
-        msg = f"Unable to load validator module: {module_path}"
-        raise ImportError(msg)
-
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-
-    validate_skill_attr = getattr(module, "validate_skill", None)
-    if not callable(validate_skill_attr):
-        msg = "quick_validate.validate_skill was not found"
-        raise TypeError(msg)
-
-    return cast("Callable[[str | Path], tuple[bool, str]]", validate_skill_attr)
-
-
-VALIDATE_SKILL = _load_validate_skill()
 
 
 def _is_excluded(file_path: Path) -> bool:
@@ -97,8 +72,7 @@ def _collect_files(skill_path: Path) -> tuple[list[Path], list[str]]:
 
 
 def package_skill(
-    skill_path: str,
-    output_dir: str | None = None,
+    skill_path: str, output_dir: str | None = None
 ) -> tuple[Path | None, str]:
     """Package a skill folder into a `.skill` archive."""
     resolved_skill_path = Path(skill_path).resolve()
@@ -107,7 +81,7 @@ def package_skill(
     if not is_valid:
         return None, message
 
-    valid_skill, validation_message = VALIDATE_SKILL(resolved_skill_path)
+    valid_skill, validation_message = validate_skill(resolved_skill_path)
     if not valid_skill:
         return None, f"Validation failed: {validation_message}"
 
@@ -132,7 +106,7 @@ def package_skill(
 def _build_parser() -> argparse.ArgumentParser:
     """Build the CLI parser."""
     parser = argparse.ArgumentParser(
-        description="Package a skill into a .skill archive.",
+        description="Package a skill into a .skill archive."
     )
     parser.add_argument("skill_path", help="Path to the skill folder.")
     parser.add_argument(

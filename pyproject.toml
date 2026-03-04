@@ -41,7 +41,7 @@ Issues = "https://github.com/stelewis/tq/issues"
 Changelog = "https://github.com/stelewis/tq/blob/main/CHANGELOG.md"
 
 [build-system]
-requires = ["uv_build>=0.10.4,<0.11.0"]
+requires = ["uv_build>=0.10.7,<0.11.0"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
@@ -72,13 +72,17 @@ docstring-code-format = true
 
 [tool.ruff.lint]
 select = ["ALL"]
-ignore = ["COM812"]  # Per docs guidance: recommended to ignore when using ruff format as formatter enforces consistent use of trailing commas
+# COM812 – ignore when using ruff format; see docs <https://docs.astral.sh/ruff/rules/missing-trailing-comma/#philosophy>
+ignore = ["COM812"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101", "PLR2004"]
+# Tests are intentionally not packages (INP001) to avoid import shadowing in src-layout projects.
+"tests/**/*.py" = ["INP001", "S101", "PLR2004"]
+# Skill creator scripts are standalone CLIs under .github/, not importable packages (INP001).
+".github/skills/skill-creator/scripts/*.py" = ["INP001"]
 
 [tool.ruff.lint.pylint]
 max-returns = 10
