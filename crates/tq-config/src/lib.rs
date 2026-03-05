@@ -194,6 +194,16 @@ pub fn resolve_tq_config(
     isolated: bool,
     cli_overrides: &CliOverrides,
 ) -> Result<TqConfig, ConfigError> {
+    resolve_tq_config_with_user_config(cwd, explicit_config_path, isolated, None, cli_overrides)
+}
+
+pub fn resolve_tq_config_with_user_config(
+    cwd: &Path,
+    explicit_config_path: Option<&Path>,
+    isolated: bool,
+    discovered_user_config_path: Option<&Path>,
+    cli_overrides: &CliOverrides,
+) -> Result<TqConfig, ConfigError> {
     let cwd = absolute_from_process(cwd)?;
     let mut discovered = PartialTqConfig::default();
     let mut targets_base_dir: Option<PathBuf> = None;
@@ -204,8 +214,11 @@ pub fn resolve_tq_config(
         targets_base_dir = resolve_targets_base_dir(targets_base_dir, &loaded, &config_path);
         discovered = loaded;
     } else if !isolated {
-        let user_config_path =
-            home_dir().map(|home| home.join(".config").join("tq").join("pyproject.toml"));
+        let user_config_path = discovered_user_config_path
+            .map(Path::to_path_buf)
+            .or_else(|| {
+                home_dir().map(|home| home.join(".config").join("tq").join("pyproject.toml"))
+            });
         let project_config_path = find_project_pyproject(&cwd);
 
         if let Some(user_config_path) = user_config_path.filter(|path| path.exists()) {
@@ -438,7 +451,7 @@ fn materialize_config(
         }
         seen_names.insert(resolved.name.clone(), target_index);
 
-        let source_package_root = resolved.source_package_root();
+        let source_package_root = source_package_root_key(&resolved);
         if let Some(first_index) = seen_roots.get(&source_package_root) {
             return Err(ConfigError::validation(format!(
                 "Duplicate source package root across tool.tq.targets[{first_index}] and tool.tq.targets[{target_index}]: {}",
@@ -454,6 +467,11 @@ fn materialize_config(
     Ok(TqConfig {
         targets: normalized_targets,
     })
+}
+
+fn source_package_root_key(target: &TqTargetConfig) -> PathBuf {
+    let lexical = target.source_package_root();
+    fs::canonicalize(&lexical).unwrap_or(lexical)
 }
 
 fn materialize_target(

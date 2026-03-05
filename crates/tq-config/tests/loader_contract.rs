@@ -1,6 +1,8 @@
 use std::path::Path;
 
-use tq_config::{CliOverrides, QualifierStrategy, resolve_tq_config};
+use tq_config::{
+    CliOverrides, QualifierStrategy, resolve_tq_config, resolve_tq_config_with_user_config,
+};
 
 fn write(path: &Path, content: &str) {
     std::fs::create_dir_all(path.parent().expect("parent directory"))
@@ -374,7 +376,128 @@ fn resolve_rejects_non_kebab_target_name_with_leading_dash() {
         &CliOverrides::default(),
     )
     .expect_err("must reject leading-dash target name");
-    assert!(error.to_string().contains("tool.tq.targets[0].name must be kebab-case"));
+    assert!(
+        error
+            .to_string()
+            .contains("tool.tq.targets[0].name must be kebab-case")
+    );
+}
+
+#[test]
+fn discovery_project_overrides_user_for_defaults_and_targets() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let user_config = temp.path().join("user.toml");
+    write(
+        &user_config,
+        "[tool.tq]\n\
+         ignore_init_modules = true\n\
+         [[tool.tq.targets]]\n\
+         name = \"user\"\n\
+         package = \"scripts\"\n\
+         source_root = \"user-src\"\n\
+         test_root = \"user-tests\"\n",
+    );
+
+    let project_root = temp.path().join("project");
+    let project_config = project_root.join("pyproject.toml");
+    write(
+        &project_config,
+        "[tool.tq]\n\
+         ignore_init_modules = false\n\
+         [[tool.tq.targets]]\n\
+         name = \"project\"\n\
+         package = \"tq\"\n\
+         source_root = \"src\"\n\
+         test_root = \"tests\"\n",
+    );
+    let cwd = project_root.join("docs").join("developer");
+    std::fs::create_dir_all(&cwd).expect("create cwd");
+
+    let resolved = resolve_tq_config_with_user_config(
+        &cwd,
+        None,
+        false,
+        Some(&user_config),
+        &CliOverrides::default(),
+    )
+    .expect("config should resolve");
+
+    assert_eq!(resolved.targets.len(), 1);
+    assert_eq!(resolved.targets[0].name, "project");
+    assert_eq!(resolved.targets[0].source_root, project_root.join("src"));
+    assert!(!resolved.targets[0].ignore_init_modules);
+}
+
+#[test]
+fn discovery_keeps_user_targets_when_project_has_only_defaults() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let user_root = temp.path().join("user-root");
+    let user_config = user_root.join("user.toml");
+    write(
+        &user_config,
+        "[tool.tq]\n\
+         ignore_init_modules = true\n\
+         [[tool.tq.targets]]\n\
+         name = \"user\"\n\
+         package = \"scripts\"\n\
+         source_root = \"src\"\n\
+         test_root = \"tests\"\n",
+    );
+
+    let project_root = temp.path().join("project");
+    let project_config = project_root.join("pyproject.toml");
+    write(&project_config, "[tool.tq]\nignore_init_modules = false\n");
+
+    let resolved = resolve_tq_config_with_user_config(
+        &project_root,
+        None,
+        false,
+        Some(&user_config),
+        &CliOverrides::default(),
+    )
+    .expect("config should resolve");
+
+    assert_eq!(resolved.targets.len(), 1);
+    assert_eq!(resolved.targets[0].name, "user");
+    assert_eq!(resolved.targets[0].source_root, user_root.join("src"));
+    assert!(!resolved.targets[0].ignore_init_modules);
+}
+
+#[cfg(unix)]
+#[test]
+fn rejects_duplicate_source_package_roots_for_symlink_aliases() {
+    use std::os::unix::fs::symlink;
+
+    let temp = tempfile::tempdir().expect("tempdir");
+    let real = temp.path().join("real");
+    let link = temp.path().join("link");
+    std::fs::create_dir_all(real.join("src").join("tq")).expect("create real source root");
+    symlink(&real, &link).expect("create symlink alias");
+
+    let config_path = temp.path().join("pyproject.toml");
+    write(
+        &config_path,
+        "[tool.tq]\n\
+         [[tool.tq.targets]]\n\
+         name = \"a\"\n\
+         package = \"tq\"\n\
+         source_root = \"real/src\"\n\
+         test_root = \"tests\"\n\
+         [[tool.tq.targets]]\n\
+         name = \"b\"\n\
+         package = \"tq\"\n\
+         source_root = \"link/src\"\n\
+         test_root = \"tests2\"\n",
+    );
+
+    let error = resolve_tq_config(
+        temp.path(),
+        Some(&config_path),
+        false,
+        &CliOverrides::default(),
+    )
+    .expect_err("must reject symlink-alias duplicate source package roots");
+    assert!(error.to_string().contains("Duplicate source package root"));
 }
 
 #[test]
