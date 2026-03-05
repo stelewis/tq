@@ -465,6 +465,10 @@ dependencies = [
 [[package]]
 name = "tq-discovery"
 version = "0.1.0"
+dependencies = [
+ "tempfile",
+ "thiserror",
+]
 
 [[package]]
 name = "tq-docsgen"
@@ -473,6 +477,11 @@ version = "0.1.0"
 [[package]]
 name = "tq-engine"
 version = "0.1.0"
+dependencies = [
+ "tempfile",
+ "thiserror",
+ "tq-discovery",
+]
 
 [[package]]
 name = "tq-release"
