@@ -1,6 +1,6 @@
-mod context;
+pub(crate) mod context;
 mod error;
-mod models;
+pub(crate) mod models;
 mod planner;
 mod rule_id;
 mod runner;
