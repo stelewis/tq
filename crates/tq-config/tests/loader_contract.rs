@@ -175,6 +175,35 @@ fn resolve_rejects_duplicate_allowed_qualifiers_in_target() {
 }
 
 #[test]
+fn resolve_rejects_duplicate_rule_ids_in_target_select() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let config_path = temp.path().join("pyproject.toml");
+    write(
+        &config_path,
+        "[tool.tq]\n\
+         [[tool.tq.targets]]\n\
+         name = \"core\"\n\
+         package = \"tq\"\n\
+         source_root = \"src\"\n\
+         test_root = \"tests\"\n\
+         select = [\"mapping-missing-test\", \"mapping-missing-test\"]\n",
+    );
+
+    let error = resolve_tq_config(
+        temp.path(),
+        Some(&config_path),
+        false,
+        &CliOverrides::default(),
+    )
+    .expect_err("must reject duplicate select rule ids");
+    assert!(
+        error
+            .to_string()
+            .contains("tool.tq.targets[0].select contains duplicate value")
+    );
+}
+
+#[test]
 fn resolve_rejects_duplicate_cli_allowed_qualifiers() {
     let temp = tempfile::tempdir().expect("tempdir");
     let config_path = temp.path().join("pyproject.toml");
@@ -303,6 +332,49 @@ fn discovered_project_targets_resolve_relative_to_project_config_from_subdir() {
     assert_eq!(resolved.targets.len(), 1);
     assert_eq!(resolved.targets[0].source_root, temp.path());
     assert_eq!(resolved.targets[0].test_root, temp.path().join("tests"));
+}
+
+#[test]
+fn isolated_mode_ignores_discovered_project_config() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let project_config = temp.path().join("pyproject.toml");
+    write(
+        &project_config,
+        "[tool.tq]\n\
+         [[tool.tq.targets]]\n\
+         name = \"scripts\"\n\
+         package = \"scripts\"\n\
+         source_root = \".\"\n\
+         test_root = \"tests\"\n",
+    );
+
+    let error = resolve_tq_config(temp.path(), None, true, &CliOverrides::default())
+        .expect_err("isolated mode should not read discovered project config");
+    assert!(error.to_string().contains("tool.tq.targets"));
+}
+
+#[test]
+fn resolve_rejects_non_kebab_target_name_with_leading_dash() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let config_path = temp.path().join("pyproject.toml");
+    write(
+        &config_path,
+        "[tool.tq]\n\
+         [[tool.tq.targets]]\n\
+         name = \"-core\"\n\
+         package = \"tq\"\n\
+         source_root = \"src\"\n\
+         test_root = \"tests\"\n",
+    );
+
+    let error = resolve_tq_config(
+        temp.path(),
+        Some(&config_path),
+        false,
+        &CliOverrides::default(),
+    )
+    .expect_err("must reject leading-dash target name");
+    assert!(error.to_string().contains("tool.tq.targets[0].name must be kebab-case"));
 }
 
 #[test]
