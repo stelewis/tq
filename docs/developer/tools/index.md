@@ -6,17 +6,36 @@ Developer tooling and commands used to work on `tq`.
 
 The Rust rewrite plan introduces and standardizes this tooling surface in phases.
 
-Until cutover is complete, this page documents the target Rust toolchain and is updated incrementally as each phase lands.
+<!-- TODO – AFTER RUST REWRITE COMPLETION: REMOVE ALL EPHEMERAL WORDING E.G. PHASE 1, ETC. -->
 
-## Rust toolchain targets
+Phase 1 (workspace bootstrap) is complete. The commands below are now canonical for Rust workspace bootstrap and baseline quality checks.
 
-Post-cutover, this page will document at minimum:
+## Phase 1 commands
 
-- workspace bootstrap and build commands,
-- formatting and linting commands,
-- test and conformance commands,
-- security and dependency audit commands,
-- release and docs-generation commands.
+### Workspace and toolchain
+
+- `cargo --version`
+- `cargo build --workspace`
+- `cargo run -p tq-cli -- --help`
+
+### Quality gates
+
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo test --workspace`
+
+### Combined local check
+
+- `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
+
+## Future phases
+
+As additional phases land, this page will be extended with:
+
+- conformance harness commands,
+- docs generation commands,
+- release verification commands,
+- security and dependency audit commands.
 
 ## Governance
 
