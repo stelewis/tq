@@ -80,6 +80,8 @@ Default starting points (baseline references, not constraints):
 
 ### Phase 0: ADR and scope lock
 
+Status: Completed (2026-03-05).
+
 - Add and accept an ADR defining rewrite scope, cutover rules, and non-goals.
 - Lock contract sources of truth:
   - CLI/options manifest
@@ -89,6 +91,8 @@ Default starting points (baseline references, not constraints):
 - Create the missing developer tools docs entrypoint at `docs/developer/tools/index.md` and establish it as the canonical location for Rust stack developer tooling and commands as phases land.
 
 ### Phase 1: Rust workspace bootstrap
+
+Status: Completed (2026-03-05).
 
 - Create Cargo workspace and crates listed above.
 - Implement `tq-cli` command surface (`check`, help, output-format) with strict argument parsing.
