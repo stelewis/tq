@@ -568,9 +568,13 @@ fn is_kebab_case_target_name(value: &str) -> bool {
         return false;
     }
 
+    let mut has_segment_char = false;
     let mut previous_was_dash = false;
     for character in value.chars() {
         if character == '-' {
+            if !has_segment_char {
+                return false;
+            }
             if previous_was_dash {
                 return false;
             }
@@ -581,6 +585,7 @@ fn is_kebab_case_target_name(value: &str) -> bool {
         if !character.is_ascii_lowercase() && !character.is_ascii_digit() {
             return false;
         }
+        has_segment_char = true;
         previous_was_dash = false;
     }
 
