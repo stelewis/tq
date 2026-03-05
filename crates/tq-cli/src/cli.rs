@@ -3,7 +3,13 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(Debug, Parser)]
-#[command(name = "tq", author, version, about = "Test quality toolkit")]
+#[command(
+    name = "tq",
+    bin_name = "tq",
+    author,
+    version,
+    about = "Test quality toolkit"
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
