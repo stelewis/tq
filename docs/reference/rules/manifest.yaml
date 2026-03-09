@@ -67,8 +67,7 @@ rules:
     added_in: pre-1.0
     behavior_changes: None to date.
     what_it_does: >-
-      Flag unit test files that exceed the configured non-blank,
-      non-comment-only line budget.
+      Flag test files that exceed the configured non-blank, non-comment-only line budget.
     why_this_matters: >-
       Oversized test modules tend to become monolithic and less actionable when
       failures occur.

@@ -8,3 +8,11 @@ pub enum EngineError {
     #[error(transparent)]
     Discovery(#[from] DiscoveryError),
 }
+
+impl EngineError {
+    pub fn validation(message: impl Into<String>) -> Self {
+        Self::Validation {
+            message: message.into(),
+        }
+    }
+}

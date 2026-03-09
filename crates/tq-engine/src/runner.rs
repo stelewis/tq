@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
 use crate::context::path_to_forward_slashes;
-use crate::{AnalysisContext, EngineResult, Finding, RuleId, Severity};
+use crate::{AnalysisContext, EngineError, EngineResult, Finding, RuleId, Severity};
 
 pub trait Rule {
     fn rule_id(&self) -> &RuleId;
@@ -14,9 +14,18 @@ pub struct RuleEngine {
 }
 
 impl RuleEngine {
-    #[must_use]
-    pub fn new(rules: Vec<Box<dyn Rule>>) -> Self {
-        Self { rules }
+    pub fn new(rules: Vec<Box<dyn Rule>>) -> Result<Self, EngineError> {
+        let rule_ids = rules
+            .iter()
+            .map(|rule| rule.rule_id().clone())
+            .collect::<Vec<_>>();
+        if !validate_unique_rule_ids(&rule_ids) {
+            return Err(EngineError::validation(
+                "Rule engine received duplicate rule ids",
+            ));
+        }
+
+        Ok(Self { rules })
     }
 
     #[must_use]
@@ -24,7 +33,6 @@ impl RuleEngine {
         let mut findings = Vec::new();
 
         for rule in &self.rules {
-            let _ = rule.rule_id();
             let rule_findings = rule.evaluate(context);
             findings.extend(
                 rule_findings

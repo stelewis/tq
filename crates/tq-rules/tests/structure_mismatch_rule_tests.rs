@@ -34,6 +34,49 @@ fn structure_rule_emits_warning_for_misplaced_test() {
 }
 
 #[test]
+fn structure_rule_allows_correctly_placed_test() {
+    let temp = fixture_workspace();
+    let (source_root, test_root) = create_dirs(temp.path());
+
+    let context = context_with_target(
+        &source_root,
+        &test_root,
+        vec![PathBuf::from("engine/runner.py")],
+        vec![PathBuf::from("tq/engine/test_runner.py")],
+        "tq",
+        vec!["tq".to_owned()],
+    );
+
+    let rule = StructureMismatchRule::new().expect("rule should be valid");
+    let findings = rule.evaluate(&context);
+
+    assert!(findings.is_empty());
+}
+
+#[test]
+fn structure_rule_skips_non_unit_scopes() {
+    let temp = fixture_workspace();
+    let (source_root, test_root) = create_dirs(temp.path());
+
+    let context = context_with_target(
+        &source_root,
+        &test_root,
+        vec![PathBuf::from("engine/runner.py")],
+        vec![
+            PathBuf::from("integration/test_runner.py"),
+            PathBuf::from("e2e/test_runner.py"),
+        ],
+        "tq",
+        vec!["tq".to_owned()],
+    );
+
+    let rule = StructureMismatchRule::new().expect("rule should be valid");
+    let findings = rule.evaluate(&context);
+
+    assert!(findings.is_empty());
+}
+
+#[test]
 fn structure_rule_ignores_sibling_target_tests() {
     let temp = fixture_workspace();
     let (source_root, test_root) = create_dirs(temp.path());

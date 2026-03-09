@@ -92,7 +92,7 @@ Status: Completed (2026-03-05).
 
 ### Phase 1: Rust workspace bootstrap
 
-Status: Completed (2026-03-05).
+Status: Completed (2026-03-05). Audit Completed.
 
 - Create Cargo workspace and crates listed above.
 - Implement `tq-cli` command surface (`check`, help, output-format) with strict argument parsing.
@@ -101,7 +101,7 @@ Status: Completed (2026-03-05).
 
 ### Phase 2: Config subsystem port (`tq-config`)
 
-Status: Completed (2026-03-05).
+Status: Completed (2026-03-05). Audit Completed.
 
 - Port config models and strict loader semantics from `src/tq/config/models.py` and `src/tq/config/loader.py`.
 - Implement exact precedence and isolation behavior (`--config`, `--isolated`, project discovery).
@@ -110,7 +110,7 @@ Status: Completed (2026-03-05).
 
 ### Phase 3: Discovery and engine core (`tq-discovery`, `tq-engine`)
 
-Status: Completed (2026-03-05).
+Status: Completed (2026-03-05). Audit Completed.
 
 - Port filesystem discovery semantics from `src/tq/discovery/filesystem.py`.
 - Implement immutable analysis index and context models.
@@ -121,7 +121,7 @@ Status: Completed (2026-03-05).
 
 ### Phase 4: Rule system port (`tq-rules`)
 
-Status: Completed (2026-03-05).
+Status: Completed (2026-03-05). Audit Completed.
 
 - Port qualifier policy and all built-in rules with contract-conformance intent and explicit allowance for design improvements:
   - `mapping-missing-test`
