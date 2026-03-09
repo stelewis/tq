@@ -2,7 +2,7 @@
 
 ## What it does
 
-Flag unit test files that exceed the configured non-blank, non-comment-only line budget.
+Flag test files that exceed the configured non-blank, non-comment-only line budget.
 
 ## Why this matters
 

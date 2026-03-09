@@ -84,6 +84,50 @@ impl MixedRuleB {
     }
 }
 
+struct DuplicateRuleA {
+    rule_id: RuleId,
+}
+
+impl DuplicateRuleA {
+    fn new() -> Self {
+        Self {
+            rule_id: RuleId::parse("duplicate-rule").expect("valid rule id"),
+        }
+    }
+}
+
+impl Rule for DuplicateRuleA {
+    fn rule_id(&self) -> &RuleId {
+        &self.rule_id
+    }
+
+    fn evaluate(&self, _context: &AnalysisContext) -> Vec<Finding> {
+        Vec::new()
+    }
+}
+
+struct DuplicateRuleB {
+    rule_id: RuleId,
+}
+
+impl DuplicateRuleB {
+    fn new() -> Self {
+        Self {
+            rule_id: RuleId::parse("duplicate-rule").expect("valid rule id"),
+        }
+    }
+}
+
+impl Rule for DuplicateRuleB {
+    fn rule_id(&self) -> &RuleId {
+        &self.rule_id
+    }
+
+    fn evaluate(&self, _context: &AnalysisContext) -> Vec<Finding> {
+        Vec::new()
+    }
+}
+
 impl Rule for MixedRuleB {
     fn rule_id(&self) -> &RuleId {
         &self.rule_id
@@ -132,7 +176,7 @@ fn test_context() -> AnalysisContext {
 #[test]
 fn engine_no_rules_returns_empty_result() {
     let context = test_context();
-    let engine = RuleEngine::new(Vec::new());
+    let engine = RuleEngine::new(Vec::new()).expect("engine should allow empty rule list");
 
     let result = engine.run(&context);
 
@@ -150,7 +194,8 @@ fn engine_aggregates_and_sorts_findings_deterministically() {
     let engine = RuleEngine::new(vec![
         Box::new(MixedRuleA::new()),
         Box::new(MixedRuleB::new()),
-    ]);
+    ])
+    .expect("engine should accept unique rule ids");
 
     let result = engine.run(&context);
 
@@ -184,7 +229,8 @@ fn engine_executes_rule_instances() {
     let engine = RuleEngine::new(vec![
         Box::new(NoFindingRule::new()),
         Box::new(MixedRuleB::new()),
-    ]);
+    ])
+    .expect("engine should accept unique rule ids");
 
     let result = engine.run(&context);
 
@@ -198,8 +244,12 @@ fn engine_executes_rule_instances() {
 #[test]
 fn aggregate_results_merges_and_sorts_findings() {
     let context = test_context();
-    let result_a = RuleEngine::new(vec![Box::new(MixedRuleA::new())]).run(&context);
-    let result_b = RuleEngine::new(vec![Box::new(MixedRuleB::new())]).run(&context);
+    let result_a = RuleEngine::new(vec![Box::new(MixedRuleA::new())])
+        .expect("engine should accept unique rule ids")
+        .run(&context);
+    let result_b = RuleEngine::new(vec![Box::new(MixedRuleB::new())])
+        .expect("engine should accept unique rule ids")
+        .run(&context);
 
     let merged: EngineResult = aggregate_results(&[result_b, result_a]);
 
@@ -220,6 +270,21 @@ fn aggregate_results_merges_and_sorts_findings() {
     assert_eq!(merged.summary().errors(), 1);
     assert_eq!(merged.summary().warnings(), 1);
     assert_eq!(merged.summary().infos(), 1);
+}
+
+#[test]
+fn engine_rejects_duplicate_rule_ids_at_construction() {
+    let result = RuleEngine::new(vec![
+        Box::new(DuplicateRuleA::new()),
+        Box::new(DuplicateRuleB::new()),
+    ]);
+
+    let error = match result {
+        Ok(_) => panic!("engine should reject duplicate rule ids"),
+        Err(error) => error,
+    };
+
+    assert_eq!(error.to_string(), "Rule engine received duplicate rule ids");
 }
 
 #[test]
