@@ -101,12 +101,16 @@ Status: Completed (2026-03-05).
 
 ### Phase 2: Config subsystem port (`tq-config`)
 
+Status: Completed (2026-03-05).
+
 - Port config models and strict loader semantics from `src/tq/config/models.py` and `src/tq/config/loader.py`.
 - Implement exact precedence and isolation behavior (`--config`, `--isolated`, project discovery).
 - Enforce strict unknown-key and type validation.
 - Port target materialization and validation invariants (including duplicate target and duplicate source package root checks).
 
 ### Phase 3: Discovery and engine core (`tq-discovery`, `tq-engine`)
+
+Status: Completed (2026-03-05).
 
 - Port filesystem discovery semantics from `src/tq/discovery/filesystem.py`.
 - Implement immutable analysis index and context models.
@@ -116,6 +120,8 @@ Status: Completed (2026-03-05).
   - `src/tq/engine/models.py`
 
 ### Phase 4: Rule system port (`tq-rules`)
+
+Status: Completed (2026-03-05).
 
 - Port qualifier policy and all built-in rules with contract-conformance intent and explicit allowance for design improvements:
   - `mapping-missing-test`

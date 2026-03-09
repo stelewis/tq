@@ -494,6 +494,12 @@ version = "0.1.0"
 [[package]]
 name = "tq-rules"
 version = "0.1.0"
+dependencies = [
+ "tempfile",
+ "thiserror",
+ "tq-discovery",
+ "tq-engine",
+]
 
 [[package]]
 name = "unicode-ident"
