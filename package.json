@@ -6,11 +6,11 @@
     "docs:dev": "vitepress dev docs",
     "docs:build": "npm run docs:generate && vitepress build docs",
     "docs:preview": "vitepress preview docs",
-    "docs:generate": "npm run docs:rules:generate && npm run docs:cli:generate && npm run docs:config:generate",
-    "docs:rules:generate": "uv run python scripts/docs/generate_rules_docs.py",
-    "docs:cli:generate": "uv run python scripts/docs/generate_cli_docs.py",
-    "docs:config:generate": "uv run python scripts/docs/generate_config_examples.py",
-    "package:verify-contents": "uv run python scripts/release/verify_artifact_contents.py"
+    "docs:generate": "cargo run -p tq-docsgen --locked -- generate all",
+    "docs:rules:generate": "cargo run -p tq-docsgen --locked -- generate rules",
+    "docs:cli:generate": "cargo run -p tq-docsgen --locked -- generate cli",
+    "docs:config:generate": "cargo run -p tq-docsgen --locked -- generate config",
+    "package:verify-contents": "cargo run -p tq-release --locked -- verify-artifact-contents"
   },
   "devDependencies": {
     "vitepress": "1.6.4"

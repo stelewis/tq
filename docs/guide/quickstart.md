@@ -11,7 +11,7 @@ Choose an install mode:
 - global tool: `uv tool install tqlint`
 - pip install: `python -m pip install tqlint`
 
-### Command naming
+### Package and command naming
 
 - Distribution package: `tqlint`
 - CLI command: `tq` (with `tqlint` alias)

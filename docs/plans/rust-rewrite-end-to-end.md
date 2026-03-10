@@ -47,6 +47,13 @@ The current contract does not need to be preserved where it no longer serves the
 
 This tool is pre-release, and the rewrite is an opportunity to improve the design and contract before adoption. Breaking changes are allowed.
 
+Distribution intent is still Python-native even after the runtime rewrite:
+
+- PyPI remains the canonical distribution channel.
+- `uv` remains a first-class install and execution path.
+- The Rust rewrite changes implementation language, not the package ecosystem the tool belongs to.
+- Standalone binaries may exist as supplemental artifacts, but they are not the primary distribution contract.
+
 Default starting points (baseline references, not constraints):
 
 - CLI UX command and flag set documented in `docs/reference/cli.md` and `docs/reference/cli/options-manifest.yaml`.
@@ -171,6 +178,8 @@ Status: Completed (2026-03-10).
 
 ### Phase 8: Docs/release pipeline rewrite
 
+Status: Completed (2026-03-10).
+
 - Port docs generators in `scripts/docs/` to `tq-docsgen` and preserve generated artifact contracts:
   - `docs/reference/cli.md`
   - `docs/reference/configuration.md`
@@ -179,22 +188,24 @@ Status: Completed (2026-03-10).
   - `docs/reference/rules/index.md` and rule pages
 - Port release artifact policy checks from `scripts/release/verify_artifact_contents.py` to Rust.
 - Rewrite developer tooling/tools/workflow/CI docs at `docs/developer/tools/index.md` (refactoring into relevant standalone pages) to reflect Rust toolchain and commands.
-- Update publish workflow to build and publish Rust artifacts with retained attestation policy.
+- Keep docs and release automation aligned with the Python-package distribution contract.
 
 ### Phase 9: Packaging and distribution cutover
 
 - Define distribution strategy:
-  - standalone binaries for major platforms
-  - optional Python wrapper only if required for ecosystem ergonomics
+  - PyPI remains the canonical distribution channel
+  - `uv add`, `uvx`, and `uv tool install` are the install surfaces
+  - standalone binaries are optional supplemental artifacts, not the primary contract
+- Choose and implement a Rust-backed Python packaging approach that emits publishable wheel and sdist artifacts while preserving the `tqlint` distribution contract.
 - Ensure command names remain `tq` and `tqlint` at install surface where applicable.
 - Update install docs and release workflow accordingly.
 - Replace the interim `cargo metadata` manifest-validation CI gate with a publish-ready `cargo package` or equivalent dry-run packaging validation once the workspace crates are intentionally prepared for distribution.
 
-### Phase 10: Decommission Python runtime
+### Phase 10: Decommission and remove Python runtime
 
 - Remove `src/tq` runtime implementation, Python runtime deps, and obsolete Python CI paths.
 - Remove conformance harness and fixtures once Python runtime is removed; keep only if needed for ongoing regression testing during Rust iteration.
-- Keep only minimal Python files if strictly needed for packaging bridge (if any).
+- Keep only minimal Python packaging and integration files strictly needed to preserve the PyPI-and-`uv` distribution surface.
 - Remove all legacy or compatibility code paths in Rust runtime.
 - Update docs to reflect Rust architecture as canonical.
 
@@ -232,3 +243,4 @@ Status: Completed (2026-03-10).
 - Regenerate docs artifacts via Rust docs generator and verify no diff drift in generated files.
 - Ensure architecture and contributor docs reflect Rust-first build, test, and release commands.
 - Ensure `docs/developer/tools/index.md` is complete and current for the post-cutover Rust toolchain.
+- Ensure no transition oriented language or docs drift remains after cutover.

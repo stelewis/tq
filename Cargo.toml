@@ -21,7 +21,10 @@ readme = "README.md"
 
 [workspace.dependencies]
 clap = { version = "4.5.60", features = ["derive"] }
+flate2 = "1.1.2"
 serde = { version = "1.0.219", features = ["derive"] }
+serde_yaml = "0.9.34"
+tar = "0.4.44"
 thiserror = "2.0.18"
 toml = "0.9.6"
 tq-cli = { version = "0.1.0", path = "crates/tq-cli" }
@@ -32,6 +35,7 @@ tq-engine = { version = "0.1.0", path = "crates/tq-engine" }
 tq-release = { version = "0.1.0", path = "crates/tq-release" }
 tq-reporting = { version = "0.1.0", path = "crates/tq-reporting" }
 tq-rules = { version = "0.1.0", path = "crates/tq-rules" }
+zip = { version = "4.6.1", default-features = false, features = ["deflate"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

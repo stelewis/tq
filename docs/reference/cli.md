@@ -4,7 +4,9 @@ Use `tq` through a subcommand-first CLI with a strict contract surface.
 
 ## Distribution and invocation
 
-The published package name is `tqlint`, and the installed command is `tq`.
+Published PyPI distribution: `tqlint`.
+
+Installed commands: `tq` and `tqlint`.
 
 For install and setup, see [QuickStart](../guide/quickstart.md).
 

@@ -1,26 +1,39 @@
 version: 1
 cli_options:
-  - param: config_path
+  - arg_ids:
+      - config
     config_key: null
-  - param: isolated
+  - arg_ids:
+      - isolated
     config_key: null
-  - param: target_names
+  - arg_ids:
+      - target_names
     config_key: null
-  - param: max_test_file_non_blank_lines
+  - arg_ids:
+      - max_test_file_non_blank_lines
     config_key: max_test_file_non_blank_lines
-  - param: qualifier_strategy
+  - arg_ids:
+      - qualifier_strategy
     config_key: qualifier_strategy
-  - param: allowed_qualifiers
+  - arg_ids:
+      - allowed_qualifiers
     config_key: allowed_qualifiers
-  - param: ignore_init_modules
+  - arg_ids:
+      - ignore_init_modules
+      - no_ignore_init_modules
     config_key: ignore_init_modules
-  - param: select_rules
+  - arg_ids:
+      - select_rules
     config_key: select
-  - param: ignore_rules
+  - arg_ids:
+      - ignore_rules
     config_key: ignore
-  - param: exit_zero
+  - arg_ids:
+      - exit_zero
     config_key: null
-  - param: show_suggestions
+  - arg_ids:
+      - show_suggestions
     config_key: null
-  - param: output_format
+  - arg_ids:
+      - output_format
     config_key: null

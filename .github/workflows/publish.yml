@@ -30,7 +30,10 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Validate Rust release build
+        shell: bash
         run: |
+          set -euo pipefail
+
           cargo metadata --format-version 1 --locked >/dev/null
           cargo build -p tq-cli --release --locked
 
@@ -53,7 +56,7 @@ jobs:
         run: uv build
 
       - name: Verify artifact contents policy
-        run: uv run python scripts/release/verify_artifact_contents.py
+        run: cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist
 
       - name: Validate package metadata
         run: uv run --isolated --no-project --with twine -- twine check dist/*
