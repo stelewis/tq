@@ -14,15 +14,24 @@ resolver = "2"
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.94"
 license = "MIT"
 repository = "https://github.com/stelewis/tq"
+readme = "README.md"
 
 [workspace.dependencies]
 clap = { version = "4.5.60", features = ["derive"] }
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "2.0.18"
 toml = "0.9.6"
+tq-cli = { version = "0.1.0", path = "crates/tq-cli" }
+tq-config = { version = "0.1.0", path = "crates/tq-config" }
+tq-discovery = { version = "0.1.0", path = "crates/tq-discovery" }
+tq-docsgen = { version = "0.1.0", path = "crates/tq-docsgen" }
+tq-engine = { version = "0.1.0", path = "crates/tq-engine" }
+tq-release = { version = "0.1.0", path = "crates/tq-release" }
+tq-reporting = { version = "0.1.0", path = "crates/tq-reporting" }
+tq-rules = { version = "0.1.0", path = "crates/tq-rules" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

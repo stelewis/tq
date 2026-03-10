@@ -10,6 +10,9 @@ on:
 permissions:
   contents: read
 
+env:
+  CARGO_TERM_COLOR: always
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -54,56 +57,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - name: "Hygiene: trailing-whitespace"
+      - name: Hygiene hooks
         uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
         with:
-          extra_args: trailing-whitespace --all-files
+          extra_args: --all-files trailing-whitespace end-of-file-fixer check-yaml check-added-large-files
 
-      - name: "Hygiene: end-of-file-fixer"
-        uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
-        with:
-          extra_args: end-of-file-fixer --all-files
+  format:
+    name: Format (cargo fmt)
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - name: "Hygiene: check-yaml"
-        uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
-        with:
-          extra_args: check-yaml --all-files
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
 
-      - name: "Hygiene: check-added-large-files"
-        uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
-        with:
-          extra_args: check-added-large-files --all-files
+      - name: Cargo fmt
+        run: cargo fmt --all --check
 
   lint:
-    name: Lint (ruff)
+    name: Lint (cargo clippy)
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - name: Setup Python + uv + deps
-        uses: ./.github/actions/setup-python-uv
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
 
-      - name: Ruff format (check)
-        run: uv run ruff format --check
-
-      - name: Ruff lint
-        run: uv run ruff check --output-format=github
-
-  typecheck:
-    name: Type check (ty)
-    runs-on: ubuntu-latest
-    timeout-minutes: 1
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Setup Python + uv + deps
-        uses: ./.github/actions/setup-python-uv
-
-      - name: Run ty check
-        run: uv run ty check
+      - name: Cargo clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
   docs-sync:
     name: Docs sync contracts
@@ -150,142 +135,63 @@ jobs:
         run: mise run docs-build
 
   tests:
-    name: Tests (pytest)
-    runs-on: ubuntu-latest
-    timeout-minutes: 1
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Setup Python + uv + deps
-        uses: ./.github/actions/setup-python-uv
-
-      - name: Test quality
-        run: uv run tq check
-
-      - name: Run tests
-        run: uv run pytest -q
-
-  python-matrix:
-    name: Python matrix checks
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Setup Python + uv + deps
-        uses: ./.github/actions/setup-python-uv
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: tq check (text)
-        run: uv run tq check
-
-      - name: tq check (json snapshot)
-        run: |
-          mkdir -p tmp/ci
-          uv run tq check --output-format json > "tmp/ci/tq-check-${{ matrix.python-version }}.json"
-
-      - name: Upload tq json snapshot
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: tq-check-json-${{ matrix.python-version }}
-          path: tmp/ci/tq-check-${{ matrix.python-version }}.json
-
-      - name: Run tests
-        run: uv run pytest -q
-
-  matrix-determinism:
-    name: Matrix determinism (tq json)
-    needs: python-matrix
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    steps:
-      - name: Download tq json snapshots
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          pattern: tq-check-json-*
-          path: tmp/ci/tq-json
-
-      - name: Compare snapshots
-        shell: bash
-        run: |
-          mapfile -t snapshots < <(find tmp/ci/tq-json -type f -name '*.json' | sort)
-
-          if [ "${#snapshots[@]}" -lt 2 ]; then
-            echo "Expected at least two tq json snapshots for comparison"
-            exit 1
-          fi
-
-          baseline="${snapshots[0]}"
-          for candidate in "${snapshots[@]:1}"; do
-            if ! cmp -s "$baseline" "$candidate"; then
-              echo "Non-deterministic tq JSON output detected:"
-              echo "  baseline:  $baseline"
-              echo "  candidate: $candidate"
-              diff -u "$baseline" "$candidate" || true
-              exit 1
-            fi
-          done
-
-  package:
-    name: Package checks
+    name: Tests (cargo)
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - name: Setup Python + uv + deps
-        uses: ./.github/actions/setup-python-uv
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
 
-      - name: Clean previous build artifacts
-        run: rm -rf dist
+      - name: Cargo test
+        run: cargo test --workspace --locked
 
-      - name: Build package
-        run: uv build
-
-      - name: Verify artifact contents policy
-        run: uv run python scripts/release/verify_artifact_contents.py
-
-      - name: Validate package metadata
-        run: uv run --isolated --no-project --with twine -- twine check dist/*
-
-      - name: Smoke check wheel entrypoints
-        run: |
-          uv run --isolated --no-project --with dist/*.whl -- tq --help
-          uv run --isolated --no-project --with dist/*.whl -- tqlint --help
-          uv run --isolated --no-project --with dist/*.whl -- tq check --help
-
-      - name: Smoke check sdist entrypoint
-        run: |
-          uv run --isolated --no-project --with dist/*.tar.gz -- tq --help
-          uv run --isolated --no-project --with dist/*.tar.gz -- tqlint --help
-
-  integration-tests:
-    name: Integration tests (pytest)
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+  conformance:
+    name: Conformance and determinism
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 3
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
       - name: Setup Python + uv + deps
         uses: ./.github/actions/setup-python-uv
 
-      - name: Run integration tests
-        run: uv run pytest -q -m integration
+      - name: Run conformance harness
+        run: cargo test -p tq-cli --test conformance_harness --locked -- --ignored --nocapture
+
+  build:
+    name: Build and manifest checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Build workspace
+        run: cargo build --workspace --locked
+
+      - name: Build release CLI
+        run: cargo build -p tq-cli --release --locked
+
+      - name: Validate Cargo metadata
+        run: cargo metadata --format-version 1 --locked >/dev/null
+
+      - name: Smoke check CLI entrypoint
+        run: cargo run -p tq-cli --locked -- check --help
 
   security:
     name: Security checks
     runs-on: ubuntu-latest
-    timeout-minutes: 1
+    timeout-minutes: 15
     permissions:
       contents: read
       pull-requests: read
@@ -295,8 +201,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
       - name: Setup Python + uv + deps
         uses: ./.github/actions/setup-python-uv
+
+      - name: Setup Rust security tools
+        uses: ./.github/actions/setup-rust-security-tools
 
       - name: Gitleaks
         uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
@@ -307,11 +219,11 @@ jobs:
       - name: Detect secrets (baseline)
         run: uv run detect-secrets-hook --baseline .detect-secrets.baseline
 
-      - name: Bandit
-        run: uv run bandit --configfile pyproject.toml -r src
+      - name: Cargo audit
+        run: cargo audit
 
-      - name: pip-audit
-        run: uv run pip-audit
+      - name: Cargo deny
+        run: cargo deny check
 
       - name: Setup docs toolchain
         uses: ./.github/actions/setup-mise-docs

@@ -1,0 +1,40 @@
+name: Setup Rust security tools
+description: Install the stable Rust toolchain and the cargo security scanners used in CI
+
+inputs:
+  cargo-audit-rev:
+    description: RustSec repository revision to install cargo-audit from
+    required: false
+    default: "2513b9f2"
+  cargo-deny-version:
+    description: cargo-deny release to install with the stable toolchain
+    required: false
+    default: "0.19.0"
+
+runs:
+  using: composite
+  steps:
+    - name: Install stable Rust toolchain
+      shell: bash
+      run: |
+        set -euo pipefail
+        rustup toolchain install stable --profile minimal
+
+    - name: Install cargo-audit
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        cargo +stable install \
+          --force \
+          --git https://github.com/RustSec/rustsec.git \
+          --rev "${{ inputs.cargo-audit-rev }}" \
+          --locked \
+          cargo-audit
+
+    - name: Install cargo-deny
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        cargo +stable install --force --locked "cargo-deny@${{ inputs.cargo-deny-version }}"

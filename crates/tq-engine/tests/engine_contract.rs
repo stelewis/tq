@@ -279,9 +279,8 @@ fn engine_rejects_duplicate_rule_ids_at_construction() {
         Box::new(DuplicateRuleB::new()),
     ]);
 
-    let error = match result {
-        Ok(_) => panic!("engine should reject duplicate rule ids"),
-        Err(error) => error,
+    let Err(error) = result else {
+        panic!("engine should reject duplicate rule ids");
     };
 
     assert_eq!(error.to_string(), "Rule engine received duplicate rule ids");

@@ -1,16 +1,11 @@
 use std::collections::BTreeSet;
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
 pub enum QualifierStrategy {
     None,
+    #[default]
     AnySuffix,
     Allowlist,
-}
-
-impl Default for QualifierStrategy {
-    fn default() -> Self {
-        Self::AnySuffix
-    }
 }
 
 #[must_use]

@@ -40,6 +40,7 @@ words:
   - msgfile
   - MSRV
   - negotiables
+  - nocapture
   - OOXML
   - overengineered
   - overengineering
@@ -57,6 +58,7 @@ words:
   - pyyaml
   - reprioritize
   - rtype
+  - rustup
   - sdist
   - serde
   - setattr
