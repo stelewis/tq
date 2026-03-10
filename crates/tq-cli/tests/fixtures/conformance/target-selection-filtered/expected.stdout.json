@@ -1,1 +1,0 @@
-{"findings":[{"rule_id":"mapping-missing-test","severity":"error","message":"No test file found for source module: docs/generate.py","path":"scripts/docs/generate.py","line":null,"suggestion":"Create test file at: scripts/docs/test_generate.py","target":"scripts"}],"summary":{"errors":1,"warnings":0,"infos":0,"total":1}}

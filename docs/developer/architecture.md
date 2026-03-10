@@ -12,11 +12,12 @@ ADRs are stored in `docs/adr/`.
 
 `tq` is a layered, deterministic static analysis tool for test quality:
 
-- **Composition root:** `src/tq/cli/main.py` wires config resolution, filesystem discovery, rule construction, engine execution, and reporting.
-- **Config boundary:** `src/tq/config/loader.py` enforces strict key validation, deterministic precedence, and explicit materialization into `TqConfig`.
-- **Discovery boundary:** `src/tq/discovery/filesystem.py` scans source/test trees into immutable `AnalysisIndex` data.
-- **Domain execution:** `src/tq/engine/runner.py` runs `Rule` protocol implementations over immutable `AnalysisContext` and aggregates sorted, deterministic findings.
-- **Rule implementations:** `src/tq/rules/` contains focused rules with stable `RuleId` contracts.
-- **Output adapters:** `src/tq/reporting/terminal.py` and `src/tq/reporting/json.py` format results for human and machine consumers.
+- **Composition root:** `crates/tq-cli/src/main.rs` resolves config, validates targets, plans target runs, constructs rules, executes the engine, and selects the output reporter.
+- **Config boundary:** `crates/tq-config` owns strict config loading, precedence, validation, and materialization into runtime target config.
+- **Discovery boundary:** `crates/tq-discovery` scans configured source and test roots into immutable analysis indexes.
+- **Domain execution:** `crates/tq-engine` plans target-scoped runs, enforces engine invariants, and aggregates deterministic findings.
+- **Rule implementations:** `crates/tq-rules` contains the built-in rule registry, rule selection, and focused rule implementations with stable rule IDs.
+- **Output adapters:** `crates/tq-reporting` renders text and JSON output without pulling reporting concerns into the engine.
+- **Tooling adapters:** `crates/tq-docsgen` and `crates/tq-release` own docs generation and release-policy enforcement so repository tooling follows the same Rust-first architecture as the runtime.
 
 The core design emphasizes strict boundaries, immutable analysis inputs, stable rule contracts, and deterministic output ordering.

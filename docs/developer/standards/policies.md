@@ -47,7 +47,6 @@ Forbidden repository paths in wheel and sdist artifacts:
 - `docs/`
 - `tmp/`
 - `.github/`
-- `src/tq/`
 
 Enforcement:
 

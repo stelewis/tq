@@ -1,1 +1,0 @@
-{"findings":[{"rule_id":"mapping-missing-test","severity":"error","message":"No test file found for source module: beta.py","path":"src/tq/beta.py","line":null,"suggestion":"Create test file at: tq/test_beta.py","target":"tq"}],"summary":{"errors":1,"warnings":0,"infos":0,"total":1}}

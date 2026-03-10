@@ -21,8 +21,8 @@ Structure drift makes tests harder to find, weakens navigability, and increases 
 
 ## Examples
 
-- Source module: `src/tq/engine/runner.py`
-- Test module: `tests/tq/test_runner.py`
+- Source module: `src/app/engine/runner.py`
+- Test module: `tests/app/test_runner.py`
 
 ## How to address
 

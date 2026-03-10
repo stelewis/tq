@@ -145,23 +145,6 @@ jobs:
       - name: Cargo test
         run: cargo test --workspace --locked
 
-  conformance:
-    name: Conformance and determinism
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Setup Rust toolchain
-        uses: ./.github/actions/setup-rust
-
-      - name: Setup Python + uv + deps
-        uses: ./.github/actions/setup-python-uv
-
-      - name: Run conformance harness
-        run: cargo test -p tq-cli --test conformance_harness --locked -- --ignored --nocapture
-
   build:
     name: Build and packaging checks
     runs-on: ubuntu-latest

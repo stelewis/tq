@@ -30,14 +30,6 @@ Use `cargo check` as the fast compile, type, trait, and borrow-check loop before
 
 Secret scanning and commit policy remain part of the standard workflow through `gitleaks`, `detect-secrets`, and `commitizen`.
 
-## Conformance harness
-
-- `cargo test -p tq-cli --test conformance_harness --locked -- --ignored --nocapture`
-
-The conformance harness compares Rust output with the transitional Python baseline and checks repeat-run determinism.
-
-If the baseline interpreter is not available at `.venv/bin/python`, set `TQ_CONFORMANCE_PYTHON` to the executable that should run `python -m tq.cli.main`.
-
 ## Pre-commit hooks
 
 The language-specific pre-commit hooks are Rust-native:

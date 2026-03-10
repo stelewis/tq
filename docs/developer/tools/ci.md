@@ -13,7 +13,6 @@ The main CI workflow enforces:
 - docs sync via `cargo run -p tq-docsgen --locked -- generate all`
 - docs site build via `mise run docs-build`
 - tests via `cargo test --workspace --locked`
-- conformance via the ignored `tq-cli` harness
 - build validation via `cargo build`, `cargo package --workspace --locked`, `uv build`, artifact policy verification, and built wheel/sdist entrypoint smoke checks
 - security checks via `cargo audit`, `cargo deny`, `gitleaks`, and `detect-secrets`
 

@@ -20,8 +20,8 @@ rules:
       - No matching unit test filename resolves for that module.
       - __init__.py handling follows configured ignore policy.
     examples:
-      - source: src/tq/engine/runner.py
-        test: tests/tq/engine/test_runner.py (missing)
+      - source: src/app/engine/runner.py
+        test: tests/app/engine/test_runner.py (missing)
     how_to_address:
       - Add a mirrored unit test module under `tests/{package}/...`.
       - Use `test_<module>.py` or an allowed qualified form.
@@ -50,8 +50,8 @@ rules:
       - The file resolves to a source target but lives in a different path.
       - Integration and e2e paths are excluded from this rule.
     examples:
-      - source: src/tq/engine/runner.py
-        test: tests/tq/test_runner.py
+      - source: src/app/engine/runner.py
+        test: tests/app/test_runner.py
     how_to_address:
       - Move the unit test to mirror source structure.
       - Keep the filename aligned with the targeted module.
@@ -76,7 +76,7 @@ rules:
       - Non-blank, non-comment line count exceeds configured threshold.
     examples:
       - source: n/a
-        test: tests/tq/engine/test_runner.py (over configured line limit)
+        test: tests/app/engine/test_runner.py (over configured line limit)
     how_to_address:
       - Split the suite by concern using stable qualifiers.
       - Move shared setup into nearby `conftest.py` fixtures.
@@ -99,8 +99,8 @@ rules:
       - No source module resolves for the test's target module name.
       - Integration and e2e paths are excluded from this rule.
     examples:
-      - source: src/tq/engine/old_runner.py (missing)
-        test: tests/tq/engine/test_old_runner.py
+      - source: src/app/engine/old_runner.py (missing)
+        test: tests/app/engine/test_old_runner.py
     how_to_address:
       - Remove obsolete tests that no longer represent active source modules.
       - Restore or create the intended source module when the test is valid.

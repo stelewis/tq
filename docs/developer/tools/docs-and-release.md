@@ -46,7 +46,7 @@ Release artifact content policy is enforced by `tq-release`.
 - `cargo package --workspace --locked`
 - `cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist`
 
-The verifier inspects built wheels and sdists for repository-only paths such as `scripts/`, `tests/`, `docs/`, `tmp/`, `.github/`, and the legacy Python runtime under `src/tq/`. Wheel installer script locations under `.data/scripts/` are allowed because that is where the packaged `tq` executable lives.
+The verifier inspects built wheels and sdists for repository-only paths such as `scripts/`, `tests/`, `docs/`, `tmp/`, and `.github/`. Wheel installer script locations under `.data/scripts/` are allowed because that is where the packaged `tq` executable lives.
 
 ## Release artifact shape
 
