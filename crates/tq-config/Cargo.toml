@@ -7,6 +7,7 @@ license.workspace = true
 repository.workspace = true
 readme.workspace = true
 description = "Strict configuration loading and validation for tq"
+exclude = ["tests/**"]
 
 [dependencies]
 serde.workspace = true

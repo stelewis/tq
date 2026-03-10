@@ -192,6 +192,8 @@ Status: Completed (2026-03-10).
 
 ### Phase 9: Packaging and distribution cutover
 
+Status: Completed (2026-03-10).
+
 - Define distribution strategy:
   - PyPI remains the canonical distribution channel
   - `uv add`, `uvx`, and `uv tool install` are the install surfaces

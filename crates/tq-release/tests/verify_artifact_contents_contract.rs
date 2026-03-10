@@ -34,19 +34,18 @@ fn verify_artifact_contents_reports_forbidden_members() {
         &[
             ("pkg-0.1.0/tq/__init__.py", ""),
             ("pkg-0.1.0/tests/test_x.py", ""),
+            ("pkg-0.1.0/src/tq/cli/main.py", ""),
         ],
     );
 
-    let error = tq_release::verify_artifact_contents(
-        &dist_dir,
-        Some(vec!["scripts/".to_owned(), "tests/".to_owned()]),
-    )
-    .expect_err("policy violations should fail");
+    let error = tq_release::verify_artifact_contents(&dist_dir, None)
+        .expect_err("policy violations should fail");
 
     let message = error.to_string();
     assert!(message.contains("artifact content policy check failed"));
     assert!(message.contains("scripts/docs/generate.py"));
     assert!(message.contains("pkg-0.1.0/tests/test_x.py"));
+    assert!(message.contains("pkg-0.1.0/src/tq/cli/main.py"));
 }
 
 #[test]
@@ -62,6 +61,24 @@ fn verify_artifact_contents_passes_when_no_violations_exist() {
 
     tq_release::verify_artifact_contents(&dist_dir, Some(vec!["tests/".to_owned()]))
         .expect("no policy violations");
+}
+
+#[test]
+fn verify_artifact_contents_allows_wheel_installer_scripts() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let dist_dir = temp.path().join("dist");
+    fs::create_dir_all(&dist_dir).expect("create dist dir");
+
+    write_zip(
+        &dist_dir.join("pkg-0.1.0-py3-none-macosx_10_12_x86_64.whl"),
+        &[
+            ("pkg-0.1.0.data/scripts/tq", ""),
+            ("pkg-0.1.0.data/scripts/tqlint", ""),
+        ],
+    );
+
+    tq_release::verify_artifact_contents(&dist_dir, None)
+        .expect("wheel installer scripts should be allowed");
 }
 
 fn write_zip(path: &Path, members: &[(&str, &str)]) {

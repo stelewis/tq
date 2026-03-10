@@ -20,6 +20,7 @@ Publishing is handled by [publish workflow](../../.github/workflows/publish.yml)
 
 The workflow performs:
 
+- `cargo package --workspace --locked`
 - `uv build`
 - artifact content policy validation via `tq-release`
 - package metadata validation (`twine check dist/*`)
@@ -59,6 +60,7 @@ Publishing runs in the `pypi` GitHub Actions environment. This environment must 
    - `cargo clippy --workspace --all-targets --locked -- -D warnings`
    - `cargo test --workspace --locked`
    - `cargo run -p tq-docsgen --locked -- generate all`
+   - `cargo package --workspace --locked`
    - `uv build`
 3. Create and push a signed release tag.
 4. Approve the pending `pypi` environment deployment in GitHub Actions.
@@ -66,6 +68,7 @@ Publishing runs in the `pypi` GitHub Actions environment. This environment must 
 6. Verify install paths in a clean environment:
    - `uvx tqlint --help`
    - `uvx tqlint check --help`
+   - `uv tool install tqlint && tq --help`
 
 ## Rollback guidance
 

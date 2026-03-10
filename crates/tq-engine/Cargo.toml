@@ -7,6 +7,7 @@ license.workspace = true
 repository.workspace = true
 readme.workspace = true
 description = "Rule orchestration and deterministic finding aggregation for tq"
+exclude = ["tests/**"]
 
 [dependencies]
 thiserror.workspace = true

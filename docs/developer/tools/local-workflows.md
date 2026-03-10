@@ -16,7 +16,8 @@ Use `cargo check` as the fast compile, type, trait, and borrow-check loop before
 - `cargo test --workspace --locked`
 - `cargo build --workspace --locked`
 - `cargo build -p tq-cli --release --locked`
-- `cargo metadata --format-version 1 --locked > /dev/null`
+- `cargo package --workspace --locked`
+- `uv build`
 
 ## Combined local check
 

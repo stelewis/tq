@@ -4,6 +4,9 @@
 
 `tq` inspects a codebase's tests and enforces quality rules so tests remain discoverable, focused, actionable, and maintainable.
 
+The published `tqlint` package is Rust-backed and installs `tq` and
+`tqlint` executables through Python package managers.
+
 ## Installation
 
 PyPI distribution name: `tqlint`

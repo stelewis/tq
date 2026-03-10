@@ -1,7 +1,7 @@
 [project]
 name = "tqlint"
-version = "0.6.3"
 description = "tq inspects a codebase's tests and enforces quality rules so tests remain discoverable, focused, actionable, and maintainable"
+dynamic = ["version"]
 readme = "README.md"
 license = "MIT"
 keywords = ["testing", "lint", "pytest", "quality", "developer-tools"]
@@ -15,6 +15,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Rust",
     "Topic :: Software Development :: Quality Assurance",
     "Topic :: Software Development :: Testing",
     "Typing :: Typed",
@@ -23,15 +24,6 @@ authors = [
     { name = "Stephen Lewis", email = "31178492+stelewis@users.noreply.github.com" }
 ]
 requires-python = ">=3.11"
-dependencies = [
-    "click>=8.3.1",
-    "pyyaml>=6.0.3",
-    "rich>=14.3.2",
-]
-
-[project.scripts]
-tq = "tq.cli.main:main"
-tqlint = "tq.cli.main:main"
 
 [project.urls]
 Homepage = "https://github.com/stelewis/tq"
@@ -41,21 +33,34 @@ Issues = "https://github.com/stelewis/tq/issues"
 Changelog = "https://github.com/stelewis/tq/blob/main/CHANGELOG.md"
 
 [build-system]
-requires = ["uv_build>=0.10.7,<0.11.0"]
-build-backend = "uv_build"
+requires = ["maturin>=1.11,<2.0"]
+build-backend = "maturin"
 
-[tool.uv.build-backend]
-module-name = "tq"
+[tool.maturin]
+bindings = "bin"
+manifest-path = "crates/tq-cli/Cargo.toml"
+strip = true
+exclude = [
+    ".github/**",
+    "docs/**",
+    "scripts/**",
+    "src/tq/**",
+    "target/**",
+    "tmp/**",
+]
 
 [dependency-groups]
 dev = [
     "bandit>=1.9.3",
+    "click>=8.3.1",
     "commitizen>=4.9.1",
     "detect-secrets>=1.5.0",
     "pip-audit>=2.10.0",
     "prek>=0.3.1",
     "pytest>=9.0.2",
     "pytest-mock>=3.15.1",
+    "pyyaml>=6.0.3",
+    "rich>=14.3.2",
     "ruff>=0.15.0",
     "ty>=0.0.14",
 ]
@@ -108,7 +113,7 @@ convention = "google"
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version_provider = "uv"
+version_provider = "cargo"
 version_scheme = "semver"
 tag_format = "$version"
 update_changelog_on_bump = false
@@ -153,12 +158,6 @@ allowed_qualifiers = [
     "regression",
     "config",
 ]
-
-[[tool.tq.targets]]
-name = "tq"
-package = "tq"
-source_root = "src"
-test_root = "tests"
 
 [[tool.tq.targets]]
 name = "scripts"
