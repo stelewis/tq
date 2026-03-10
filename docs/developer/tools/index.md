@@ -4,45 +4,86 @@ Developer tooling and commands used to work on `tq`.
 
 ## Status
 
-The Rust rewrite plan introduces and standardizes this tooling surface in phases.
+Phase 7 (CI and quality hook migration) is complete. The canonical local toolchain is now Rust-first for formatting, linting, testing, build validation, and dependency security checks.
 
-<!-- TODO – AFTER RUST REWRITE COMPLETION: REMOVE ALL EPHEMERAL WORDING E.G. PHASE 1, ETC. -->
+Python remains in the repository only for transition-era conformance, docs generation, and release helpers until later rewrite phases remove those paths.
 
-Phase 1 (workspace bootstrap) is complete. The commands below are now canonical for Rust workspace bootstrap and baseline quality checks.
+The product MSRV is Rust 1.94.0. CI and local quality gates should use the workspace toolchain by default unless a workflow explicitly documents a different toolchain boundary.
 
-## Phase 1 commands
-
-### Workspace and toolchain
+## Workspace and toolchain
 
 - `cargo --version`
 - `cargo build --workspace`
 - `cargo run -p tq-cli -- --help`
 
-### Quality gates
+## Fast local loop
+
+- `cargo check --workspace --all-targets --locked`
+
+Use this as the quick compile, type, trait, and borrow-check pass during active development. It is the closest Rust-native equivalent to a fast static analysis loop before running the stricter `clippy` and `test` gates.
+
+## Quality gates
 
 - `cargo fmt --all --check`
-- `cargo clippy --workspace --all-targets -- -D warnings`
-- `cargo test --workspace`
+- `cargo check --workspace --all-targets --locked`
+- `cargo clippy --workspace --all-targets --locked -- -D warnings`
+- `cargo test --workspace --locked`
+- `cargo build --workspace --locked`
+- `cargo build -p tq-cli --release --locked`
+- `cargo metadata --format-version 1 --locked > /dev/null`
 
-### Combined local check
+## Combined local check
 
-- `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace`
+- `cargo fmt --all --check && cargo clippy --workspace --all-targets --locked -- -D warnings && cargo test --workspace --locked`
 
-## Future phases
+## Security and dependency audit
 
-As additional phases land, this page will be extended with:
+- `cargo audit`
+- `cargo deny check`
 
-- docs generation commands,
-- release verification commands,
-- security and dependency audit commands.
+Secret scanning and commit policy remain part of the standard workflow through `gitleaks`, `detect-secrets`, and `commitizen`.
 
-### Conformance harness commands
+## Security toolchain policy
 
-- `cargo test -p tq-cli --test conformance_harness -- --ignored --nocapture`
+Security scanners are intentionally treated as CI tooling, not as part of the `tq` runtime contract.
+
+The workspace and product commands run on the pinned MSRV from `rust-toolchain.toml`. The scanner bootstrap in CI installs and uses the stable toolchain for `cargo-audit` and `cargo-deny`.
+
+The setup action force-reinstalls both scanners from the pinned sources so cache hits cannot silently keep an older binary than the reviewed pin.
+
+This split exists for two reasons:
+
+- security tools and the RustSec advisory database can move faster than the product MSRV
+- we do not want to raise the product MSRV only to satisfy scanner installation or parser support churn
+
+Manual review is required for the scanner installation pins in `.github/actions/setup-rust-security-tools/action.yml`. Dependabot updates the Rust workspace and toolchain, but it does not update versions embedded in shell bootstrap logic.
+
+## Conformance harness
+
+- `cargo test -p tq-cli --test conformance_harness --locked -- --ignored --nocapture`
 
 The conformance harness runs fixture projects through both runtimes, enforces deterministic repeated output, and prints a parity report that distinguishes exact matches from documented intentional deltas.
 
 If the baseline Python executable is not available at `.venv/bin/python`, set `TQ_CONFORMANCE_PYTHON` to the interpreter that should run `python -m tq.cli.main`.
+
+## Transitional docs workflow
+
+- `uv run python scripts/docs/generate_rules_docs.py`
+- `uv run python scripts/docs/generate_cli_docs.py`
+- `uv run python scripts/docs/generate_config_examples.py`
+- `mise run docs-build`
+
+These commands remain temporary until Phase 8 ports docs generation into `tq-docsgen`.
+
+## Pre-commit hooks
+
+The pre-commit surface keeps hygiene, secret scanning, and commit policy hooks, but the language-specific hooks are now Rust-native:
+
+- `cargo fmt --all` on `pre-commit`
+- `cargo clippy --workspace --all-targets --locked -- -D warnings` on `pre-push`
+- `cargo test --workspace --locked` on `pre-push`
+
+The cargo hooks are local on purpose. There is no canonical first-party pre-commit hook set for `cargo fmt`, `cargo clippy`, or `cargo test`, and local hooks keep the pre-commit behavior aligned with the exact commands enforced in CI.
 
 ## Governance
 

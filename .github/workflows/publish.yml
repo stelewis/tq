@@ -9,11 +9,14 @@ on:
 permissions:
   contents: read
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   publish:
     name: Build and publish
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 8
     environment: ${{ vars.PYPI_ENVIRONMENT || 'pypi' }}
     permissions:
       attestations: write
@@ -22,6 +25,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Validate Rust release build
+        run: |
+          cargo metadata --format-version 1 --locked >/dev/null
+          cargo build -p tq-cli --release --locked
 
       - name: Setup Python + uv + deps
         uses: ./.github/actions/setup-python-uv

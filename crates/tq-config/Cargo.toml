@@ -5,6 +5,8 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+readme.workspace = true
+description = "Strict configuration loading and validation for tq"
 
 [dependencies]
 serde.workspace = true

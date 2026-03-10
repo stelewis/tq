@@ -15,15 +15,6 @@ repos:
     hooks:
       - id: uv-lock
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.4
-    hooks:
-      - id: ruff-format
-      - id: ruff-check
-        args: [--fix, --exit-non-zero-on-fix]
-        types_or: [python, pyi]
-        require_serial: true
-
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.0
     hooks:
@@ -45,20 +36,28 @@ repos:
 
   - repo: local
     hooks:
-      - id: ty
-        name: ty
-        description: Run ty type checker
-        entry: uv run ty check
+      - id: cargo-fmt
+        name: cargo fmt
+        description: Format the Rust workspace
+        entry: cargo fmt --all
         language: system
-        types: [python]
-        require_serial: true
         pass_filenames: false
+        require_serial: true
 
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.9.4
-    hooks:
-      - id: bandit
-        name: Bandit Security Linter
-        args: ["--configfile", "pyproject.toml"]
-        additional_dependencies:
-          - bandit[toml]
+      - id: cargo-clippy
+        name: cargo clippy
+        description: Lint the Rust workspace
+        entry: cargo clippy --workspace --all-targets --locked -- -D warnings
+        language: system
+        pass_filenames: false
+        require_serial: true
+        stages: [pre-push]
+
+      - id: cargo-test
+        name: cargo test
+        description: Test the Rust workspace
+        entry: cargo test --workspace --locked
+        language: system
+        pass_filenames: false
+        require_serial: true
+        stages: [pre-push]

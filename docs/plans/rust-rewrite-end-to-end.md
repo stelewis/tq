@@ -155,14 +155,19 @@ Status: Completed (2026-03-10).
 
 ### Phase 7: CI and quality hook migration
 
+Status: Completed (2026-03-10).
+
 - Replace Python-focused CI jobs with Rust-native jobs while preserving governance intent:
   - lint/type/format gates
   - deterministic output checks
   - package/build checks
   - docs-sync contract checks
   - security scans
-- Update `.pre-commit-config.yaml` to Rust-oriented checks and keep hygiene/secret scanning/commit policy hooks.
+- Update `.pre-commit-config.yaml` to Rust-oriented checks and keep or migrate hygiene/secret scanning/commit policy hooks.
 - Replace CodeQL language configuration from Python to Rust.
+- Complete end-to-end CI/CD workflow, actions, and job audit.
+- Adopt Rust 1.94.0 as the product MSRV across workspace policy, tooling, and CI.
+- Keep Rust security scanners on an explicitly documented stable-toolchain bootstrap until scanner installation can rely on released, policy-approved versions without manual pin review.
 
 ### Phase 8: Docs/release pipeline rewrite
 
@@ -173,6 +178,7 @@ Status: Completed (2026-03-10).
   - `docs/.vitepress/generated/rules-sidebar.ts`
   - `docs/reference/rules/index.md` and rule pages
 - Port release artifact policy checks from `scripts/release/verify_artifact_contents.py` to Rust.
+- Rewrite developer tooling/tools/workflow/CI docs at `docs/developer/tools/index.md` (refactoring into relevant standalone pages) to reflect Rust toolchain and commands.
 - Update publish workflow to build and publish Rust artifacts with retained attestation policy.
 
 ### Phase 9: Packaging and distribution cutover
@@ -182,6 +188,7 @@ Status: Completed (2026-03-10).
   - optional Python wrapper only if required for ecosystem ergonomics
 - Ensure command names remain `tq` and `tqlint` at install surface where applicable.
 - Update install docs and release workflow accordingly.
+- Replace the interim `cargo metadata` manifest-validation CI gate with a publish-ready `cargo package` or equivalent dry-run packaging validation once the workspace crates are intentionally prepared for distribution.
 
 ### Phase 10: Decommission Python runtime
 

@@ -65,10 +65,10 @@ impl<'a> TextReporter<'a> {
             path = display_path(finding.path(), self.cwd),
         );
 
-        if self.include_suggestions {
-            if let Some(suggestion) = finding.suggestion() {
-                return format!("{rendered} (suggestion: {suggestion})");
-            }
+        if self.include_suggestions
+            && let Some(suggestion) = finding.suggestion()
+        {
+            return format!("{rendered} (suggestion: {suggestion})");
         }
 
         rendered

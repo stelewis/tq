@@ -1,0 +1,36 @@
+name: Setup Rust toolchain
+description: Install the workspace Rust toolchain and restore Cargo caches
+
+runs:
+  using: composite
+  steps:
+    - name: Restore Cargo cache
+      uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          ~/.cargo/git/checkouts/
+        key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml', 'rust-toolchain.toml') }}
+        restore-keys: |
+          cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}-
+          cargo-${{ runner.os }}-
+
+    - name: Install Rust toolchain
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        toolchain="$(sed -n 's/^channel = "\(.*\)"$/\1/p' rust-toolchain.toml | head -n 1)"
+        if [ -z "$toolchain" ]; then
+          echo "Could not determine the Rust toolchain from rust-toolchain.toml"
+          exit 1
+        fi
+
+        rustup set profile minimal
+        rustup toolchain install "$toolchain" --profile minimal --component rustfmt --component clippy
+
+        cargo --version
+        rustc --version

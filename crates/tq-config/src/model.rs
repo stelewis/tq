@@ -5,9 +5,10 @@ use crate::ConfigError;
 pub const DEFAULT_IGNORE_INIT_MODULES: bool = false;
 pub const DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES: u64 = 600;
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
 pub enum QualifierStrategy {
     None,
+    #[default]
     AnySuffix,
     Allowlist,
 }
@@ -28,12 +29,6 @@ impl QualifierStrategy {
             "allowlist" => Some(Self::Allowlist),
             _ => None,
         }
-    }
-}
-
-impl Default for QualifierStrategy {
-    fn default() -> Self {
-        Self::AnySuffix
     }
 }
 

@@ -5,6 +5,8 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+readme.workspace = true
+description = "Rust CLI composition root for tq"
 
 [[bin]]
 name = "tq"
@@ -13,10 +15,10 @@ path = "src/main.rs"
 [dependencies]
 clap.workspace = true
 thiserror.workspace = true
-tq-config = { path = "../tq-config" }
-tq-engine = { path = "../tq-engine" }
-tq-reporting = { path = "../tq-reporting" }
-tq-rules = { path = "../tq-rules" }
+tq-config.workspace = true
+tq-engine.workspace = true
+tq-reporting.workspace = true
+tq-rules.workspace = true
 
 [dev-dependencies]
 assert_cmd = "2.1.1"
