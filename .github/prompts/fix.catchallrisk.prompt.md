@@ -45,8 +45,6 @@ Eliminate error-handling patterns that hide failures by silently dropping or “
 
 ## Local validation
 
-- `uv run ruff format`
-- `uv run ruff check --fix`
-- `uv run ty check`
-- `uv run tq check`
-- `uv run pytest -q`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets --locked -- -D warnings`
+- `cargo test --workspace --locked`

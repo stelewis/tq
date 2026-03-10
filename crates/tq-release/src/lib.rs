@@ -1,3 +1,4 @@
+mod dependabot;
 mod error;
 mod verify;
 
@@ -11,4 +12,8 @@ pub fn verify_artifact_contents(
     forbidden_prefixes: Option<Vec<String>>,
 ) -> Result<(), ReleaseError> {
     verify::verify_artifact_contents(dist_dir, forbidden_prefixes)
+}
+
+pub fn verify_dependabot(repo_root: &Path) -> Result<(), ReleaseError> {
+    dependabot::verify_dependabot(repo_root)
 }

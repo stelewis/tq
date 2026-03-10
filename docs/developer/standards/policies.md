@@ -21,6 +21,25 @@ Why this matters:
 - supports reproducible and auditable CI behavior,
 - reduces supply-chain risk.
 
+## Dependabot coverage policy
+
+GitHub Actions dependency updates must cover both workflow files and local composite actions.
+
+Required coverage:
+
+- `directory: "/"` or `directories: ["/"]` to cover `.github/workflows`
+- `directory: "/.github/actions/*"` or equivalent `directories` entry to cover local composite actions
+- a single `github-actions` update block that owns the whole GitHub Actions surface
+
+Enforcement:
+
+- CI runs `cargo run -p tq-release --locked -- verify-dependabot --repo-root .`
+
+Why this matters:
+
+- prevents local actions from drifting outside automated dependency updates,
+- keeps workflow and composite-action maintenance in one explicit policy surface,
+
 ## Release provenance policy
 
 Tag-triggered release runs must:

@@ -15,7 +15,10 @@ and source code interactively, following modern best practices.
 
 - **Adhere to Project Conventions:**
   - Follow the testing guidelines in [testing.md](../../docs/developer/standards/tests.md).
-  - Use `pytest` as the test framework.
+   - Use the native test framework for the code under test.
+   - Prefer Rust unit or integration tests for workspace crates.
+   - Only use `pytest` for repository-owned Python helper code when that surface
+      still exists.
 
 - **Test Generation Approach:**
   1. **Investigate the Code:**

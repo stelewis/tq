@@ -50,14 +50,9 @@ exclude = [
 
 [dependency-groups]
 dev = [
-    "bandit>=1.9.3",
     "commitizen>=4.9.1",
     "detect-secrets>=1.5.0",
-    "pip-audit>=2.10.0",
     "prek>=0.3.1",
-    "pytest>=9.0.2",
-    "pytest-mock>=3.15.1",
-    "pyyaml>=6.0.3",
     "ruff>=0.15.0",
     "ty>=0.0.14",
 ]
@@ -89,22 +84,6 @@ ban-relative-imports = "all"
 [tool.ruff.lint.pylint]
 max-returns = 10
 
-[tool.pytest.ini_options]
-addopts = [
-    "--import-mode=importlib",
-    "-m",
-    "not integration and not e2e",
-]
-testpaths = ["tests"]
-markers = [
-    "e2e: mark end-to-end tests",
-    "golden: deterministic golden/snapshot fixture tests (offline)",
-    "integration: mark a test as an integration test",
-    "regression: mark tests that exercise known regressions",
-    "smoke: mark quick smoke tests",
-    "slow: mark slow tests that may be skipped in fast CI jobs",
-]
-
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
@@ -135,29 +114,7 @@ revert = "Changed"
 "breaking change" = "Changed"
 "BREAKING CHANGE" = "Changed"
 
-[tool.bandit]
-exclude_dirs = [
-    "tests",
-]
-
 [tool.ty.src]
 exclude = [
     "tmp/scripts/**",
 ]
-
-[tool.tq]
-ignore_init_modules = true
-max_test_file_non_blank_lines = 600
-qualifier_strategy = "allowlist"
-allowed_qualifiers = [
-    "fixtures_golden",
-    "fixtures_synthetic",
-    "regression",
-    "config",
-]
-
-[[tool.tq.targets]]
-name = "scripts"
-package = "scripts"
-source_root = "."
-test_root = "tests"

@@ -12,6 +12,7 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Command {
     VerifyArtifactContents(VerifyArtifactContentsArgs),
+    VerifyDependabot(VerifyDependabotArgs),
 }
 
 #[derive(Debug, clap::Args)]
@@ -20,6 +21,12 @@ struct VerifyArtifactContentsArgs {
     dist_dir: PathBuf,
     #[arg(long = "forbidden-prefix")]
     forbidden_prefixes: Vec<String>,
+}
+
+#[derive(Debug, clap::Args)]
+struct VerifyDependabotArgs {
+    #[arg(long, default_value = ".")]
+    repo_root: PathBuf,
 }
 
 fn main() {
@@ -33,6 +40,7 @@ fn main() {
                 Some(args.forbidden_prefixes)
             },
         ),
+        Command::VerifyDependabot(args) => tq_release::verify_dependabot(&args.repo_root),
     };
 
     if let Err(error) = result {
