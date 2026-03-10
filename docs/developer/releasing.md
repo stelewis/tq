@@ -6,12 +6,12 @@ Release workflow for publishing `tq` to PyPI.
 
 - Repository and import package name is `tq`.
 - Published distribution name is `tqlint`.
-- CLI commands exposed by the package are `tq` and `tqlint`.
+- CLI command exposed by the package is `tq`.
 
 ## User install and run commands
 
 - Project dependency: `uv add --dev tqlint` then `uv run tq check`
-- Ephemeral execution: `uvx tqlint check`
+- Ephemeral execution: `uvx --from tqlint tq check`
 - Global tool: `uv tool install tqlint` then `tq check`
 
 ## Publish automation
@@ -29,7 +29,7 @@ The workflow performs:
 - GitHub artifact attestation generation for wheel and sdist
 - attestation verification before publish
 - trusted publish with `uv publish` on tag-triggered runs
-- post-publish smoke validation via `uvx tqlint`
+- post-publish smoke validation via `uvx --from tqlint tq`
 - consumer provenance verification against the PyPI wheel
 - GitHub release upload for wheel, sdist, and checksums
 
@@ -66,8 +66,8 @@ Publishing runs in the `pypi` GitHub Actions environment. This environment must 
 4. Approve the pending `pypi` environment deployment in GitHub Actions.
 5. Confirm publish workflow success.
 6. Verify install paths in a clean environment:
-   - `uvx tqlint --help`
-   - `uvx tqlint check --help`
+   - `uvx --from tqlint tq --help`
+   - `uvx --from tqlint tq check --help`
    - `uv tool install tqlint && tq --help`
 
 ## Rollback guidance

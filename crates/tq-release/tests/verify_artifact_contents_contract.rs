@@ -71,10 +71,7 @@ fn verify_artifact_contents_allows_wheel_installer_scripts() {
 
     write_zip(
         &dist_dir.join("pkg-0.1.0-py3-none-macosx_10_12_x86_64.whl"),
-        &[
-            ("pkg-0.1.0.data/scripts/tq", ""),
-            ("pkg-0.1.0.data/scripts/tqlint", ""),
-        ],
+        &[("pkg-0.1.0.data/scripts/tq", "")],
     );
 
     tq_release::verify_artifact_contents(&dist_dir, None)

@@ -4,8 +4,8 @@
 
 `tq` inspects a codebase's tests and enforces quality rules so tests remain discoverable, focused, actionable, and maintainable.
 
-The published `tqlint` package is Rust-backed and installs `tq` and
-`tqlint` executables through Python package managers.
+The published `tqlint` package is Rust-backed and installs the `tq`
+executable through Python package managers.
 
 ## Installation
 
@@ -21,7 +21,7 @@ uv run tq check
 Run without installing (ephemeral):
 
 ```sh
-uvx tqlint check
+uvx --from tqlint tq check
 ```
 
 Install as a persistent global tool:
@@ -38,7 +38,7 @@ python -m pip install tqlint
 tq check
 ```
 
-Note: `uvx tq check` is not available because the `tq` package name on PyPI is owned by another project.
+Note: `uvx tq check` is not available because the `tq` package name on PyPI is owned by another project. Use `uvx --from tqlint tq ...` for ephemeral runs.
 
 ## Usage
 

@@ -10,9 +10,9 @@ Distribution remains Python-native:
 
 - canonical package index: PyPI
 - canonical package name: `tqlint`
-- canonical install flows: `uv add`, `uvx`, and `uv tool install`
+- canonical install flows: `uv add`, `uv tool install`
 
-The build backend is `maturin` targeting the Rust CLI crate. Published artifacts install compiled `tq` and `tqlint` executables.
+The build backend is `maturin` targeting the Rust CLI crate. Published artifacts install the compiled `tq` executable.
 
 This keeps Python-project ergonomics while letting the runtime operate in Rust, following the same broad model used by tools such as Ruff and Ty.
 
@@ -46,7 +46,7 @@ Release artifact content policy is enforced by `tq-release`.
 - `cargo package --workspace --locked`
 - `cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist`
 
-The verifier inspects built wheels and sdists for repository-only paths such as `scripts/`, `tests/`, `docs/`, `tmp/`, `.github/`, and the legacy Python runtime under `src/tq/`. Wheel installer script locations under `.data/scripts/` are allowed because that is where the packaged `tq` and `tqlint` executables live.
+The verifier inspects built wheels and sdists for repository-only paths such as `scripts/`, `tests/`, `docs/`, `tmp/`, `.github/`, and the legacy Python runtime under `src/tq/`. Wheel installer script locations under `.data/scripts/` are allowed because that is where the packaged `tq` executable lives.
 
 ## Release artifact shape
 

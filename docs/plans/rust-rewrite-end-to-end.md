@@ -198,18 +198,20 @@ Status: Completed (2026-03-10).
   - PyPI remains the canonical distribution channel
   - `uv add`, `uvx`, and `uv tool install` are the install surfaces
   - standalone binaries are optional supplemental artifacts, not the primary contract
-- Choose and implement a Rust-backed Python packaging approach that emits publishable wheel and sdist artifacts while preserving the `tqlint` distribution contract.
-- Ensure command names remain `tq` and `tqlint` at install surface where applicable.
+- Choose and implement a Rust-backed Python packaging approach that emits publishable wheel and sdist artifacts while preserving the `tqlint` PyPI distribution contract.
+- Collapse the installed runtime surface to the single `tq` command even though the PyPI package name remains `tqlint`.
 - Update install docs and release workflow accordingly.
 - Replace the interim `cargo metadata` manifest-validation CI gate with a publish-ready `cargo package` or equivalent dry-run packaging validation once the workspace crates are intentionally prepared for distribution.
 
 ### Phase 10: Decommission and remove Python runtime
 
-- Remove `src/tq` runtime implementation, Python runtime deps, and obsolete Python CI paths.
+- Remove `src/tq` runtime implementation, the transitional Python runtime dependencies that only support it, and obsolete Python CI paths.
 - Remove conformance harness and fixtures once Python runtime is removed; keep only if needed for ongoing regression testing during Rust iteration.
 - Keep only minimal Python packaging and integration files strictly needed to preserve the PyPI-and-`uv` distribution surface.
 - Remove all legacy or compatibility code paths in Rust runtime.
 - Update docs to reflect Rust architecture as canonical.
+- Remove any transition-oriented language or docs drift.
+- Update policy enforcement and docs to remove Python-runtime-specific policies such as `src/tq` exclusion from artifact content policy.
 
 ## Verification
 

@@ -6,7 +6,7 @@ Contributor tooling and automation.
 
 The project toolchain is Rust-first for build, lint, test, docs generation, and release verification.
 
-The distribution model remains Python-native: publish to PyPI, keep `uv` install flows first-class, and support the `tqlint` package with `tq` and `tqlint` commands.
+The distribution model remains Python-native: publish to PyPI, keep `uv` install flows first-class, and ship the `tqlint` package as the install surface for the single `tq` command.
 
 Published artifacts are Rust-backed wheel and sdist packages built from the workspace CLI crate through `maturin`.
 

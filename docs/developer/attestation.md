@@ -42,6 +42,8 @@ gh attestation verify tqlint-<version>-*.whl \
   --deny-self-hosted-runners
 ```
 
+The verified wheel installs the `tq` command. For ephemeral execution through `uvx`, use `uvx --from tqlint tq --help`.
+
 Release automation runs an equivalent consumer check after publish by downloading from PyPI and verifying the wheel attestation before marking the workflow green.
 
 ## Offline verification

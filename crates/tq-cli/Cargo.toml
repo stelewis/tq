@@ -13,10 +13,6 @@ exclude = ["tests/**"]
 name = "tq"
 path = "src/main.rs"
 
-[[bin]]
-name = "tqlint"
-path = "src/bin/tqlint.rs"
-
 [dependencies]
 clap.workspace = true
 thiserror.workspace = true

@@ -7,14 +7,14 @@ Get `tq` running in a Python repository in a few steps.
 Choose an install mode:
 
 - project dependency: `uv add --dev tqlint`
-- ephemeral run: `uvx tqlint check`
+- ephemeral run: `uvx --from tqlint tq check`
 - global tool: `uv tool install tqlint`
 - pip install: `python -m pip install tqlint`
 
 ### Package and command naming
 
 - Distribution package: `tqlint`
-- CLI command: `tq` (with `tqlint` alias)
+- CLI command: `tq`
 - Primary command shape: `tq check`
 
 `uvx tq check` is not currently supported because the `tq` package name on PyPI is owned by another project.
