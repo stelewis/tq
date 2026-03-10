@@ -58,6 +58,7 @@ words:
   - reprioritize
   - rtype
   - sdist
+  - serde
   - setattr
   - Sigstore
   - Stringly

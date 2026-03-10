@@ -40,4 +40,6 @@ pub struct CheckArgs {
     pub config: Option<PathBuf>,
     #[arg(long)]
     pub isolated: bool,
+    #[arg(long)]
+    pub show_suggestions: bool,
 }

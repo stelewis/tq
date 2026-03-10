@@ -133,6 +133,8 @@ Status: Completed (2026-03-05). Audit Completed.
 
 ### Phase 5: Reporting adapters (`tq-reporting`)
 
+Status: Completed (2026-03-10).
+
 - Port terminal and JSON reporting behavior from:
   - `src/tq/reporting/terminal.py`
   - `src/tq/reporting/json.py`
