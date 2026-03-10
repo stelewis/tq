@@ -6,7 +6,7 @@ use flate2::read::GzDecoder;
 use crate::ReleaseError;
 
 pub const DEFAULT_FORBIDDEN_PREFIXES: &[&str] =
-    &["scripts/", "tests/", "docs/", "tmp/", ".github/", "src/tq/"];
+    &["scripts/", "tests/", "docs/", "tmp/", ".github/"];
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ArtifactViolation {

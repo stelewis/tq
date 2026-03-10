@@ -20,8 +20,8 @@ Orphaned tests often encode stale behavior and add noise in maintenance and revi
 
 ## Examples
 
-- Source module: `src/tq/engine/old_runner.py (missing)`
-- Test module: `tests/tq/engine/test_old_runner.py`
+- Source module: `src/app/engine/old_runner.py (missing)`
+- Test module: `tests/app/engine/test_old_runner.py`
 
 ## How to address
 

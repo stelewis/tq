@@ -1,1 +1,0 @@
-{"findings":[{"rule_id":"orphaned-test","severity":"warning","message":"Test file has no corresponding source module: tq/engine/test_missing.py","path":"tests/tq/engine/test_missing.py","line":null,"suggestion":"Verify this test is still needed or move it to integration/e2e scope","target":"tq"}],"summary":{"errors":0,"warnings":1,"infos":0,"total":1}}

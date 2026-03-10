@@ -34,7 +34,7 @@ fn verify_artifact_contents_reports_forbidden_members() {
         &[
             ("pkg-0.1.0/tq/__init__.py", ""),
             ("pkg-0.1.0/tests/test_x.py", ""),
-            ("pkg-0.1.0/src/tq/cli/main.py", ""),
+            ("pkg-0.1.0/docs/reference/cli.md", ""),
         ],
     );
 
@@ -45,7 +45,7 @@ fn verify_artifact_contents_reports_forbidden_members() {
     assert!(message.contains("artifact content policy check failed"));
     assert!(message.contains("scripts/docs/generate.py"));
     assert!(message.contains("pkg-0.1.0/tests/test_x.py"));
-    assert!(message.contains("pkg-0.1.0/src/tq/cli/main.py"));
+    assert!(message.contains("pkg-0.1.0/docs/reference/cli.md"));
 }
 
 #[test]

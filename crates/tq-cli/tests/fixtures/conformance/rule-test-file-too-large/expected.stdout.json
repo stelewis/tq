@@ -1,1 +1,0 @@
-{"findings":[{"rule_id":"test-file-too-large","severity":"warning","message":"Test file is too large (7 lines, limit: 3)","path":"tests/tq/test_big.py","line":null,"suggestion":"Split this module into smaller focused test files","target":"tq"}],"summary":{"errors":0,"warnings":1,"infos":0,"total":1}}

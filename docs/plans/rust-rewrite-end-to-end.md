@@ -205,6 +205,8 @@ Status: Completed (2026-03-10).
 
 ### Phase 10: Decommission and remove Python runtime
 
+Status: Completed (2026-03-10).
+
 - Remove `src/tq` runtime implementation, the transitional Python runtime dependencies that only support it, and obsolete Python CI paths.
 - Remove conformance harness and fixtures once Python runtime is removed; keep only if needed for ongoing regression testing during Rust iteration.
 - Keep only minimal Python packaging and integration files strictly needed to preserve the PyPI-and-`uv` distribution surface.

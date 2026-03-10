@@ -20,7 +20,7 @@ Oversized test modules tend to become monolithic and less actionable when failur
 ## Examples
 
 - Source module: `n/a`
-- Test module: `tests/tq/engine/test_runner.py (over configured line limit)`
+- Test module: `tests/app/engine/test_runner.py (over configured line limit)`
 
 ## How to address
 

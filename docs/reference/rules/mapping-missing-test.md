@@ -20,8 +20,8 @@ Missing unit tests reduce discoverability and leave source modules without direc
 
 ## Examples
 
-- Source module: `src/tq/engine/runner.py`
-- Test module: `tests/tq/engine/test_runner.py (missing)`
+- Source module: `src/app/engine/runner.py`
+- Test module: `tests/app/engine/test_runner.py (missing)`
 
 ## How to address
 
