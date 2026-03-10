@@ -38,9 +38,9 @@ Why this matters:
 
 ## Packaging content policy
 
-Release artifacts must only contain runtime package content required for users.
+Release artifacts must only contain runtime content required for users.
 
-Forbidden repository paths in wheel/sdist artifacts:
+Forbidden repository paths in wheel and sdist artifacts:
 
 - `scripts/`
 - `tests/`
@@ -50,8 +50,7 @@ Forbidden repository paths in wheel/sdist artifacts:
 
 Enforcement:
 
-- CI package checks run `scripts/release/verify_artifact_contents.py`
-- publish workflow runs the same guard before metadata validation and publish
+- CI and publish checks run `cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist`
 
 Why this matters:
 

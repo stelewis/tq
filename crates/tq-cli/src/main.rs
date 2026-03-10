@@ -1,12 +1,11 @@
-mod cli;
 mod error;
 
 use std::collections::BTreeSet;
 use std::io;
 
 use clap::Parser;
-use cli::{CheckArgs, Cli, Command, QualifierStrategyArg};
 use error::{CliError, Result};
+use tq_cli::{CheckArgs, Cli, Command, OutputFormat, QualifierStrategyArg};
 use tq_config::{CliOverrides, QualifierStrategy, RuleId, TqTargetConfig, resolve_tq_config};
 use tq_engine::{RuleEngine, TargetPlanInput, aggregate_results, plan_target_runs};
 use tq_reporting::{JsonReporter, TextReporter};
@@ -93,12 +92,12 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
     let mut writer = stdout.lock();
 
     match args.output_format {
-        cli::OutputFormat::Text => {
+        OutputFormat::Text => {
             TextReporter::new(&cwd)
                 .with_suggestions(args.show_suggestions)
                 .write(&mut writer, &result)?;
         }
-        cli::OutputFormat::Json => {
+        OutputFormat::Json => {
             JsonReporter::new(&cwd).write(&mut writer, &result)?;
         }
     }

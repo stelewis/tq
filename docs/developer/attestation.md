@@ -1,6 +1,6 @@
 # Attestation Verification
 
-Verify release artifact provenance for `tq`.
+Verify released wheel and sdist provenance for `tq`.
 
 ## Scope
 
@@ -29,7 +29,7 @@ gh attestation verify dist/tqlint-<version>-py3-none-any.whl \
 
 ## Consumer verification before install
 
-1. Download the exact artifact you plan to install.
+1. Download the exact wheel you plan to install.
 2. Verify provenance before installing.
 
 Example:

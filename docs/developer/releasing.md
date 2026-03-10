@@ -4,7 +4,7 @@ Release workflow for publishing `tq` to PyPI.
 
 ## Package identity
 
-- Repository and import package remain `tq`.
+- Repository and import package name is `tq`.
 - Published distribution name is `tqlint`.
 - CLI commands exposed by the package are `tq` and `tqlint`.
 
@@ -16,19 +16,21 @@ Release workflow for publishing `tq` to PyPI.
 
 ## Publish automation
 
-Publishing is handled by [publish workflow](../../.github/workflows/publish.yml) on SemVer tags matching `<major>.<minor>.<patch>` (for example `0.4.0`).
+Publishing is handled by [publish workflow](../../.github/workflows/publish.yml) on SemVer tags matching `<major>.<minor>.<patch>`.
 
 The workflow performs:
 
 - `uv build`
-- artifact content policy validation
+- artifact content policy validation via `tq-release`
 - package metadata validation (`twine check dist/*`)
-- smoke checks against built wheel and sdist
-- GitHub artifact attestation for `dist/*` (supply-chain provenance)
-- attestation verification for wheel and sdist before publish
-- trusted publish with `uv publish` (tag-triggered runs)
-- post-publish smoke checks via `uvx tqlint`
-- post-publish consumer provenance verification against the PyPI wheel
+- smoke checks against built wheel and sdist entrypoints
+- fixture smoke validation with the built wheel
+- GitHub artifact attestation generation for wheel and sdist
+- attestation verification before publish
+- trusted publish with `uv publish` on tag-triggered runs
+- post-publish smoke validation via `uvx tqlint`
+- consumer provenance verification against the PyPI wheel
+- GitHub release upload for wheel, sdist, and checksums
 
 Manual `workflow_dispatch` runs support dry-run build and smoke validation without publishing to PyPI.
 
@@ -53,12 +55,12 @@ Publishing runs in the `pypi` GitHub Actions environment. This environment must 
 
 1. Ensure `CHANGELOG.md` and version are ready.
 2. Run quality gates locally:
-   - `uv run ruff format`
-   - `uv run ruff check --fix`
-   - `uv run ty check`
-   - `uv run tq check`
-   - `uv run pytest -q`
-3. Create and push a signed release tag (for example `0.3.1`).
+   - `cargo fmt --all --check`
+   - `cargo clippy --workspace --all-targets --locked -- -D warnings`
+   - `cargo test --workspace --locked`
+   - `cargo run -p tq-docsgen --locked -- generate all`
+   - `uv build`
+3. Create and push a signed release tag.
 4. Approve the pending `pypi` environment deployment in GitHub Actions.
 5. Confirm publish workflow success.
 6. Verify install paths in a clean environment:
