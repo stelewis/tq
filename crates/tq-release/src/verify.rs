@@ -6,7 +6,7 @@ use flate2::read::GzDecoder;
 use crate::ReleaseError;
 
 pub const DEFAULT_FORBIDDEN_PREFIXES: &[&str] =
-    &["scripts/", "tests/", "docs/", "tmp/", ".github/"];
+    &["scripts/", "tests/", "docs/", "tmp/", ".github/", "src/tq/"];
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ArtifactViolation {
@@ -148,6 +148,14 @@ fn find_tar_gz_violations(
 }
 
 fn is_forbidden_member(member_name: &str, forbidden_prefixes: &[String]) -> bool {
+    if member_name.contains(".data/scripts/") {
+        return normalized_candidates(member_name).iter().any(|candidate| {
+            forbidden_prefixes
+                .iter()
+                .any(|prefix| prefix != "scripts/" && candidate.starts_with(prefix))
+        });
+    }
+
     normalized_candidates(member_name).iter().any(|candidate| {
         forbidden_prefixes
             .iter()

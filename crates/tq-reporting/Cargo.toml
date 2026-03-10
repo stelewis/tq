@@ -7,6 +7,7 @@ license.workspace = true
 repository.workspace = true
 readme.workspace = true
 description = "Text and JSON reporting adapters for tq"
+exclude = ["tests/**"]
 
 [dependencies]
 serde.workspace = true

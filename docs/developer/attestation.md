@@ -21,7 +21,7 @@ The publish workflow verifies each built wheel and sdist attestation using:
 Equivalent command shape:
 
 ```sh
-gh attestation verify dist/tqlint-<version>-py3-none-any.whl \
+gh attestation verify dist/tqlint-<version>-*.whl \
   --repo stelewis/tq \
   --signer-workflow stelewis/tq/.github/workflows/publish.yml \
   --deny-self-hosted-runners
@@ -36,7 +36,7 @@ Example:
 
 ```sh
 python -m pip download --no-deps tqlint==<version>
-gh attestation verify tqlint-<version>-py3-none-any.whl \
+gh attestation verify tqlint-<version>-*.whl \
   --repo stelewis/tq \
   --signer-workflow stelewis/tq/.github/workflows/publish.yml \
   --deny-self-hosted-runners

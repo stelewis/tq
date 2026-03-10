@@ -34,7 +34,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          cargo metadata --format-version 1 --locked >/dev/null
+          cargo package --workspace --locked
           cargo build -p tq-cli --release --locked
 
       - name: Setup Python + uv + deps

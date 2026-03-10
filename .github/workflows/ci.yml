@@ -163,7 +163,7 @@ jobs:
         run: cargo test -p tq-cli --test conformance_harness --locked -- --ignored --nocapture
 
   build:
-    name: Build and manifest checks
+    name: Build and packaging checks
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
@@ -179,8 +179,14 @@ jobs:
       - name: Build release CLI
         run: cargo build -p tq-cli --release --locked
 
-      - name: Validate Cargo metadata
-        run: cargo metadata --format-version 1 --locked >/dev/null
+      - name: Validate cargo package dry-run
+        run: cargo package --workspace --locked
+
+      - name: Build Python package artifacts
+        run: uv build
+
+      - name: Verify artifact contents policy
+        run: cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist
 
       - name: Smoke check CLI entrypoint
         run: cargo run -p tq-cli --locked -- check --help

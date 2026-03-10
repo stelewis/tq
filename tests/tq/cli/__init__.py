@@ -1,1 +1,0 @@
-"""Unit CLI tests package."""
