@@ -74,10 +74,9 @@ jobs:
             exit 1
           fi
           uv run --isolated --no-project --with "$wheel_path" -- tq --help
-          uv run --isolated --no-project --with "$wheel_path" -- tqlint --help
           uv run --isolated --no-project --with "$wheel_path" -- tq check --help
           uv run --isolated --no-project --with "$sdist_path" -- tq --help
-          uv run --isolated --no-project --with "$sdist_path" -- tqlint --help
+          uv run --isolated --no-project --with "$sdist_path" -- tq check --help
 
       - name: Smoke check fixture from built wheel
         run: |
@@ -150,7 +149,7 @@ jobs:
         if: ${{ github.event_name == 'push' }}
         run: |
           for attempt in 1 2 3 4 5; do
-            if uvx tqlint --help; then
+            if uvx --from tqlint tq --help; then
               break
             fi
             if [ "$attempt" -eq 5 ]; then
@@ -161,7 +160,7 @@ jobs:
           done
           (
             cd tmp/release-smoke
-            uvx tqlint check
+            uvx --from tqlint tq check
           )
 
       - name: Consumer provenance check (PyPI wheel)

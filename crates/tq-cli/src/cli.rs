@@ -6,7 +6,6 @@ use clap::{ArgAction, Parser, Subcommand, ValueEnum};
 #[command(
     name = "tq",
     bin_name = "tq",
-    visible_alias = "tqlint",
     author,
     version,
     about = "Test quality toolkit"
