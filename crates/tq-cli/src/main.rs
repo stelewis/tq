@@ -1,10 +1,11 @@
 mod cli;
 mod error;
 
+use std::collections::BTreeSet;
 use std::io;
 
 use clap::Parser;
-use cli::{CheckArgs, Cli, Command};
+use cli::{CheckArgs, Cli, Command, QualifierStrategyArg};
 use error::{CliError, Result};
 use tq_config::{CliOverrides, QualifierStrategy, RuleId, TqTargetConfig, resolve_tq_config};
 use tq_engine::{RuleEngine, TargetPlanInput, aggregate_results, plan_target_runs};
@@ -18,7 +19,7 @@ fn main() {
     let exit_code = match run() {
         Ok(code) => code,
         Err(error) => {
-            eprintln!("error: {error}");
+            eprintln!("Error: {error}");
             2
         }
     };
@@ -50,19 +51,18 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
     }
 
     let cwd = std::env::current_dir().map_err(|error| CliError::from_current_dir(&error))?;
-    let config = resolve_tq_config(
-        &cwd,
-        args.config.as_deref(),
-        args.isolated,
-        &CliOverrides::default(),
-    )?;
+    let overrides = build_cli_overrides(args)?;
+    let config = resolve_tq_config(&cwd, args.config.as_deref(), args.isolated, &overrides)?;
 
-    for target in &config.targets {
+    let active_targets = select_targets(&config.targets, &args.target_names)?;
+
+    for target in &active_targets {
         validate_target_paths(target)?;
     }
 
     let configured_targets = build_target_inputs(&config.targets)?;
-    let planned_runs = plan_target_runs(&configured_targets, &configured_targets)?;
+    let active_target_inputs = build_target_inputs(&active_targets)?;
+    let planned_runs = plan_target_runs(&configured_targets, &active_target_inputs)?;
 
     let mut target_results = Vec::with_capacity(planned_runs.len());
     for planned_run in planned_runs {
@@ -103,7 +103,99 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
         }
     }
 
-    Ok(i32::from(result.has_errors()))
+    Ok(i32::from(result.has_errors() && !args.exit_zero))
+}
+
+fn build_cli_overrides(args: &CheckArgs) -> Result<CliOverrides> {
+    Ok(CliOverrides {
+        ignore_init_modules: resolve_ignore_init_modules(args)?,
+        max_test_file_non_blank_lines: args.max_test_file_non_blank_lines,
+        qualifier_strategy: args.qualifier_strategy.map(map_cli_qualifier_strategy),
+        allowed_qualifiers: (!args.allowed_qualifiers.is_empty())
+            .then(|| args.allowed_qualifiers.clone()),
+        select: parse_cli_rule_ids(&args.select_rules)?,
+        ignore: parse_cli_rule_ids(&args.ignore_rules)?,
+    })
+}
+
+fn resolve_ignore_init_modules(args: &CheckArgs) -> Result<Option<bool>> {
+    if args.init_module_args.ignore_init_modules && args.init_module_args.no_ignore_init_modules {
+        return Err(CliError::validation(
+            "--ignore-init-modules cannot be combined with --no-ignore-init-modules",
+        ));
+    }
+
+    Ok(if args.init_module_args.ignore_init_modules {
+        Some(true)
+    } else if args.init_module_args.no_ignore_init_modules {
+        Some(false)
+    } else {
+        None
+    })
+}
+
+fn parse_cli_rule_ids(values: &[String]) -> Result<Option<Vec<RuleId>>> {
+    if values.is_empty() {
+        return Ok(None);
+    }
+
+    let mut parsed = Vec::with_capacity(values.len());
+    let mut seen = BTreeSet::new();
+    for value in values {
+        let rule_id = RuleId::parse(value)?;
+        let rendered = rule_id.to_string();
+        if !seen.insert(rendered.clone()) {
+            return Err(CliError::validation(format!(
+                "Duplicate rule ID in CLI values: {rendered}"
+            )));
+        }
+        parsed.push(rule_id);
+    }
+
+    Ok(Some(parsed))
+}
+
+fn select_targets(
+    configured_targets: &[TqTargetConfig],
+    selected_target_names: &[String],
+) -> Result<Vec<TqTargetConfig>> {
+    if selected_target_names.is_empty() {
+        return Ok(configured_targets.to_vec());
+    }
+
+    let by_name = configured_targets
+        .iter()
+        .map(|target| (target.name.as_str(), target))
+        .collect::<std::collections::BTreeMap<_, _>>();
+
+    let unknown_names = selected_target_names
+        .iter()
+        .filter(|name| !by_name.contains_key(name.as_str()))
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    if !unknown_names.is_empty() {
+        return Err(CliError::validation(format!(
+            "Unknown target name(s): {}",
+            unknown_names.into_iter().collect::<Vec<_>>().join(", ")
+        )));
+    }
+
+    let mut selected = Vec::new();
+    let mut seen = BTreeSet::new();
+    for name in selected_target_names {
+        if !seen.insert(name.clone()) {
+            continue;
+        }
+
+        selected.push(
+            (*by_name
+                .get(name.as_str())
+                .expect("validated target must exist"))
+            .clone(),
+        );
+    }
+
+    Ok(selected)
 }
 
 fn validate_target_paths(target: &TqTargetConfig) -> Result<()> {
@@ -145,6 +237,14 @@ const fn map_qualifier_strategy(strategy: QualifierStrategy) -> RuleQualifierStr
         QualifierStrategy::None => RuleQualifierStrategy::None,
         QualifierStrategy::AnySuffix => RuleQualifierStrategy::AnySuffix,
         QualifierStrategy::Allowlist => RuleQualifierStrategy::Allowlist,
+    }
+}
+
+const fn map_cli_qualifier_strategy(strategy: QualifierStrategyArg) -> QualifierStrategy {
+    match strategy {
+        QualifierStrategyArg::None => QualifierStrategy::None,
+        QualifierStrategyArg::AnySuffix => QualifierStrategy::AnySuffix,
+        QualifierStrategyArg::Allowlist => QualifierStrategy::Allowlist,
     }
 }
 

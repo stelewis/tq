@@ -1,0 +1,21 @@
+{
+  "category": "each rule trigger",
+  "description": "Mapping missing test emits the canonical JSON finding.",
+  "args": [
+    "check",
+    "--output-format",
+    "json",
+    "--target",
+    "tq",
+    "--select",
+    "mapping-missing-test"
+  ],
+  "stdout_format": "json",
+  "expectation": {
+    "mode": "match",
+    "expected": {
+      "exit_code": 1,
+      "stdout": "expected.stdout.json"
+    }
+  }
+}

@@ -28,6 +28,30 @@ test_root = "tests"
     temp
 }
 
+fn create_multi_target_project() -> TempDir {
+    let temp = TempDir::new().expect("tempdir");
+    write(
+        &temp.path().join("pyproject.toml"),
+        r#"[tool.tq]
+
+[[tool.tq.targets]]
+name = "app"
+package = "pkg"
+source_root = "src"
+test_root = "tests"
+
+[[tool.tq.targets]]
+name = "scripts"
+package = "scripts"
+source_root = "."
+test_root = "tests"
+"#,
+    );
+    fs::create_dir_all(temp.path().join("src").join("pkg")).expect("create source package root");
+    fs::create_dir_all(temp.path().join("tests")).expect("create test root");
+    temp
+}
+
 #[test]
 fn check_command_reports_success_for_clean_project() {
     let project = create_project();
@@ -90,4 +114,123 @@ fn check_command_emits_json_and_exit_code_one_for_findings() {
         )
     );
     assert!(output.stderr.is_empty());
+}
+
+#[test]
+fn check_command_respects_target_filtering() {
+    let project = create_multi_target_project();
+    write(
+        &project.path().join("src").join("pkg").join("module.py"),
+        "def run() -> None:\n    pass\n",
+    );
+    write(
+        &project.path().join("scripts").join("generate.py"),
+        "def generate() -> None:\n    pass\n",
+    );
+
+    let assert = Command::new(env!("CARGO_BIN_EXE_tq"))
+        .current_dir(project.path())
+        .arg("check")
+        .arg("--config")
+        .arg(project.path().join("pyproject.toml"))
+        .arg("--output-format")
+        .arg("json")
+        .arg("--target")
+        .arg("scripts")
+        .assert();
+
+    let output = assert.get_output();
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        String::from_utf8(output.stdout.clone()).expect("stdout should be utf8"),
+        concat!(
+            "{\"findings\":[{\"rule_id\":\"mapping-missing-test\",\"severity\":\"error\",",
+            "\"message\":\"No test file found for source module: generate.py\",",
+            "\"path\":\"scripts/generate.py\",\"line\":null,",
+            "\"suggestion\":\"Create test file at: scripts/test_generate.py\",\"target\":\"scripts\"}],",
+            "\"summary\":{\"errors\":1,\"warnings\":0,\"infos\":0,\"total\":1}}\n",
+        )
+    );
+    assert!(output.stderr.is_empty());
+}
+
+#[test]
+fn check_command_honors_ignore_init_modules_override() {
+    let project = create_project();
+    write(
+        &project.path().join("pyproject.toml"),
+        r#"[tool.tq]
+
+[[tool.tq.targets]]
+name = "app"
+package = "pkg"
+source_root = "src"
+test_root = "tests"
+ignore_init_modules = false
+"#,
+    );
+    write(
+        &project.path().join("src").join("pkg").join("__init__.py"),
+        "def exported() -> None:\n    pass\n",
+    );
+
+    let default_assert = Command::new(env!("CARGO_BIN_EXE_tq"))
+        .current_dir(project.path())
+        .arg("check")
+        .arg("--config")
+        .arg(project.path().join("pyproject.toml"))
+        .assert();
+    let override_assert = Command::new(env!("CARGO_BIN_EXE_tq"))
+        .current_dir(project.path())
+        .arg("check")
+        .arg("--config")
+        .arg(project.path().join("pyproject.toml"))
+        .arg("--ignore-init-modules")
+        .assert();
+
+    assert_eq!(default_assert.get_output().status.code(), Some(1));
+    assert!(override_assert.get_output().status.success());
+}
+
+#[test]
+fn check_command_rejects_unknown_target_name() {
+    let project = create_project();
+
+    let assert = Command::new(env!("CARGO_BIN_EXE_tq"))
+        .current_dir(project.path())
+        .arg("check")
+        .arg("--config")
+        .arg(project.path().join("pyproject.toml"))
+        .arg("--target")
+        .arg("missing")
+        .assert();
+
+    let output = assert.get_output();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Unknown target name(s): missing"));
+}
+
+#[test]
+fn check_command_rejects_duplicate_cli_select_rule_ids() {
+    let project = create_project();
+
+    let assert = Command::new(env!("CARGO_BIN_EXE_tq"))
+        .current_dir(project.path())
+        .arg("check")
+        .arg("--config")
+        .arg(project.path().join("pyproject.toml"))
+        .arg("--target")
+        .arg("app")
+        .arg("--select")
+        .arg("mapping-missing-test")
+        .arg("--select")
+        .arg("mapping-missing-test")
+        .assert();
+
+    let output = assert.get_output();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("Duplicate rule ID in CLI values: mapping-missing-test")
+    );
 }

@@ -143,6 +143,8 @@ Status: Completed (2026-03-10).
 
 ### Phase 6: End-to-end conformance harness
 
+Status: Completed (2026-03-10).
+
 - Add fixture projects and expected outputs for all contract categories:
   - clean run
   - each rule trigger
@@ -184,6 +186,7 @@ Status: Completed (2026-03-10).
 ### Phase 10: Decommission Python runtime
 
 - Remove `src/tq` runtime implementation, Python runtime deps, and obsolete Python CI paths.
+- Remove conformance harness and fixtures once Python runtime is removed; keep only if needed for ongoing regression testing during Rust iteration.
 - Keep only minimal Python files if strictly needed for packaging bridge (if any).
 - Remove all legacy or compatibility code paths in Rust runtime.
 - Update docs to reflect Rust architecture as canonical.

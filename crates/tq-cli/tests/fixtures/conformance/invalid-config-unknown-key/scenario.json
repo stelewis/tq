@@ -1,0 +1,20 @@
+{
+  "category": "invalid config and unknown keys",
+  "description": "Unknown top-level tq config keys fail fast.",
+  "args": ["check"],
+  "stdout_format": "text",
+  "expectation": {
+    "mode": "intentional-delta",
+    "reason": "Rust currently emits a concise boundary error without Click's usage preamble while preserving the strict validation message and exit code.",
+    "python": {
+      "exit_code": 2,
+      "stdout": "expected.python.stdout.txt",
+      "stderr": "expected.python.stderr.txt"
+    },
+    "rust": {
+      "exit_code": 2,
+      "stdout": "expected.rust.stdout.txt",
+      "stderr": "expected.rust.stderr.txt"
+    }
+  }
+}
