@@ -156,6 +156,9 @@ jobs:
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
 
+      - name: Verify Dependabot github-actions coverage
+        run: cargo run -p tq-release --locked -- verify-dependabot --repo-root .
+
       - name: Setup Python + uv + deps
         uses: ./.github/actions/setup-python-uv
 

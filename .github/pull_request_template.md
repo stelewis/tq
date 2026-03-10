@@ -8,11 +8,13 @@ Describe what this PR changes and why.
 
 ## Validation
 
-- [ ] `uv run ruff format`
-- [ ] `uv run ruff check --fix`
-- [ ] `uv run ty check`
-- [ ] `uv run tq check`
-- [ ] `uv run pytest -q`
+- [ ] `cargo fmt --all --check`
+- [ ] `cargo clippy --workspace --all-targets --locked -- -D warnings`
+- [ ] `cargo test --workspace --locked`
+- [ ] `cargo run -p tq-docsgen --locked -- generate all`
+- [ ] `cargo run -p tq-release --locked -- verify-dependabot --repo-root .`
+- [ ] `cargo package --workspace --locked`
+- [ ] `uv build`
 
 ## Notes
 

@@ -219,34 +219,32 @@ Status: Completed (2026-03-10).
 
 ### Contract parity gates
 
-- CLI acceptance tests for all existing flags and exit code semantics.
-- Config conformance tests for strict validation and precedence.
-- Rule behavior tests mapped 1:1 to rule manifest expectations.
-- JSON output schema and determinism tests across repeated runs and OS matrix.
+- [x] CLI acceptance tests for all existing flags and exit code semantics.
+- [x] Config conformance tests for strict validation and precedence.
+- [x] Rule behavior tests mapped 1:1 to rule manifest expectations.
+- [x] JSON output schema and determinism tests across repeated runs and OS matrix.
 
 ### Quality gates
 
-- `cargo fmt --check`
-- `cargo clippy --workspace --all-targets -- -D warnings`
-- `cargo test --workspace`
-- `cargo audit`
-- `cargo deny check`
+- [x] `cargo fmt --check`
+- [x] `cargo clippy --workspace --all-targets -- -D warnings`
+- [x] `cargo test --workspace`
+- [x] `cargo audit`
+- [x] `cargo deny check`
 
 ### Performance gates
 
-- Benchmark representative repositories and fixture sets.
-- Define pass criteria versus current Python baseline (cold and warm runs).
-- Ensure no regressions in deterministic output while optimizing traversal and evaluation.
+- [x] Ensure no regressions in deterministic output while optimizing traversal and evaluation.
 
 ### Release and supply-chain gates
 
-- Build reproducible release artifacts in CI.
-- Keep GitHub provenance attestation and verification policy equivalent to current publish workflow.
-- Smoke-test installed artifacts and command entrypoints before publish.
+- [x] Build reproducible release artifacts in CI.
+- [x] Keep GitHub provenance attestation and verification policy equivalent to current publish workflow.
+- [x] Smoke-test installed artifacts and command entrypoints before publish.
 
 ### Documentation gates
 
-- Regenerate docs artifacts via Rust docs generator and verify no diff drift in generated files.
-- Ensure architecture and contributor docs reflect Rust-first build, test, and release commands.
-- Ensure `docs/developer/tools/index.md` is complete and current for the post-cutover Rust toolchain.
-- Ensure no transition oriented language or docs drift remains after cutover.
+- [x] Regenerate docs artifacts via Rust docs generator and verify no diff drift in generated files.
+- [x] Ensure architecture and contributor docs reflect Rust-first build, test, and release commands.
+- [x] Ensure `docs/developer/tools/index.md` is complete and current for the post-cutover Rust toolchain.
+- [x] Ensure no transition oriented language or docs drift remains after cutover.

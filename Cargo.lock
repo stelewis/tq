@@ -714,6 +714,8 @@ dependencies = [
  "assert_cmd",
  "clap",
  "flate2",
+ "serde",
+ "serde_yaml",
  "tar",
  "tempfile",
  "thiserror",

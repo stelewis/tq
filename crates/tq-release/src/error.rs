@@ -12,6 +12,12 @@ pub enum ReleaseError {
         #[source]
         source: std::io::Error,
     },
+    #[error("failed to parse yaml file {path}: {source}")]
+    Yaml {
+        path: PathBuf,
+        #[source]
+        source: serde_yaml::Error,
+    },
     #[error("failed to read zip archive {path}: {source}")]
     Zip {
         path: PathBuf,
@@ -20,4 +26,6 @@ pub enum ReleaseError {
     },
     #[error("artifact content policy check failed. Forbidden paths were found:\n{details}")]
     PolicyViolation { details: String },
+    #[error("repository policy check failed:\n{details}")]
+    RepositoryPolicyViolation { details: String },
 }

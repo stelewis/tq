@@ -39,14 +39,17 @@ These commands regenerate:
 
 The docs site build runs the Rust docs generator first through `package.json` and then builds VitePress.
 
-## Release package verification
+## Repository and release verification
 
-Release artifact content policy is enforced by `tq-release`.
+Repository-policy and release artifact checks are enforced by `tq-release`.
 
+- `cargo run -p tq-release --locked -- verify-dependabot --repo-root .`
 - `cargo package --workspace --locked`
 - `cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist`
 
-The verifier inspects built wheels and sdists for repository-only paths such as `scripts/`, `tests/`, `docs/`, `tmp/`, and `.github/`. Wheel installer script locations under `.data/scripts/` are allowed because that is where the packaged `tq` executable lives.
+The Dependabot verifier ensures the GitHub Actions update policy covers both `.github/workflows` and local composite actions under `.github/actions`.
+
+The artifact verifier inspects built wheels and sdists for repository-only paths such as `scripts/`, `tests/`, `docs/`, `tmp/`, and `.github/`. Wheel installer script locations under `.data/scripts/` are allowed because that is where the packaged `tq` executable lives.
 
 ## Release artifact shape
 
