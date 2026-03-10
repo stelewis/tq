@@ -173,6 +173,9 @@ jobs:
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
 
+      - name: Setup Python + uv + deps
+        uses: ./.github/actions/setup-python-uv
+
       - name: Build workspace
         run: cargo build --workspace --locked
 
@@ -188,8 +191,27 @@ jobs:
       - name: Verify artifact contents policy
         run: cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist
 
-      - name: Smoke check CLI entrypoint
-        run: cargo run -p tq-cli --locked -- check --help
+      - name: Smoke check built package entrypoints
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          wheel_path="$(find "$PWD/dist" -maxdepth 1 -type f -name '*.whl' | head -n 1)"
+          if [ -z "$wheel_path" ]; then
+            echo "No wheel artifact found in dist/"
+            exit 1
+          fi
+
+          sdist_path="$(find "$PWD/dist" -maxdepth 1 -type f -name '*.tar.gz' | head -n 1)"
+          if [ -z "$sdist_path" ]; then
+            echo "No source distribution artifact found in dist/"
+            exit 1
+          fi
+
+          uv run --isolated --no-project --with "$wheel_path" -- tq --help
+          uv run --isolated --no-project --with "$wheel_path" -- tq check --help
+          uv run --isolated --no-project --with "$sdist_path" -- tq --help
+          uv run --isolated --no-project --with "$sdist_path" -- tq check --help
 
   security:
     name: Security checks
