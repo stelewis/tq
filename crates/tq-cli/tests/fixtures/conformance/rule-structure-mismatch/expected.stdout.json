@@ -1,0 +1,1 @@
+{"findings":[{"rule_id":"structure-mismatch","severity":"warning","message":"Test file is not in the expected location","path":"tests/tq/test_runner.py","line":null,"suggestion":"Move to: tests/tq/engine/test_runner.py","target":"tq"}],"summary":{"errors":0,"warnings":1,"infos":0,"total":1}}

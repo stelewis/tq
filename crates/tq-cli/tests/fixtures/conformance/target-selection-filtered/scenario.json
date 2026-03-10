@@ -1,0 +1,13 @@
+{
+  "category": "target scoping and target selection",
+  "description": "Target filtering scopes execution to the named target without duplicating runs.",
+  "args": ["check", "--output-format", "json", "--target", "scripts", "--target", "scripts"],
+  "stdout_format": "json",
+  "expectation": {
+    "mode": "match",
+    "expected": {
+      "exit_code": 1,
+      "stdout": "expected.stdout.json"
+    }
+  }
+}

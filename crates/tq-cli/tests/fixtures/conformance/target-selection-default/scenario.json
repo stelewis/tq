@@ -1,0 +1,13 @@
+{
+  "category": "target scoping and target selection",
+  "description": "Default multi-target execution reports findings for each configured target.",
+  "args": ["check", "--output-format", "json"],
+  "stdout_format": "json",
+  "expectation": {
+    "mode": "match",
+    "expected": {
+      "exit_code": 1,
+      "stdout": "expected.stdout.json"
+    }
+  }
+}

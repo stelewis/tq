@@ -1,0 +1,4 @@
+Usage: python -m tq.cli.main check [OPTIONS]
+Try 'python -m tq.cli.main check -h' for help.
+
+Error: Unknown [tool.tq] key(s): unknown

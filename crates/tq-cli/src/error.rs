@@ -8,6 +8,8 @@ use tq_rules::RulesError;
 
 #[derive(Debug, Error)]
 pub enum CliError {
+    #[error("{message}")]
+    Validation { message: String },
     #[error("configuration path does not exist: {path}")]
     MissingConfigPath { path: String },
     #[error("provided --config path is not a file: {path}")]
@@ -31,6 +33,12 @@ pub enum CliError {
 }
 
 impl CliError {
+    pub fn validation(message: impl Into<String>) -> Self {
+        Self::Validation {
+            message: message.into(),
+        }
+    }
+
     pub fn from_missing_config(path: &Path) -> Self {
         Self::MissingConfigPath {
             path: path.display().to_string(),

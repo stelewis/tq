@@ -32,10 +32,17 @@ Phase 1 (workspace bootstrap) is complete. The commands below are now canonical 
 
 As additional phases land, this page will be extended with:
 
-- conformance harness commands,
 - docs generation commands,
 - release verification commands,
 - security and dependency audit commands.
+
+### Conformance harness commands
+
+- `cargo test -p tq-cli --test conformance_harness -- --ignored --nocapture`
+
+The conformance harness runs fixture projects through both runtimes, enforces deterministic repeated output, and prints a parity report that distinguishes exact matches from documented intentional deltas.
+
+If the baseline Python executable is not available at `.venv/bin/python`, set `TQ_CONFORMANCE_PYTHON` to the interpreter that should run `python -m tq.cli.main`.
 
 ## Governance
 
