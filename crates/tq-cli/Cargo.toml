@@ -13,6 +13,14 @@ path = "src/main.rs"
 [dependencies]
 clap.workspace = true
 thiserror.workspace = true
+tq-config = { path = "../tq-config" }
+tq-engine = { path = "../tq-engine" }
+tq-reporting = { path = "../tq-reporting" }
+tq-rules = { path = "../tq-rules" }
+
+[dev-dependencies]
+assert_cmd = "2.1.1"
+tempfile = "3.20.0"
 
 [lints]
 workspace = true
