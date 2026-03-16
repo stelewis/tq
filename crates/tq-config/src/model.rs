@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::ConfigError;
+use crate::{ConfigError, paths::normalize_absolute};
 
 pub const DEFAULT_IGNORE_INIT_MODULES: bool = false;
 pub const DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES: u64 = 600;
@@ -160,20 +160,4 @@ impl TqTargetConfig {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TqConfig {
     pub targets: Vec<TqTargetConfig>,
-}
-
-fn normalize_absolute(path: &std::path::Path) -> PathBuf {
-    use std::path::Component;
-
-    let mut normalized = PathBuf::new();
-    for component in path.components() {
-        match component {
-            Component::ParentDir => {
-                let _ = normalized.pop();
-            }
-            Component::CurDir => {}
-            other => normalized.push(other.as_os_str()),
-        }
-    }
-    normalized
 }

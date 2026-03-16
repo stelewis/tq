@@ -1,6 +1,9 @@
 mod error;
 mod loader;
+mod loader_materialize;
+mod loader_parse;
 mod model;
+mod paths;
 
 pub use error::ConfigError;
 pub use loader::{resolve_tq_config, resolve_tq_config_with_user_config};
