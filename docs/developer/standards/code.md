@@ -35,16 +35,12 @@ Goals:
 - **Immutability after validation**: prefer validated structs and pure transformations over mutation-heavy state machines.
 - **Unsafe is not a convenience tool**: the workspace forbids `unsafe`; do not introduce it without an explicit architectural reason and review.
 
-## Security By Construction
+## Security
 
 - **Validate untrusted input at boundaries**: parse, normalize, and reject invalid CLI, config, filesystem, archive, and environment inputs before they reach core logic.
 - **Fail closed**: on ambiguous, missing, or invalid security-relevant state, return an actionable error instead of guessing or silently defaulting.
-- **Constrain filesystem effects**: canonicalize and validate paths when crossing trust boundaries; do not allow archive extraction, temp handling, or path joins to escape intended roots.
-- **Defend against traversal and boundary escape**: new archive, path, extraction, and filesystem code must explicitly consider `..`, symlink, absolute-path, and root-escape cases instead of assuming trusted input.
-- **Do not leak secrets**: never hardcode secrets, commit live credentials, or emit sensitive values in logs, errors, fixtures, docs, or test snapshots.
-- **Redact sensitive diagnostics by default**: logs and errors should omit or sanitize tokens, credentials, secret material, and unnecessary sensitive local path details unless there is a strong, reviewed reason to expose them.
-- **Prefer structured process execution**: pass explicit argument arrays and validated inputs to subprocesses; do not build shell commands from untrusted strings.
-- **Keep diagnostics safe**: preserve enough context to debug failures without exposing tokens, secrets, or other sensitive material.
+- **Constrain filesystem and process boundaries**: defend against traversal, symlink escape, absolute-path escape, unsafe extraction, and unvalidated subprocess execution.
+- **Protect secrets and diagnostics**: never hardcode or expose sensitive material, and redact diagnostics by default.
 
 ## Antipatterns to Avoid
 

@@ -33,5 +33,6 @@ The product MSRV is Rust 1.94.0. Local and CI commands should use the pinned wor
 ## Governance
 
 - Keep this entrypoint aligned with CI workflows, pre-commit hooks, and publish automation.
+- Security posture is defined in [Security](../security.md).
 - Dependency admission and package trust requirements are defined in [Supply-chain security standards](../standards/supply-chain-security.md).
 - Keep detailed workflows in the linked pages above instead of re-expanding them here.
