@@ -66,6 +66,7 @@ Forbidden repository paths in wheel and sdist artifacts:
 - `docs/`
 - `tmp/`
 - `.github/`
+- `.vscode/`
 
 Enforcement:
 
@@ -74,7 +75,7 @@ Enforcement:
 Why this matters:
 
 - keeps installed artifacts minimal and predictable,
-- reduces accidental leakage of internal automation or repository-only files,
+- reduces accidental leakage of internal automation, editor metadata, or repository-only files,
 - tightens release hygiene and consumer trust.
 
 ### References

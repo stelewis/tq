@@ -27,7 +27,11 @@ fn verify_artifact_contents_reports_forbidden_members() {
 
     write_zip(
         &dist_dir.join("pkg-0.1.0-py3-none-any.whl"),
-        &[("tq/__init__.py", ""), ("scripts/docs/generate.py", "")],
+        &[
+            ("tq/__init__.py", ""),
+            ("scripts/docs/generate.py", ""),
+            (".vscode/settings.json", "{}"),
+        ],
     );
     write_tar_gz(
         &dist_dir.join("pkg-0.1.0.tar.gz"),
@@ -44,6 +48,7 @@ fn verify_artifact_contents_reports_forbidden_members() {
     let message = error.to_string();
     assert!(message.contains("artifact content policy check failed"));
     assert!(message.contains("scripts/docs/generate.py"));
+    assert!(message.contains(".vscode/settings.json"));
     assert!(message.contains("pkg-0.1.0/tests/test_x.py"));
     assert!(message.contains("pkg-0.1.0/docs/reference/cli.md"));
 }
