@@ -53,4 +53,17 @@ cargo fmt --all --check && cargo clippy --workspace --all-targets --locked -- -D
 - MUST develop clean, maintainable, well factored, and elegant code.
 - MUST NOT blindly comply with lint rules or contort otherwise clear code to satisfy linting heuristics.
 
+## Security
+
+This project takes a strong stance on supply-chain and codebase security.
+
+- MUST treat dependency additions and upgrades as supply-chain security decisions, not convenience choices.
+- MUST prefer mainstream, widely adopted, well maintained ecosystem staples with clear ownership and strong engineering discipline.
+- MUST avoid introducing newly created, obscure, weakly maintained, or low-trust packages by default.
+- MUST avoid packages that appear speculative, hastily assembled, generated without strong review, or otherwise low-rigor.
+- MUST justify any non-obvious dependency choice against established alternatives and explain why owning the code locally is worse.
+- MUST inspect transitive dependency impact before adding a package.
+- MUST use the repository's dependency and security tooling when dependency changes are involved, including `cargo audit`, `cargo deny check`, and relevant lockfile review.
+- MUST treat passing scanners as necessary but not sufficient; reputation, maintenance history, adoption, and release hygiene are equally important.
+
 **Correctness first, design forward.**

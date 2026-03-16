@@ -88,3 +88,11 @@ Why this matters:
 Policy file: [SECURITY.md](https://github.com/stelewis/tq/tree/main/SECURITY.md)
 
 Potential vulnerabilities must be reported privately using GitHub private vulnerability reporting.
+
+## Dependency trust posture
+
+Dependency admission is treated as a supply-chain security decision, not a convenience decision.
+
+Contributors must prefer mainstream, widely adopted, actively maintained packages with clear ownership and strong engineering discipline. New, obscure, weakly maintained, or otherwise low-trust packages require a documented exception and should normally be rejected.
+
+Policy file: [Supply-chain security standards](./supply-chain-security.md)

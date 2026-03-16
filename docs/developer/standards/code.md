@@ -35,6 +35,15 @@ Goals:
 - **Immutability after validation**: prefer validated structs and pure transformations over mutation-heavy state machines.
 - **Unsafe is not a convenience tool**: the workspace forbids `unsafe`; do not introduce it without an explicit architectural reason and review.
 
+## Security By Construction
+
+- **Validate untrusted input at boundaries**: parse, normalize, and reject invalid CLI, config, filesystem, archive, and environment inputs before they reach core logic.
+- **Fail closed**: on ambiguous, missing, or invalid security-relevant state, return an actionable error instead of guessing or silently defaulting.
+- **Constrain filesystem effects**: canonicalize and validate paths when crossing trust boundaries; do not allow archive extraction, temp handling, or path joins to escape intended roots.
+- **Do not leak secrets**: never hardcode secrets, commit live credentials, or emit sensitive values in logs, errors, fixtures, docs, or test snapshots.
+- **Prefer structured process execution**: pass explicit argument arrays and validated inputs to subprocesses; do not build shell commands from untrusted strings.
+- **Keep diagnostics safe**: preserve enough context to debug failures without exposing tokens, secrets, or other sensitive material.
+
 ## Antipatterns to Avoid
 
 - **Catch-all error handling that loses signal**: collapsing distinct failures into opaque messages or sentinel values.
@@ -64,6 +73,8 @@ Goals:
 - Are dependencies constructed in a composition root, not inside domain crates?
 - Is crate ownership clear, with boundaries that match the architecture docs?
 - Are boundary adapters strict, typed, and actionable on failure?
+- Does the change validate untrusted inputs and fail closed on invalid or ambiguous state?
+- Could any path, archive, subprocess, log, or error surface expose sensitive data or escape its intended boundary?
 - Is ordering explicit anywhere output or tests depend on it?
 - Is the public API smaller than the implementation, not the other way around?
 - If contracts changed, did we update callers, fixtures, and docs instead of adding compatibility code?
