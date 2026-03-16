@@ -4,17 +4,14 @@ Commands and contracts for docs generation and release validation.
 
 ## Implementation and distribution model
 
-`tq` is written in Rust for runtime performance, deterministic execution, and a smaller long-term maintenance surface.
-
-Distribution remains Python-native:
+Distribution contract:
 
 - canonical package index: PyPI
 - canonical package name: `tqlint`
-- canonical install flows: `uv add`, `uv tool install`
+- canonical command: `tq`
+- canonical install flows: `uv add`, `uv tool install`, `uvx --from tqlint tq`
 
 The build backend is `maturin` targeting the Rust CLI crate. Published artifacts install the compiled `tq` executable.
-
-This keeps Python-project ergonomics while letting the runtime operate in Rust, following the same broad model used by tools such as Ruff and Ty.
 
 ## Docs generation
 

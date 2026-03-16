@@ -1,11 +1,14 @@
+<!-- markdownlint-disable MD033 MD041 -->
+<p align="center">
+  <img src="docs/public/tq-logo-large.svg" alt="tq logo" width="144">
+</p>
+<!-- markdownlint-enable MD033 MD041 -->
+
 # `tq` - Test Quality Toolkit
 
 [![Documentation](https://img.shields.io/badge/docs-site-blue)](https://stelewis.github.io/tq/)
 
 `tq` inspects a codebase's tests and enforces quality rules so tests remain discoverable, focused, actionable, and maintainable.
-
-The published `tqlint` package is Rust-backed and installs the `tq`
-executable through Python package managers.
 
 ## Installation
 
@@ -38,7 +41,7 @@ python -m pip install tqlint
 tq check
 ```
 
-Note: `uvx tq check` is not available because the `tq` package name on PyPI is owned by another project. Use `uvx --from tqlint tq ...` for ephemeral runs.
+Note: `uvx tq check` is not currently available because the `tq` package name on PyPI is owned by another project. Use `uvx --from tqlint tq ...` for ephemeral runs.
 
 ## Usage
 

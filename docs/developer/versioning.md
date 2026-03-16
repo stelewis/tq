@@ -14,7 +14,7 @@ This policy covers:
 
 ## Versioning model
 
-`tq` is currently pre-`1.0`. Until `1.0`, the project uses this compatibility model:
+`tq` is pre-`1.0`. Until `1.0`, the project uses this compatibility model:
 
 - `patch` (`0.x.Y`): non-breaking fixes and additive changes that do not change the meaning of existing contracts
 - `minor` (`0.X.0`): contract-impacting changes, including intentional breaking changes

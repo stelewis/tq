@@ -2,42 +2,26 @@
 agent: agent
 ---
 
-Your task is to sweep a docs folder and remove or refactor stale documents so the codebase stays clean and maintainable.
+Sweep a docs folder and remove or refactor stale documents.
 
 ## Context
 
 - Documentation guidelines: [Documentation](../../docs/developer/standards/docs.md)
 - Refactor standards: [Refactor Prompt](./refactor.prompt.md)
 
-## User Input
-
-User will provide a folder to sweep: `[folder_path]` (example: `docs/design` or `docs/implementation`)
-
-## Goals
-
-- Reduce doc surface area and drift.
-- Keep only durable, reference docs (contracts/workflows), not temporary plans.
-- Prefer refactoring into developer docs over duplicating explanations.
-
 ## Requirements
 
-- MUST treat design/implementation docs as temporary unless still actively needed.
-- MUST audit each doc against the actual codebase (no stale claims).
-- MUST avoid “docs for docs sake”; keep only enduring value.
-- MUST keep one reference doc per topic; others should link or be removed.
-- MUST NOT add backward-compat/legacy adapters while refactoring; fix boundaries.
+- Treat design and plan docs as temporary unless they still serve active work.
+- Audit each doc against the current codebase.
+- Keep one enduring reference doc per topic.
+- Prefer consolidating durable content over duplicating it.
 
 ## Procedure
 
 1. Enumerate all docs under `[folder_path]` (recursive).
 2. For each file:
-   - Extract concrete claims/TODOs and any implied contracts.
-   - Audit against the codebase to classify: **implemented**, **obsolete**, **still pending**, **unclear**.
-   - Decide: **keep**, **refactor**, or **remove**.
-3. Consolidate:
-   - If multiple docs cover one topic, pick a reference destination in `docs/developer/`.
-   - Refactor durable content into that destination and delete redundant sources.
-4. Remove:
-   - Delete documents that are implemented, redundant, obsolete, or purely historical via `rm`.
-5. Output:
-   - A short sweep report listing files kept/refactored/removed and the new reference doc links.
+   - Extract claims and implied contracts.
+   - Classify the file as **keep**, **refactor**, or **remove**.
+3. Consolidate overlapping topics into the best long-term destination.
+4. Delete documents that should not remain.
+5. Return a short sweep report listing files kept, refactored, and removed.

@@ -8,7 +8,7 @@ Keep tests:
 - **Focused**: small surface area and one clear reason to fail.
 - **Actionable**: failures point to one contract, not "the system".
 - **Deterministic**: no dependency on timing, network, or incidental ordering.
-- **Maintainable**: tests refactor with the code (SOLID applies here too).
+- **Maintainable**: tests refactor with the code.
 
 ## Test Layers
 

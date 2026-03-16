@@ -1,14 +1,16 @@
-# Contributing to Test Quality Toolkit (tq)
+# Contributing to tq
 
 Thanks for taking the time to help improve this project! Whether you're fixing a bug, improving documentation, adding a feature, or suggesting an idea, all contributions are welcome.
 
-Because `tq` is a developer tool used by multiple teams, we strive for consistent workflows, high code quality, and clear documentation. The following guide will help you get up to speed and make a successful contribution.
+The product code is a Rust workspace. Python tooling exists for packaging, repository automation, and docs-site support. Use this guide as a short entrypoint, then follow the canonical developer docs under [docs/developer/index.md](docs/developer/index.md).
 
-## Getting started
+Because `tq` is a developer tool used by multiple teams, we strive for consistent workflows, high code quality, and clear documentation.
 
-1. **Fork and clone** this repository to your GitHub account.
-2. Create a short, descriptive branch such as `feature/add-cli-command`, `fix/parser-bug`, or `docs/update-guide`.
-3. Install the development environment and tools:
+## Getting Started
+
+1. Fork and clone the repository.
+2. Create a short descriptive branch such as `feature/add-cli-command`, `fix/parser-bug`, or `docs/update-guide`.
+3. Install the local toolchain:
 
    ```sh
    uv sync                   # install project dependencies
@@ -18,21 +20,22 @@ Because `tq` is a developer tool used by multiple teams, we strive for consisten
    mise exec -- npm install  # install node dependencies for docs
    ```
 
-   Optional: activate `mise` in your shell if you want tools available without `mise exec`.
-
-4. Make your changes and run the full quality gate locally:
+4. Use the Rust workspace loop while developing:
 
    ```sh
-   uv run ruff format && uv run ruff check --fix && uv run ty check && uv run tq check && uv run pytest -q
+   cargo check --workspace --all-targets --locked
+   cargo run -p tq-cli --locked -- check --help
    ```
 
-   The same sequence of commands is executed by CI on every pull request.
-
-   For docs changes, also run:
+5. Before opening a PR, run the relevant validation commands for your change. The common local checks are:
 
    ```sh
-   mise run docs-build
+   cargo fmt --all --check
+   cargo clippy --workspace --all-targets --locked -- -D warnings
+   cargo test --workspace --locked
    ```
+
+For docs, packaging, or release-surface changes, use the commands in [docs/developer/tools/index.md](docs/developer/tools/index.md), [docs/developer/tools/local-workflows.md](docs/developer/tools/local-workflows.md), and [docs/developer/tools/ci.md](docs/developer/tools/ci.md).
 
 ## Development documentation
 
@@ -52,25 +55,15 @@ Read or search the documents before starting larger changes; links in the [Devel
 - **Pull requests.** Keep PRs small and focused. Target `main`. Every PR must pass all checks and receive at least one approving review before merging.
 - **Commit messages.** Use [Conventional Commits](https://www.conventionalcommits.org/). A `commit-msg` hook enforces this; run `uv run cz commit` if you want help formatting messages.
 
-## Code style and tooling
-
-- Formatting and linting are handled by [ruff](https://docs.astral.sh/ruff/).
-- Type checking uses [ty](https://docs.astral.sh/ty/).
-- Pre-commit hooks are managed by [prek](https://prek.j178.dev/).
-- Tests run with `pytest`; test quality is checked with `uv run tq check`.
-
 ## Documentation
 
-Documentation in this repository is treated as first-class. See `docs/developer/standards/docs.md` for the durable rules.
+Documentation is part of the product surface.
 
-- Keep docs useful, stable, concise, and small.
-- Prefer one reference doc per concept and avoid duplication.
-- Document contracts and workflows rather than implementation trivia.
+- Update docs and tests with any user-visible behavior change.
+- Prefer one durable reference doc per topic.
+- Keep docs focused on contracts and workflows, not implementation trivia.
 
-If you update code with user-facing behavior, update the corresponding documentation and tests.
+## Support
 
-## Support and communication
-
-If you need help or have questions, open an issue with the Question template. For suspected vulnerabilities, follow `SECURITY.md` rather than creating a public issue.
-
-Thanks again for contributing to `Test Quality Toolkit`! We appreciate your effort in making the project better for everyone.
+If you need help, open an issue with the Question template. For suspected vulnerabilities, follow [SECURITY.md](SECURITY.md) instead of opening a public issue.
+Thanks again for contributing to `tq`! We appreciate your effort in making the project better for everyone.

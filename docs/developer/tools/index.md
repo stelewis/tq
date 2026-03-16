@@ -6,9 +6,9 @@ Contributor tooling and automation.
 
 The project toolchain is Rust-first for build, lint, test, docs generation, and release verification.
 
-The distribution model remains Python-native: publish to PyPI, keep `uv` install flows first-class, and ship the `tqlint` package as the install surface for the single `tq` command.
+Distribution is through PyPI: the package name is `tqlint` and the installed command is `tq`.
 
-Published artifacts are Rust-backed wheel and sdist packages built from the workspace CLI crate through `maturin`.
+Artifacts are built from the workspace CLI crate through `maturin`.
 
 The product MSRV is Rust 1.94.0. Local and CI commands should use the pinned workspace toolchain unless a workflow explicitly documents a different bootstrap boundary.
 

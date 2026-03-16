@@ -17,7 +17,7 @@ Choose an install mode:
 - CLI command: `tq`
 - Primary command shape: `tq check`
 
-`uvx tq check` is not currently supported because the `tq` package name on PyPI is owned by another project.
+Because `tq` is not the published PyPI package name, ephemeral runs must use `uvx --from tqlint tq ...`.
 
 ## 2. Add minimal configuration
 

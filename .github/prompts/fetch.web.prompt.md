@@ -2,10 +2,8 @@
 agent: agent
 ---
 
-Fetch the websites, APIs, or other online resources specified by the user. Gather the necessary data and context to assist with their request. Use the Jina AI Reader tool to fetch its content in an LLM-friendly format.
+Fetch user-specified web content through the Jina reader endpoints.
 
-## Steps
-
-1. Prepend `https://r.jina.ai/` to the target URL.
-2. Use the available HTTP tool to perform a GET request to this constructed URL.
-3. If provided with a search query instead of a URL, use `https://s.jina.ai/?q=` followed by the query to get search results.
+1. For a URL, use `https://r.jina.ai/<url>`.
+2. For a search query, use `https://s.jina.ai/?q=<query>`.
+3. Return only the material relevant to the user’s request.

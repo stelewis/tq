@@ -4,21 +4,14 @@ description: Fetch up-to-date documentation using the Context7 MCP tool
 agent: agent
 ---
 
-# Instruction
+Use Context7 whenever the user asks about an external library, framework, or API.
 
-When I ask about a specific library, framework, or API, use the **Context7 MCP** tool to retrieve the latest documentation before providing code or explanations.
+1. Identify the library and version, if one was specified.
+2. Resolve the Context7 library ID. Use the `#tool:context7/resolve-library-id` tool.
+3. Query the docs for the specific topic the user asked about. Use the `#tool:context7/query-docs` tool.
+4. Answer from the fetched material rather than memory.
 
-## Steps
-
-1. **Identify the Library**: Determine which library or framework the user is asking about.
-2. **Resolve ID**: Use the `#tool:context7/resolve-library-id` tool to find the official Context7-compatible ID.
-3. **Fetch Docs**: Use the `#tool:context7/query-docs` tool with the resolved ID to pull in relevant documentation snippets.
-4. **Answer**: Provide the answer or code generation using these up-to-date snippets to avoid hallucinations of outdated APIs.
-
-## Best Practices
-
-- If I specify a version (e.g., "Next.js 13"), include the version in the resolution step.
-- For specific topics, use the `topic` parameter in the fetch tool to narrow down results (e.g., "hooks", "routing").
+If the user names a version or narrow topic, include it in the lookup.
 
 ## References
 

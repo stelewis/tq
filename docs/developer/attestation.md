@@ -60,4 +60,4 @@ For offline and air-gapped verification, use the GitHub CLI bundle workflow:
 
 - Attestations are the primary trust signal because they bind artifact identity to repository and workflow identity and runner policy.
 - `SHA256SUMS` is published with each GitHub Release as an integrity convenience for local mirroring and checksum validation.
-- Detached signatures are not currently included for this project.
+- Detached signatures are not included.

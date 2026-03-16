@@ -25,4 +25,4 @@ The workspace uses the pinned MSRV from `rust-toolchain.toml`. CI installs `carg
 
 ## Publish workflow
 
-The publish workflow validates `cargo package --workspace --locked`, builds Rust-backed wheel and sdist artifacts with `uv build`, verifies artifact content policy with `tq-release`, smoke-tests the published entrypoints, generates provenance attestations, publishes to PyPI with `uv publish`, verifies the consumer-facing PyPI wheel, and uploads the release assets plus checksums to the GitHub release for the pushed SemVer tag.
+The publish workflow validates `cargo package --workspace --locked`, builds wheel and sdist artifacts with `uv build`, verifies artifact content policy with `tq-release`, smoke-tests the published entrypoints, generates provenance attestations, publishes to PyPI with `uv publish`, verifies the consumer-facing PyPI wheel, and uploads the release assets plus checksums to the GitHub release for the pushed SemVer tag.

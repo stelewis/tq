@@ -55,7 +55,7 @@ Publishing runs in the `pypi` GitHub Actions environment. This environment must 
 ## Maintainer checklist
 
 1. Ensure `CHANGELOG.md` and version are ready.
-2. Run quality gates locally:
+2. Run the local validation commands:
    - `cargo fmt --all --check`
    - `cargo clippy --workspace --all-targets --locked -- -D warnings`
    - `cargo test --workspace --locked`

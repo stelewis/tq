@@ -6,10 +6,6 @@ agent: agent
 
 Create high-quality GitHub issues for this repository using the GitHub MCP server tools.
 
-## Primary Goal
-
-Produce a single issue (or multiple if requested) that is correct, specific, actionable, easy to reproduce/verify, appropriately labeled and assigned, and safe (no secrets, credentials, or PII).
-
 ## Guidelines
 
 - Do not invent facts. If information is missing, ask for it.
@@ -24,28 +20,20 @@ Produce a single issue (or multiple if requested) that is correct, specific, act
 - Keep it safe.
   - Redact tokens, cookies, API keys, private URLs, wallet addresses, and any identifying data unless explicitly required.
 
-## Workflow (MCP)
+## Workflow
 
 1. Determine repo coordinates (`owner`, `repo`).
-2. De-duplicate.
-   - Use `#tool:github/search_issues` to find likely duplicates before creating a new issue.
+2. Check for duplicates before creating a new issue.
 3. Choose labels and type conservatively.
-   - Confirm labels with `#tool:github/get_label` when applying them.
-   - If issue types are enabled, discover valid types with `#tool:github/list_issue_types` and set `type` on create.
-4. Draft the issue body in a file.
-   - Create `tmp/issues/issue-<timestamp>.md` first.
-   - Do not hard wrap lines in the issue body.
+4. Draft the issue body in `tmp/issues/issue-<timestamp>.md`.
 5. Create the issue.
-   - Call `#tool:github/issue_write` with `method: create`.
-   - Provide `title`, `body`, optional `labels`, optional `assignees`, optional `type`.
 6. If this is an epic, attach sub-issues.
-   - Create sub-issues first, then connect them with `#tool:github/sub_issue_write`.
+   - Create the sub-issues first, then connect them.
 
 ## Tool Call
 
 Use `#tool:github/issue_write`.
 
 - Create issue files at `tmp/issues/issue-<timestamp>.md` first.
-  - Do not hard wrap lines in the issue body or text file. This avoids broken rendering on GitHub.
-  - Create the issue draft file using the file tool.
-  - Use the file content as the `body` field for the tool call.
+  - Do not hard wrap the issue body.
+  - Use the file content as the `body` field.
