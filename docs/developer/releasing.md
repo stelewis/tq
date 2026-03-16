@@ -16,7 +16,7 @@ Release workflow for publishing `tq` to PyPI.
 
 ## Publish automation
 
-Publishing is handled by [publish workflow](../../.github/workflows/publish.yml) on SemVer tags matching `<major>.<minor>.<patch>`.
+Publishing is handled by the [publish workflow](https://github.com/stelewis/tq/blob/main/.github/workflows/publish.yml) on SemVer tags matching `<major>.<minor>.<patch>`.
 
 The workflow performs:
 

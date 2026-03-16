@@ -20,13 +20,13 @@ Aim for clean, maintainable docs with the same design quality as the code.
 - **Guide** (`docs/guide/`): user onboarding and usage flows.
 - **Reference** (`docs/reference/`): external contracts, generated references, manifests, and per-rule reference pages.
 - **Developer** (`docs/developer/`): contributor architecture, standards, policies, and operational workflows.
-- **ADRs** (`docs/adr/`): enduring architecture decisions.
+- **ADRs** (`docs/adr/`) - *repo-only*: enduring architecture decisions kept in the repository but excluded from the published docs site.
 - **Design docs** (`docs/design/`) - *ephemeral*: design rationale and exploration.
 - **Plan docs** (`docs/plans/`) - *ephemeral*: implementation plans and rollout specs.
 - **Static assets** (`docs/public/`): files served directly by the docs site.
 - **Site infrastructure** (`docs/.vitepress/`): VitePress config, theme code, and generated navigation artifacts.
 
-Design and plan docs are temporary artifacts. As work lands, fold the durable parts into `docs/developer` or `docs/reference` and delete the rest.
+Design and plan docs are temporary artifacts. ADRs are durable but repo-only artifacts. As work lands, fold the durable public-facing parts into `docs/developer` or `docs/reference` and keep ADRs as repository history rather than publishing them in public facing docs.
 
 ## Rules For Enduring Developer Docs
 

@@ -33,4 +33,4 @@ See the full [Rules Index](../reference/rules/index.md) for rule IDs and behavio
 
 ## Next step
 
-Go to [QuickStart](./quickstart.md) to install and run `tq`.
+Go to [Quickstart](./quickstart.md) to install and run `tq`.

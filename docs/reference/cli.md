@@ -8,7 +8,7 @@ Published PyPI distribution: `tqlint`.
 
 Installed command: `tq`.
 
-For install and setup, see [QuickStart](../guide/quickstart.md).
+For install and setup, see [Quickstart](../guide/quickstart.md).
 
 ## Command model
 

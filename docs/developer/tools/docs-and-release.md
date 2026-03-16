@@ -1,4 +1,4 @@
-# Docs And Release
+# Docs and Release
 
 Commands and contracts for docs generation and release validation.
 

@@ -1,4 +1,4 @@
-# QuickStart
+# Quickstart
 
 Get `tq` running in a Python repository in a few steps.
 

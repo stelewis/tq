@@ -6,7 +6,7 @@ Repository policies enforced by automation.
 
 ### External actions must be SHA pinned
 
-Policy file: [pinned actions policy](https://github.com/stelewis/tq/tree/main/.github/workflows/pinned-actions-policy.yml)
+Policy file: [pinned actions policy](https://github.com/stelewis/tq/blob/main/.github/workflows/pinned-actions-policy.yml)
 
 All external `uses:` references in workflows and composite actions must pin to a full 40-character commit SHA.
 
@@ -80,12 +80,12 @@ Why this matters:
 
 ### References
 
-- Release workflow: [publish workflow](https://github.com/stelewis/tq/tree/main/.github/workflows/publish.yml)
+- Release workflow: [publish workflow](https://github.com/stelewis/tq/blob/main/.github/workflows/publish.yml)
 - Verification guide: [attestation verification](../attestation.md)
 
 ## Security disclosure policy
 
-Policy file: [SECURITY.md](https://github.com/stelewis/tq/tree/main/SECURITY.md)
+Policy file: [SECURITY.md](https://github.com/stelewis/tq/blob/main/SECURITY.md)
 
 Potential vulnerabilities must be reported privately using GitHub private vulnerability reporting.
 

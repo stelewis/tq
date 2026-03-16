@@ -1,4 +1,4 @@
-# CI And Automation
+# CI and Automation
 
 CI and publish workflow contracts that contributors should keep in sync with local commands.
 

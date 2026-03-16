@@ -43,7 +43,7 @@ Repository-enforced automation policies live in [Project policies](./standards/p
 
 ## Disclosure
 
-Suspected vulnerabilities must be reported privately through [SECURITY.md](../../SECURITY.md).
+Suspected vulnerabilities must be reported privately through [SECURITY.md](https://github.com/stelewis/tq/blob/main/SECURITY.md).
 
 ## Related docs
 

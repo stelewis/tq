@@ -1,6 +1,101 @@
 import { defineConfig } from "vitepress";
 import { rulesSidebarItems } from "./generated/rules-sidebar";
 
+const guideSidebar = [
+  {
+    text: "Guide",
+    link: "/guide/",
+    collapsed: false,
+    items: [
+      { text: "What is tq?", link: "/guide/what-is-tq" },
+      { text: "Quickstart", link: "/guide/quickstart" }
+    ]
+  },
+  {
+    text: "Reference",
+    link: "/reference/",
+    collapsed: false,
+    items: [
+      { text: "CLI", link: "/reference/cli" },
+      { text: "Configuration", link: "/reference/configuration" },
+      { text: "Exit Codes", link: "/reference/exit-codes" }
+    ]
+  },
+  {
+    text: "Rules",
+    link: "/reference/rules/",
+    collapsed: false,
+    items: [...rulesSidebarItems]
+  }
+];
+
+const developerSidebar = [
+  {
+    text: "Developer",
+    collapsed: false,
+    items: [
+      { text: "Overview", link: "/developer/" },
+      { text: "Context", link: "/developer/context" },
+      { text: "Architecture", link: "/developer/architecture" },
+      { text: "Security", link: "/developer/security" }
+    ]
+  },
+  {
+    text: "Standards",
+    collapsed: false,
+    items: [
+      { text: "Code", link: "/developer/standards/code" },
+      { text: "Docs", link: "/developer/standards/docs" },
+      { text: "Git", link: "/developer/standards/git" },
+      { text: "Policies", link: "/developer/standards/policies" },
+      {
+        text: "Supply-Chain Security",
+        link: "/developer/standards/supply-chain-security"
+      },
+      { text: "Tests", link: "/developer/standards/tests" }
+    ]
+  },
+  {
+    text: "Tooling",
+    collapsed: false,
+    items: [
+      { text: "Overview", link: "/developer/tools/" },
+      { text: "Local Workflows", link: "/developer/tools/local-workflows" },
+      { text: "CI and Automation", link: "/developer/tools/ci" },
+      { text: "Docs and Release", link: "/developer/tools/docs-and-release" }
+    ]
+  },
+  {
+    text: "User Contract",
+    collapsed: false,
+    items: [
+      { text: "CLI", link: "/reference/cli" },
+      { text: "Configuration", link: "/reference/configuration" },
+      { text: "Exit Codes", link: "/reference/exit-codes" },
+      { text: "Rules", link: "/reference/rules/" }
+    ]
+  },
+  {
+    text: "Governance",
+    collapsed: false,
+    items: [
+      { text: "Versioning", link: "/developer/versioning" },
+      { text: "Governance", link: "/developer/governance" }
+    ]
+  },
+  {
+    text: "Operations",
+    collapsed: false,
+    items: [
+      { text: "Releasing", link: "/developer/releasing" },
+      {
+        text: "Attestation Verification",
+        link: "/developer/attestation"
+      }
+    ]
+  }
+];
+
 export default defineConfig({
   base: "/tq/",
   lang: "en-US",
@@ -8,7 +103,7 @@ export default defineConfig({
   description:
     "tq inspects a codebase's tests and enforces quality rules so tests remain discoverable, focused, actionable, and maintainable.",
   srcDir: ".",
-  srcExclude: ["plans/**", "design/**", "**/0000-template.md"],
+  srcExclude: ["adr/**", "plans/**", "design/**", "**/0000-template.md"],
   outDir: ".vitepress/dist",
   cacheDir: ".vitepress/cache",
   ignoreDeadLinks: false,
@@ -32,124 +127,14 @@ export default defineConfig({
       provider: "local"
     },
     nav: [
-      { text: "Docs", link: "/guide/what-is-tq" },
+      { text: "Guide", link: "/guide/" },
+      { text: "Reference", link: "/reference/" },
       { text: "Developer", link: "/developer/" }
     ],
     sidebar: {
-      "/guide/": [
-        {
-          text: "Guide",
-          link: "/guide/",
-          collapsed: false,
-          items: [
-            { text: "What is tq?", link: "/guide/what-is-tq" },
-            { text: "QuickStart", link: "/guide/quickstart" }
-          ]
-        },
-        {
-          text: "Reference",
-          link: "/reference/",
-          collapsed: false,
-          items: [
-            { text: "CLI", link: "/reference/cli" },
-            { text: "Configuration", link: "/reference/configuration" },
-            { text: "Exit Codes", link: "/reference/exit-codes" }
-          ]
-        },
-        {
-          text: "Rules",
-          link: "/reference/rules/",
-          collapsed: false,
-          items: [...rulesSidebarItems]
-        }
-      ],
-      "/reference/": [
-        {
-          text: "Guide",
-          link: "/guide/",
-          collapsed: false,
-          items: [
-            { text: "What is tq?", link: "/guide/what-is-tq" },
-            { text: "QuickStart", link: "/guide/quickstart" }
-          ]
-        },
-        {
-          text: "Reference",
-          link: "/reference/",
-          collapsed: false,
-          items: [
-            { text: "CLI", link: "/reference/cli" },
-            { text: "Configuration", link: "/reference/configuration" },
-            { text: "Exit Codes", link: "/reference/exit-codes" }
-          ]
-        },
-        {
-          text: "Rules",
-          link: "/reference/rules/",
-          collapsed: false,
-          items: [...rulesSidebarItems]
-        }
-      ],
-      "/developer/": [
-        {
-          text: "Developer",
-          collapsed: false,
-          items: [
-            { text: "Overview", link: "/developer/" },
-            { text: "Context", link: "/developer/context" }
-          ]
-        },
-        {
-          text: "Standards",
-          collapsed: false,
-          items: [
-            { text: "Code Standards", link: "/developer/standards/code" },
-            { text: "Docs Standards", link: "/developer/standards/docs" },
-            { text: "Git Standards", link: "/developer/standards/git" },
-            {
-              text: "Policy Standards",
-              link: "/developer/standards/policies"
-            },
-            { text: "Test Standards", link: "/developer/standards/tests" }
-          ]
-        },
-        {
-          text: "User Contract",
-          collapsed: false,
-          items: [
-            { text: "CLI", link: "/reference/cli" },
-            { text: "Configuration", link: "/reference/configuration" },
-            { text: "Exit Codes", link: "/reference/exit-codes" },
-            { text: "Rules", link: "/reference/rules/" }
-          ]
-        },
-        {
-          text: "Project Policy",
-          collapsed: false,
-          items: [
-            { text: "Versioning", link: "/developer/versioning" },
-            { text: "Governance", link: "/developer/governance" }
-          ]
-        },
-        {
-          text: "Operations",
-          collapsed: false,
-          items: [
-            {
-              text: "Attestation Verification",
-              link: "/developer/attestation"
-            },
-            { text: "Releasing", link: "/developer/releasing" }
-          ]
-        },
-        {
-          text: "Architecture",
-          collapsed: false,
-          items: [
-            { text: "Architecture", link: "/developer/architecture" }
-          ]
-        }
-      ]
+      "/guide/": guideSidebar,
+      "/reference/": guideSidebar,
+      "/developer/": developerSidebar
     },
     socialLinks: [{ icon: "github", link: "https://github.com/stelewis/tq" }]
   }
