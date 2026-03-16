@@ -1,0 +1,58 @@
+name: Stale Dependencies
+
+on:
+  schedule:
+    - cron: "30 5 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  stale-dependencies:
+    name: Stale direct dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Install cargo-outdated
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo install --locked cargo-outdated@0.17.0
+
+      - name: Check stale direct dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          report_file="$(mktemp)"
+          status=0
+          cargo outdated --workspace --root-deps-only --exit-code 1 | tee "$report_file" || status=$?
+
+          {
+            echo "## Stale direct dependency report"
+            echo
+            echo '```text'
+            cat "$report_file"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "$status" -eq 0 ]]; then
+            exit 0
+          fi
+
+          if [[ "$status" -eq 1 ]]; then
+            echo "Outdated direct workspace dependencies detected. Review the report above."
+            exit 1
+          fi
+
+          exit "$status"

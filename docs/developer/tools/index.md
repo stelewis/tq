@@ -24,6 +24,9 @@ The product MSRV is Rust 1.94.0. Local and CI commands should use the pinned wor
 - `cargo fmt --all --check`
 - `cargo clippy --workspace --all-targets --locked -- -D warnings`
 - `cargo test --workspace --locked`
+- `cargo audit`
+- `cargo deny check`
+- `cargo outdated --workspace --root-deps-only`
 - `cargo run -p tq-docsgen --locked -- generate all`
 - `cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist`
 

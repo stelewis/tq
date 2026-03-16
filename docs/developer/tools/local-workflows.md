@@ -27,6 +27,7 @@ Use `cargo check` as the fast compile, type, trait, and borrow-check loop before
 
 - `cargo audit`
 - `cargo deny check`
+- `cargo outdated --workspace --root-deps-only`
 
 Secret scanning and commit policy remain part of the standard workflow through `gitleaks`, `detect-secrets`, and `commitizen`.
 

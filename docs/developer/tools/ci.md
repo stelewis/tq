@@ -17,11 +17,15 @@ The main CI workflow enforces:
 - build validation via `cargo build`, `cargo package --workspace --locked`, `uv build`, artifact policy verification, and built wheel/sdist entrypoint smoke checks
 - security checks via `cargo audit`, `cargo deny`, `gitleaks`, and `detect-secrets`
 
+A separate scheduled workflow checks for stale direct workspace dependencies with `cargo-outdated` so maintainers can see version drift even when no security advisory exists.
+
 ## Security toolchain policy
 
 Security scanners are treated as CI tooling, not as part of the `tq` runtime contract.
 
 The workspace uses the pinned MSRV from `rust-toolchain.toml`. CI installs `cargo-audit` and `cargo-deny` on stable through `.github/actions/setup-rust-security-tools` so scanner installation can move independently of the product MSRV.
+
+The stale dependency workflow installs `cargo-outdated` separately from the product toolchain and checks only root workspace dependencies. This complements Dependabot and policy checks: `cargo audit` catches published advisories, `cargo deny` enforces explicit bans and license/source policy, and `cargo outdated` surfaces plain version drift.
 
 ## Publish workflow
 
