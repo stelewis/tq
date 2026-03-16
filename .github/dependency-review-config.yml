@@ -6,6 +6,6 @@ fail-on-scopes:
 vulnerability-check: true
 license-check: true
 warn-only: false
-comment-summary-in-pr: on-failure
+comment-summary-in-pr: never
 show-openssf-scorecard: true
 warn-on-openssf-scorecard-level: 5

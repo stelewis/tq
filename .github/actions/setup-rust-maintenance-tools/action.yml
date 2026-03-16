@@ -2,17 +2,71 @@ name: Setup Rust maintenance tools
 description: Install pinned Rust maintenance CLIs used by repository workflows
 
 inputs:
+  install-stable-toolchain:
+    description: Install the stable Rust toolchain for tools that are bootstrapped outside the product MSRV
+    required: false
+    default: "false"
+  install-cargo-outdated:
+    description: Install cargo-outdated
+    required: false
+    default: "true"
   cargo-outdated-version:
     description: cargo-outdated release to install with the active Rust toolchain
     required: false
     default: "0.17.0"
+  install-cargo-audit:
+    description: Install cargo-audit from the pinned RustSec revision
+    required: false
+    default: "false"
+  cargo-audit-rev:
+    description: RustSec repository revision to install cargo-audit from
+    required: false
+    default: "2513b9f2"
+  install-cargo-deny:
+    description: Install cargo-deny from the pinned stable release
+    required: false
+    default: "false"
+  cargo-deny-version:
+    description: cargo-deny release to install with the stable toolchain
+    required: false
+    default: "0.19.0"
 
 runs:
   using: composite
   steps:
+    - name: Install stable Rust toolchain
+      if: ${{ inputs.install-stable-toolchain == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        rustup toolchain install stable --profile minimal
+
     - name: Install cargo-outdated
+      if: ${{ inputs.install-cargo-outdated == 'true' }}
       shell: bash
       run: |
         set -euo pipefail
 
         cargo install --force --locked "cargo-outdated@${{ inputs.cargo-outdated-version }}"
+
+    - name: Install cargo-audit
+      if: ${{ inputs.install-cargo-audit == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        cargo +stable install \
+          --force \
+          --git https://github.com/RustSec/rustsec.git \
+          --rev "${{ inputs.cargo-audit-rev }}" \
+          --locked \
+          cargo-audit
+
+    - name: Install cargo-deny
+      if: ${{ inputs.install-cargo-deny == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        cargo +stable install --force --locked "cargo-deny@${{ inputs.cargo-deny-version }}"
