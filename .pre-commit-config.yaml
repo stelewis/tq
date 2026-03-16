@@ -3,7 +3,7 @@ default_install_hook_types: [pre-commit, commit-msg, pre-push]
 repos:
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0  # pragma: allowlist secret
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -11,23 +11,23 @@ repos:
       - id: check-added-large-files
 
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.10.7
+    rev: a1a56a60ddf7e9ba639fdd9f00f852d63ede4c04  # frozen: 0.10.10  # pragma: allowlist secret
     hooks:
       - id: uv-lock
 
   - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.30.0
+    rev: 8d1f98c7967eb1e79cb44ac6241a124e145d2165  # frozen: v8.30.1  # pragma: allowlist secret
     hooks:
       - id: gitleaks
 
   - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.5.0
+    rev: 01886c8a910c64595c47f186ca1ffc0b77fa5458  # frozen: v1.5.0  # pragma: allowlist secret
     hooks:
       - id: detect-secrets
         args: ["--baseline", ".detect-secrets.baseline"]
 
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: v4.13.9
+    rev: 4fbeae7861663ecf4b4989211eba41c1a3fb1227  # frozen: v4.13.9  # pragma: allowlist secret
     hooks:
       - id: commitizen
         stages: [commit-msg]

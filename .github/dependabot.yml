@@ -82,22 +82,6 @@ updates:
         patterns:
           - "*"
 
-  - package-ecosystem: "pre-commit"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "04:00"
-      timezone: "UTC"
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    groups:
-      pre-commit-hooks:
-        patterns:
-          - "*"
-
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
