@@ -16,7 +16,7 @@ pub enum ReleaseError {
     Yaml {
         path: PathBuf,
         #[source]
-        source: serde_yaml::Error,
+        source: serde_yaml_ng::Error,
     },
     #[error("failed to read zip archive {path}: {source}")]
     Zip {

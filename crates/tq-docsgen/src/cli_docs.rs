@@ -40,7 +40,7 @@ fn load_manifest(path: &Path) -> Result<Vec<CliOptionSpec>, DocsgenError> {
         source,
     })?;
     let manifest: CliManifest =
-        serde_yaml::from_str(&content).map_err(|source| DocsgenError::Yaml {
+        serde_yaml_ng::from_str(&content).map_err(|source| DocsgenError::Yaml {
             path: path.to_path_buf(),
             source,
         })?;

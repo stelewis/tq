@@ -34,7 +34,7 @@ pub fn verify_dependabot(repo_root: &Path) -> Result<(), ReleaseError> {
             source,
         })?;
     let config: DependabotConfig =
-        serde_yaml::from_str(&config_contents).map_err(|source| ReleaseError::Yaml {
+        serde_yaml_ng::from_str(&config_contents).map_err(|source| ReleaseError::Yaml {
             path: config_path.clone(),
             source,
         })?;

@@ -59,7 +59,7 @@ fn load_manifest(path: &Path) -> Result<ConfigExamples, DocsgenError> {
         source,
     })?;
     let manifest: ConfigExamplesManifest =
-        serde_yaml::from_str(&content).map_err(|source| DocsgenError::Yaml {
+        serde_yaml_ng::from_str(&content).map_err(|source| DocsgenError::Yaml {
             path: path.to_path_buf(),
             source,
         })?;

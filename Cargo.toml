@@ -9,7 +9,7 @@ members = [
     "crates/tq-release",
     "crates/tq-docsgen",
 ]
-resolver = "2"
+resolver = "3"
 
 [workspace.package]
 version = "0.6.3"
@@ -20,13 +20,13 @@ repository = "https://github.com/stelewis/tq"
 readme = "README.md"
 
 [workspace.dependencies]
-clap = { version = "4.5.60", features = ["derive"] }
-flate2 = "1.1.2"
-serde = { version = "1.0.219", features = ["derive"] }
-serde_yaml = "0.9.34"
+clap = { version = "4.6.0", features = ["derive"] }
+flate2 = { version = "1.1.9", default-features = false, features = ["miniz_oxide"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_yaml_ng = "0.10.0"
 tar = "0.4.44"
 thiserror = "2.0.18"
-toml = "0.9.6"
+toml = "1.0.6"
 tq-cli = { version = "0.6.3", path = "crates/tq-cli" }
 tq-config = { version = "0.6.3", path = "crates/tq-config" }
 tq-discovery = { version = "0.6.3", path = "crates/tq-discovery" }
@@ -35,7 +35,7 @@ tq-engine = { version = "0.6.3", path = "crates/tq-engine" }
 tq-release = { version = "0.6.3", path = "crates/tq-release" }
 tq-reporting = { version = "0.6.3", path = "crates/tq-reporting" }
 tq-rules = { version = "0.6.3", path = "crates/tq-rules" }
-zip = { version = "4.6.1", default-features = false, features = ["deflate"] }
+zip = { version = "4.6.1", default-features = false, features = ["deflate-flate2"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
