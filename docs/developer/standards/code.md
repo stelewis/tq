@@ -1,48 +1,57 @@
 # Code Standards
 
-Use these standards to keep code correct, maintainable, and easy to evolve.
+Use these standards to keep the Rust workspace correct, deterministic, and easy to evolve.
 
 Goals:
 
 - **Correctness first**: prevent silent failures and ambiguous behavior.
 - **Design excellence**: optimize for long-term maintainability, extensibility, and clarity.
+- **Determinism by default**: keep diagnostics, docs, and release outputs stable across runs.
 - **Small surface area**: minimize refactor blast-radius; avoid speculative abstraction.
 
 ## Principles
 
-- **SOLID / separation of concerns**: each unit has one reason to change; policies don’t depend on details.
+- **Separation of concerns**: each crate and module should have one clear reason to change.
 - **Explicitness / strictness**: make dependencies and contracts visible; fail fast at boundaries.
-- **Cleanliness**: prefer simple shapes, clear naming, and small functions.
+- **Strong internal types**: represent IDs, vocabularies, and validated state with dedicated Rust types.
+- **Deterministic behavior**: never let filesystem order, hash iteration, or incidental formatting leak into contracts.
 - **Minimalism (YAGNI)**: implement today’s requirement cleanly; do not pre-build optional futures.
-- **Extensibility without fragility**: enable new features by adding new code paths, not by editing many unrelated ones.
 
 ## Architecture Rules
 
-- **Composition root**: construct the object graph in one place (CLI entrypoint / app bootstrap). No “hidden construction” inside domain logic.
-- **Dependency injection**: pass dependencies explicitly (constructors / factory functions), not via global state or implicit defaults.
+- **Composition root**: construct runtime graphs in binaries such as `tq-cli`, `tq-docsgen`, and `tq-release`. No hidden construction inside domain crates.
+- **Crate ownership is explicit**: each crate owns one boundary. Do not create convenience layers that blur config, discovery, engine, rules, reporting, and tooling responsibilities.
 - **Boundaries are strict**: adapters convert formats; they do not guess intent or silently coerce.
-- **Domain stays pure**: core logic should not know about IO, filesystem, environment variables, or external SDKs.
+- **Domain stays pure**: core logic should not know about CLI parsing, filesystem walking, environment variables, or release automation details.
+- **Workspace consistency**: internal crate dependencies belong in the root workspace dependency table and should be consumed with `.workspace = true`.
+- **Public API is deliberate**: keep `pub` surfaces narrow and avoid re-export hubs that hide ownership.
+
+## Rust Practices
+
+- **Closed vocabularies use enums or newtypes**: avoid raw strings and boolean parameter pairs in core logic.
+- **Errors stay typed**: library crates should expose precise error types and preserve source causes with actionable context.
+- **Ownership is intentional**: borrow or move to match the real data flow; clone only when it simplifies a boundary and the cost is understood.
+- **Ordering is explicit**: use `BTreeMap`/`BTreeSet` or explicit sorting when order is user-visible, serialized, or asserted in tests.
+- **Immutability after validation**: prefer validated structs and pure transformations over mutation-heavy state machines.
+- **Unsafe is not a convenience tool**: the workspace forbids `unsafe`; do not introduce it without an explicit architectural reason and review.
 
 ## Antipatterns to Avoid
 
-- **Re-export hubs in package `__init__.py` files**: creates unstable import graphs and hides ownership.
-- **Catch-all error handling that loses signal**: swallowing exceptions or returning sentinel values in critical loops.
-- **Stringly-typed identifiers / closed vocabularies**: raw strings drifting through core logic for IDs, enums, and state.
-- **Defaults in function signatures that hide behavior**: implicit deps or “magic” config weaken contracts and tests.
-- **Silent defaults in runtime models/config**: defaulting missing/invalid fields instead of failing fast (defaults belong in the composition root or boundary config).
-- **Compatibility coercion**: do not auto-upgrade legacy shapes at runtime; fix the boundary inputs.
-- **“Forever fixtures” mindset**: fixtures are not a compatibility promise; when schemas change, regenerate/update fixtures.
-- **Blind lint-rule compliance**: do not contort otherwise clear code to satisfy linting heuristics; align with the rule intent and use scoped exceptions when needed.
+- **Catch-all error handling that loses signal**: collapsing distinct failures into opaque messages or sentinel values.
+- **Stringly-typed identifiers / closed vocabularies**: raw strings drifting through core logic for IDs, rule names, and states.
+- **Silent defaults in runtime models/config**: defaulting missing or invalid fields instead of failing fast.
+- **Compatibility coercion**: do not carry legacy adapters, schema upgrades, or dual-path behavior in runtime crates.
+- **Hidden IO in domain code**: reading files, env vars, or process state from core planning and evaluation logic.
+- **Global mutable state or convenience interior mutability**: avoid shared hidden state when explicit ownership would be clearer.
+- **Broad `lib.rs` barrels**: do not flatten module ownership behind large re-export surfaces.
+- **Blind lint-rule compliance**: do not contort otherwise clear code to satisfy heuristics; align with the rule intent and use focused exceptions when needed.
 
 ## Preferred Patterns
 
-- **Fail-fast contracts**: validate inputs at boundaries; raise actionable errors with file/line context.
-- **Strong internal types**: use dedicated types for identifiers and vocabularies; keep conversion at edges.
-- **Explicit imports**: prefer importing exact module paths; keep dependency graphs readable and cycle-resistant.
-- **Schema evolution by version bump**: change runtime schemas intentionally and update fixtures/tests accordingly.
-- **No runtime migrations / backward compatibility**: if a schema or contract changes, break intentionally and update the callers/fixtures rather than carrying adapters in core code.
-- **Narrow interfaces**: depend on small protocols/ABCs that model *what you need*, not the full dependency.
-- **Local reasoning**: keep functions small and side-effect-free where possible; push side effects to the edges.
+- **Fail-fast contracts**: validate inputs at boundaries and return actionable errors.
+- **Explicit imports**: import exact module paths so dependency graphs stay readable and cycle-resistant.
+- **Narrow interfaces**: depend on the smallest trait or type surface that models the need.
+- **Local reasoning**: keep functions small and side-effect-light; push side effects to the edges.
 - **Clear naming**: choose names that express intent and domain meaning.
   - Nouns for types, verbs for actions: classes/types are nouns; functions/methods are verbs.
   - Booleans as predicates: use `is_*`, `has_*`, `can_*`, `should_*`.
@@ -52,8 +61,9 @@ Goals:
 
 ## Review Checklist
 
-- Are dependencies constructed in a composition root, not inside core logic?
-- Are boundary adapters strict (no silent coercion), with good error messages?
-- Are defaults explicit and located at the edges (not silently applied inside models/core logic)?
-- If schemas/contracts changed, did we bump/update callers and fixtures instead of adding runtime compatibility?
-- Is the code minimal (no unused abstractions), and the refactor surface area contained?
+- Are dependencies constructed in a composition root, not inside domain crates?
+- Is crate ownership clear, with boundaries that match the architecture docs?
+- Are boundary adapters strict, typed, and actionable on failure?
+- Is ordering explicit anywhere output or tests depend on it?
+- Is the public API smaller than the implementation, not the other way around?
+- If contracts changed, did we update callers, fixtures, and docs instead of adding compatibility code?

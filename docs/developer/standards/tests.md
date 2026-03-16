@@ -5,128 +5,67 @@ Treat the test suite as a first-class part of the codebase.
 Keep tests:
 
 - **Discoverable**: easy to find the test for a module.
-- **Focused**: small surface area, minimal cross-module coupling.
+- **Focused**: small surface area and one clear reason to fail.
 - **Actionable**: failures point to one contract, not "the system".
+- **Deterministic**: no dependency on timing, network, or incidental ordering.
 - **Maintainable**: tests refactor with the code (SOLID applies here too).
+
+## Test Layers
+
+### Inline unit tests
+
+- Put narrow invariant tests in the owning module with `#[cfg(test)]` when they need private access or validate local helper behavior.
+- Keep these tests close to the implementation and avoid turning them into mini integration suites.
+
+### Crate contract tests
+
+- Put public-surface, composition, and contract tests in `crates/<crate>/tests/`.
+- Name each file for the contract it owns, such as `loader_contract.rs`, `reporting_contract.rs`, or `mapping_missing_test_rule_tests.rs`.
+- Prefer one contract per test module. If a suite grows too large, split it by stable concern rather than building a grab-bag file.
+
+### Cross-crate workflows
+
+- Put end-to-end or composition-root workflows in the crate that owns that workflow, usually `tq-cli`, `tq-docsgen`, or `tq-release`.
+- Do not create repository-root test grab bags that bypass crate ownership.
 
 ## Structure Rules
 
-### One test module per source module (minimum)
-
-For each source module there must be *at least one* corresponding test module.
-
-Required mapping:
-
-- Source: `src/<project>/<path>/<module>.py`
-- Test: `tests/<project>/<path>/test_<module>.py`
-
-This is intentionally strict. It prevents "mystery tests" and keeps the suite aligned as the architecture evolves.
-
-A module’s first test can be a placeholder smoke test (for example, exercising an import or a minimal happy path). The goal is to keep coverage growth easy and the suite navigable.
-
-### Splitting tests (qualifiers)
-
-If a test suite is too large for one file, split into multiple files by concern. Use the naming convention:
-
-- `test_<module>_<qualifier>.py`
-
-Add a qualifier only when it improves clarity and separation of concerns. Qualifiers should be stable and describe a single responsibility.
-
-Avoid qualifiers that encode implementation details or ephemeral refactors.
-
-Note: pytest runs with `--import-mode=importlib` (see `pyproject.toml`) to avoid import name clashes across similarly named tests.
-
-### Single-target rule (unit tests)
-
-By default, a unit test module targets exactly one source module: the one implied by its path/name.
-
-This means:
-
-- Do not keep a monolithic test file after splitting a large source module into smaller modules.
-- Do not "reach across" and assert behavior that belongs to other modules.
-
-If you need behavior across modules, the contract usually belongs in a higher-level integration test.
-
-### Integration tests
-
-Integration tests are allowed when they validate real workflows. These may span multiple modules by design.
-
-Place integration tests in `tests/integration/` to separate them from unit tests. This keeps the unit test suite focused and discoverable.
-
-Rules:
-
-- Mark integration tests with `pytest.mark.integration`.
-- Keep integration test names workflow-oriented (e.g. `test_ingest_cli.py`).
-
-### End-to-end tests
-
-If needed, place in `tests/e2e/` and mark with `pytest.mark.e2e`.
-
-### Golden / snapshot fixture tests
-
-Golden (aka “snapshot”) tests are allowed when they validate a correctness-critical contract that is hard to express as small unit assertions.
-
-- A **golden fixture** should be derived from a real incident.
-- A **synthetic fixture** (small, hand-constructed) can be useful for targeted contracts but it should be treated as a unit/invariant test input — not evidence we match reality.
-
-Rules:
-
-- Must be fully offline and deterministic (no network, no wall-clock time).
-- Keep fixtures small and reviewable (prefer JSONL/JSON; stable ordering; version fields).
-- Avoid “assert the entire snapshot equals a blob” unless you have a strong reason.
-
-Placement:
-
-- Keep golden tests in `tests/<project>/...` near the subsystem they validate.
-- Store fixture files adjacent to the test module (e.g. `fixtures/golden` or `fixtures/synthetic`).
-
-### Excluded Tests
-
-Some marked tests may be excluded to keep `pytest` fast and deterministic. Run them explicitly when needed:
-
-```bash
-uv run pytest -m e2e
-```
+- Test the narrowest owned contract.
+- Use inline tests for private invariants and crate tests for public behavior.
+- Do not force 1:1 source-file mirroring when it fights Rust module boundaries or visibility.
+- Keep helper code local to the owning suite. Share helpers only when the contract is genuinely reused, and prefer `tests/support.rs` or a small local helper module.
+- Prefer temporary directories and constructed inputs over large checked-in fixtures.
+- Add checked-in fixtures only when they encode a stable external contract, and keep them small and reviewable.
+- Golden or snapshot tests are allowed for correctness-critical output, but the asserted surface should stay small and intentional.
+- Use `expect` messages in test setup when they clarify the invariant being established.
 
 ## Test Quality Standards
 
 ### Avoid these anti-patterns
 
-- **Monolithic unit tests**: one test module covering many unrelated modules.
-- **Cross-module unit tests**: tests with no clear single target.
-- **Duplicated coverage**: multiple suites asserting the same contract.
-- **Redundant tests**: re-testing behavior already validated elsewhere.
-- **Structure mismatches**: test location doesn’t mirror the source module.
-- **Misnamed tests**: name implies a different target than what it covers.
-- **Orphaned tests**: tests primarily covering code that no longer exists.
-- **Vacuous tests**: tests that pass without meaningfully exercising behavior.
-- **Very large test modules**: tests that try to cover too much in one suite.
+- **Monolithic contract suites**: one file testing many unrelated behaviors.
+- **Duplicated coverage**: asserting the same contract in multiple layers without a reason.
+- **Incidental assertions**: locking tests to private implementation details when a public contract would suffice.
+- **Nondeterministic expectations**: relying on hash iteration, filesystem traversal order, or wall-clock behavior.
+- **Opaque snapshots**: asserting giant blobs when a narrower contract would be clearer.
+- **Fixture drift**: helpers or checked-in data that outlive the contract they were meant to validate.
+- **Cross-crate testing by convenience**: testing a lower-level crate indirectly from a higher-level suite when the lower-level crate can own the contract directly.
 
 Use this practical refactor rule:
 
-- If you split `foo.py` into `foo/alpha.py` and `foo/beta.py`, the tests should split too. Keeping `test_foo.py` as a grab-bag is the failure mode to avoid.
+- If a source contract splits, split or rewrite the tests so each file still owns one coherent contract. Do not keep historical grab-bag suites just because they already exist.
 
-### Use pytest markers
+## Determinism Rules
 
-Use markers to communicate intent and enable selective runs.
-
-Use the project markers registered in `pyproject.toml` if the test is one of:
-
-- `pytest.mark.e2e`: end-to-end tests (full user workflows).
-- `pytest.mark.golden`: deterministic golden/snapshot fixture tests (offline).
-- `pytest.mark.integration`: multi-module workflow tests.
-- `pytest.mark.regression`: tests added for a fixed bug/regression.
-- `pytest.mark.slow`: tests that may be skipped in fast CI jobs.
-- `pytest.mark.smoke`: quick, minimal tests (including placeholders).
-
-### Fixtures
-
-Place reusable fixtures in `conftest.py` at appropriate levels to share them across test modules, avoid duplication, and reduce refactor surface.
+- Tests must run fully offline.
+- Do not depend on wall-clock time, random ordering, or machine-local state.
+- If ordering matters, make it explicit in the implementation and assert it directly.
+- Prefer `tempfile` workspaces and explicit fixture construction over shared mutable test directories.
 
 ## Workflow
 
-Run the automated test-quality checker with:
+- Full suite: `cargo test --workspace --locked`
+- Fast crate loop: `cargo test -p <crate> --locked`
+- Targeted contract test: `cargo test -p tq-rules --test mapping_missing_test_rule_tests --locked`
 
-```bash
-uv run tq check
-```
+Run the full workspace suite before merge. Add narrower commands to your local loop, but do not treat a crate-only pass as a substitute for the workspace gate when shared contracts changed.

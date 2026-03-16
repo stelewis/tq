@@ -13,18 +13,19 @@ You are assisting with generating tests for this project. The codebase is not as
 
 - **Adhere to Project Conventions:**
   - Follow the testing guidelines in [testing.md](../../docs/developer/standards/tests.md).
-  - Use `pytest` as the test framework.
+  - Use Rust's built-in test support.
+  - Put private invariant tests under `#[cfg(test)]` and public or contract tests in `crates/<crate>/tests/`.
 
 - **Test Generation Approach:**
   1. **Investigate the Code:**
      - Thoroughly analyze the module and its dependencies before generating tests.
      - Ask clarifying questions if logic, requirements, or application are unclear.
      - Do not assume the code is correct; reason about logic and interactions.
-  3. **Test Content:**
+  2. **Test Content:**
      - Focus on code logic, integration points, and edge cases.
-     - Use fixtures for realistic scenarios; place them in `conftest.py` if reusable.
+     - Use temporary directories, small helper modules, and narrow fixtures for realistic scenarios.
      - Limit mocking to essential external dependencies.
-  5. **Continuous Improvement:**
+  3. **Continuous Improvement:**
      - Be proactive in identifying gaps, proposing integration/functional tests, and iterating on both code and tests.
      - Discuss and document reasoning behind test cases and any changes.
 

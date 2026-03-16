@@ -17,7 +17,21 @@ Test quality standards drift over time, especially in fast-moving codebases and 
 - actionable,
 - maintainable.
 
-These goals map directly to the [testing standards](./standards/tests.md) in this project.
+These goals define the product quality model and inform both the built-in rules and the repository's own testing standards.
+
+## Quality model
+
+`tq` is implemented in Rust, but the product contract it enforces is a structural quality model for Python test suites.
+
+That model assumes:
+
+- each source module should have direct mirrored unit-test coverage,
+- unit tests should stay focused on one module or contract,
+- stable qualifiers may split large suites by concern without losing discoverability,
+- workflow-spanning coverage belongs in integration or e2e paths rather than unit-test layouts,
+- orphaned, misplaced, and oversized unit tests are design problems worth surfacing early.
+
+These expectations are the rationale behind the built-in rules and user-facing guidance.
 
 ## Design stance
 
