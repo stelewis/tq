@@ -17,17 +17,23 @@ from quick_validate import validate_skill
 
 LOGGER = logging.getLogger(__name__)
 EXCLUDED_NAMES = {".DS_Store"}
-EXCLUDED_DIR_NAMES = {".git", "__pycache__"}
+EXCLUDED_DIR_NAMES = {".git", "__pycache__", "node_modules"}
+ROOT_EXCLUDED_DIR_NAMES = {"evals"}
 EXCLUDED_SUFFIXES = {".pyc", ".pyo"}
 
 
-def _is_excluded(file_path: Path) -> bool:
+def _is_excluded(relative_path: Path) -> bool:
     """Return whether the path should be excluded from the package."""
-    if file_path.name in EXCLUDED_NAMES:
+    if relative_path.name in EXCLUDED_NAMES:
         return True
-    if file_path.suffix in EXCLUDED_SUFFIXES:
+    if relative_path.suffix in EXCLUDED_SUFFIXES:
         return True
-    return any(part in EXCLUDED_DIR_NAMES for part in file_path.parts)
+    if any(part in EXCLUDED_DIR_NAMES for part in relative_path.parts):
+        return True
+    return (
+        len(relative_path.parts) > 1
+        and relative_path.parts[1] in ROOT_EXCLUDED_DIR_NAMES
+    )
 
 
 def _validate_skill_folder(skill_path: Path) -> tuple[bool, str]:
@@ -54,17 +60,18 @@ def _collect_files(skill_path: Path) -> tuple[list[Path], list[str]]:
     notes: list[str] = []
 
     for file_path in skill_path.rglob("*"):
-        if _is_excluded(file_path):
+        relative_path = file_path.relative_to(skill_path.parent)
+        if _is_excluded(relative_path):
             continue
         if file_path.is_symlink():
-            notes.append(f"Skipped symlink: {file_path.relative_to(skill_path)}")
+            notes.append(f"Skipped symlink: {relative_path}")
             continue
         if not file_path.is_file():
             continue
 
         resolved_file = file_path.resolve()
         if skill_path not in resolved_file.parents:
-            notes.append(f"Skipped external file: {file_path.relative_to(skill_path)}")
+            notes.append(f"Skipped external file: {relative_path}")
             continue
         files.append(file_path)
 

@@ -1,6 +1,6 @@
 [project]
 name = "tqlint"
-description = "tq inspects a codebase's tests and enforces quality rules so tests remain discoverable, focused, actionable, and maintainable"
+description = "A Python test quality toolkit written in Rust"
 dynamic = ["version"]
 readme = "README.md"
 license = "MIT"
@@ -69,17 +69,30 @@ docstring-code-format = true
 
 [tool.ruff.lint]
 select = ["ALL"]
-# COM812 – ignore when using ruff format; see docs <https://docs.astral.sh/ruff/rules/missing-trailing-comma/#philosophy>
-ignore = ["COM812"]
+ignore = [
+    "COM812",  # ignore when using ruff format; see docs <https://docs.astral.sh/ruff/rules/missing-trailing-comma/#philosophy>
+    # "D100",  # Missing docstring in public module
+    # "D101",  # Missing docstring in public class
+    # "D102",  # Missing docstring in public method
+    # "D103",  # Missing docstring in public function
+    # "D104",  # Missing docstring in public package
+    # "D105",  # Missing docstring in magic method
+    # "D106",  # Missing docstring in public nested class
+]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
 
 [tool.ruff.lint.per-file-ignores]
 # Tests are intentionally not packages (INP001) to avoid import shadowing in src-layout projects.
-"tests/**/*.py" = ["INP001", "S101", "PLR2004"]
-# Skill creator scripts are standalone CLIs under .github/, not importable packages (INP001).
-".github/skills/skill-creator/scripts/*.py" = ["INP001"]
+"tests/**/*.py" = [
+    "INP001",  # Tests are intentionally not Python packages to avoid import shadowing
+    "S101",  # Assert statements are fine in tests
+    "PLR2004",  # Magic value comparisons are fine in tests
+]
+".github/skills/skill-creator/scripts/*.py" = [
+    "INP001",  # Skill creator scripts are standalone CLIs under .github/, not importable packages
+]
 
 [tool.ruff.lint.pylint]
 max-returns = 10

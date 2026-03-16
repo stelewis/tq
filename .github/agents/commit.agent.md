@@ -29,10 +29,11 @@ Use available tools as needed:
 - Follow Conventional Commits: `<type>(<optional-scope>): <subject>`
 - ONLY include a scope if it adds meaningful context, otherwise omit
 - Allowed type set: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `build`, `ci`, `perf`, `style`, `revert`
-- Prefer concise subject lines (aim for ~50 characters)
-- Prefer concise body lines (aim for ~72 characters) for readability
+- Prefer concise subject lines (~50 characters)
+- Prefer concise body lines (~72 characters) for readability
 - Guidelines not hard rules – clarity is more important than a hard character limit
 - Use imperative mood
+- Do not hard-wrap lines
 - Output as a fenced `text` code block
 
 ## Content quality rules

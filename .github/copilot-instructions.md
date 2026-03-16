@@ -1,6 +1,6 @@
 # Copilot Instructions
 
-Description: tq inspects a codebase's tests and enforces quality rules so tests remain discoverable, focused, actionable, and maintainable.
+Description: A Python test quality toolkit written in Rust.
 
 Repository: stelewis/tq
 

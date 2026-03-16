@@ -5,7 +5,7 @@ Treat documentation as a first-class part of the codebase.
 Keep docs:
 
 - **Useful**: answer a concrete question someone will have.
-- **Non-redundant**: one canonical place per concept.
+- **Non-redundant**: one place per concept.
 - **Stable**: describe contracts and workflows, not incidental details.
 - **Small**: minimal surface area to reduce drift and improve maintainability.
 - **Concise**: get to the point quickly without unnecessary exposition.
@@ -29,9 +29,9 @@ Aim for clean, maintainable docs with the same design quality as the code.
 
 ## Rules For Enduring Developer Docs
 
-### Prefer one canonical reference
+### Prefer one reference doc per topic
 
-- Choose one document to be the canonical reference for a topic.
+- Choose one document to be the reference for a topic.
 - Other docs should link to it rather than re-explaining it.
 - Refactors and consolidations are encouraged.
 

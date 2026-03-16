@@ -14,6 +14,6 @@ body:
     id: context
     attributes:
       label: Context
-      description: Include command output, config snippets, and environment details.
+      description: Include command output, configuration snippets, and environment details.
     validations:
       required: false

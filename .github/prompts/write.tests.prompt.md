@@ -7,18 +7,13 @@ agent: 'agent'
 
 ## Context
 
-You are assisting with generating tests for this project. The codebase is not assumed to
-be correct or complete. Your role is to help generate, refine, and improve tests
-and source code interactively, following modern best practices.
+You are assisting with generating tests for this project. The codebase is not assumed to be correct or complete. Your role is to help generate, refine, and improve tests and source code interactively, following modern best practices.
 
 ## Instructions
 
 - **Adhere to Project Conventions:**
   - Follow the testing guidelines in [testing.md](../../docs/developer/standards/tests.md).
-   - Use the native test framework for the code under test.
-   - Prefer Rust unit or integration tests for workspace crates.
-   - Only use `pytest` for repository-owned Python helper code when that surface
-      still exists.
+  - Use `pytest` as the test framework.
 
 - **Test Generation Approach:**
   1. **Investigate the Code:**
@@ -38,10 +33,10 @@ help build a robust, maintainable, and well-tested codebase.**
 
 ## General Principles
 
-- If tests fail due to source code issues, fix the source—not the test.
+- If tests fail due to source code issues, fix the source, not the test.
 - Do not introduce old designs or backward compatibility to pass tests, remove or refactor outdated tests instead.
 - Suggest and discuss code refactoring to improve testability and design.
 - Iterate: debate business logic, refine tests, and refactor code as needed.
-- Always question the business logic and implementation—do not treat code as authoritative.
+- Always question the business logic and implementation, do not treat code as authoritative.
 - Be proactive in identifying missing tests, integration points, or unclear requirements.
 - Use this prompt interactively: iterate, debate, and refine tests and code for genuine coverage and maintainability.

@@ -2,17 +2,9 @@
 agent: agent
 ---
 
-Your task is to audit the implementation of the GitHub issue specified by the
-user. Fetch the issue and any references you require.
+Your task is to audit the implementation of the GitHub issue specified by the user. Fetch the issue and any references you require.
 
-Do not assume that the implementation is correct. Your goal is to carefully
-review the changes made to ensure they fully satisfy the requirements of the
-issue. Think through design intent and context. You are empowered to make
-source code changes to achieve the goals of the issue and the project, including
-removing modules and tests entirely and starting files afresh as needed. Do not
-be constrained by what already exists or by a desire to avoid breaking changes.
-Think as if you were building anew. If you detect areas of improvement, logical
-flaws, or other issues, please address them.
+Do not assume that the implementation is correct. Your goal is to carefully review the changes made to ensure they fully satisfy the requirements of the issue. Think through design intent and context. You are empowered to make source code changes to achieve the goals of the issue and the project, including removing modules and tests entirely and starting files afresh as needed. Do not be constrained by what already exists or by a desire to avoid breaking changes. Think as if you were building anew. If you detect areas of improvement, logical flaws, or other issues, please address them.
 
 ## Audit Guidelines
 
@@ -27,12 +19,8 @@ flaws, or other issues, please address them.
 
 ## Remediation Guidelines
 
-If fixing issues is straightforward, make the changes directly. For larger
-problems, either produce an audit report detailing the gaps and recommended
-improvements or create new issues to track the necessary work.
+If fixing issues is straightforward, make the changes directly. For larger problems, either produce an audit report detailing the gaps and recommended improvements or create new issues to track the necessary work.
 
 Refactors should follow the [Refactor Prompt](./refactor.prompt.md) guidelines.
 
-I recognize this is a big task, but it is absolutely critical that we do it
-right to ensure we have clean, maintainable, and elegant code that aligns with
-our vision of the future.
+I recognize this is a big task, but it is absolutely critical that we do it right to ensure we have clean, maintainable, and elegant code that aligns with our vision of the future.

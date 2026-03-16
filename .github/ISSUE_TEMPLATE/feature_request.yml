@@ -14,7 +14,7 @@ body:
     id: proposal
     attributes:
       label: Proposed solution
-      description: Describe the command/config/diagnostic behavior you want.
+      description: Describe the command, configuration, API, or workflow change you want.
     validations:
       required: true
   - type: textarea

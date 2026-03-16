@@ -26,6 +26,7 @@ ALLOWED_PROPERTIES = {
     "compatibility",
     "allowed-tools",
     "argument-hint",
+    "user-invocable",
     "user-invokable",
     "disable-model-invocation",
 }
@@ -253,6 +254,7 @@ def _validate_optional_fields(frontmatter: dict[str, object]) -> tuple[bool, str
         _validate_metadata,
         lambda data: _validate_string_option(data, "allowed-tools"),
         _validate_compatibility,
+        lambda data: _validate_bool_option(data, "user-invocable"),
         lambda data: _validate_bool_option(data, "user-invokable"),
         lambda data: _validate_bool_option(data, "disable-model-invocation"),
     )

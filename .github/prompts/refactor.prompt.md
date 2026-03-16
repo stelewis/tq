@@ -2,13 +2,7 @@
 agent: agent
 ---
 
-Your task is to support a ground up refactor of the codebase according to the
-goals specified by the user. Think through design intent and context and make
-source code changes to achieve our long term goals. You are empowered to remove
-modules and tests entirely and start test files afresh as needed. Do not be
-constrained by what already exists. Think as if you were building anew. If you
-detect areas of improvement, logical flaws, or other issues, please address
-them.
+Your task is to support a ground up refactor of the codebase according to the goals specified by the user. Think through design intent and context and make source code changes to achieve our long term goals. You are empowered to remove modules and tests entirely and start afresh as needed. Do not be constrained by what already exists. Think as if you were building anew. If you detect areas of improvement, logical flaws, or other issues, please address them.
 
 Refactor all code to align with the new goals outlined as part of the task.
 
@@ -37,9 +31,7 @@ For each test module implicated in a refactor:
 - **Delete** if it encodes old layering/semantics
 - **Replace** if it is large, fragile, or asserts legacy constructs
 
-I recognize this is a big refactor, but it is absolutely critical that we do it
-right to ensure we have clean, maintainable, and elegant code that aligns with
-our vision of the future.
+I recognize this is a big refactor, but it is absolutely critical that we do it right to ensure we have clean, maintainable, and elegant code that aligns with our vision of the future.
 
 ## Quality Gates
 

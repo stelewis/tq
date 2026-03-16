@@ -1,13 +1,13 @@
-# Contributing to the Test Quality Toolkit (tq)
+# Contributing to Test Quality Toolkit (tq)
 
-Thanks for taking the time to help improve this project! Whether you're fixing a bug, adding a feature, improving documentation, or suggesting an idea, all contributions are welcome and appreciated.
+Thanks for taking the time to help improve this project! Whether you're fixing a bug, improving documentation, adding a feature, or suggesting an idea, all contributions are welcome.
 
 Because `tq` is a developer tool used by multiple teams, we strive for consistent workflows, high code quality, and clear documentation. The following guide will help you get up to speed and make a successful contribution.
 
 ## Getting started
 
 1. **Fork and clone** this repository to your GitHub account.
-2. Create a descriptive feature branch, e.g.: `feature/add-check`, `fix/cli-parser`, `docs/contributing`.
+2. Create a short, descriptive branch such as `feature/add-cli-command`, `fix/parser-bug`, or `docs/update-guide`.
 3. Install the development environment and tools:
 
    ```sh
@@ -38,40 +38,39 @@ Because `tq` is a developer tool used by multiple teams, we strive for consisten
 
 Longer explanations of the repository conventions are kept in `docs/developer`:
 
-- **Code standards** – formatting, typing, packaging, and import rules.
-- **Git workflow** – branch naming, commit message conventions, PR guidelines.
-- **Testing standards** – how to write tests, run them, and use the test-quality tool itself.
+- **Code standards** - formatting, typing, packaging, and import rules.
+- **Git workflow** - branch naming, commit message conventions, and PR guidelines.
+- **Testing standards** - how to write tests, run them, and keep them modular.
+- **Developer tools** - local commands, pre-commit hooks, CI checks, and automation.
 
-Read or search the documents before starting larger changes; links can be found in the [Developer docs index](docs/developer/index.md).
+Read or search the documents before starting larger changes; links in the [Developer docs index](docs/developer/index.md).
 
 ## Issues and pull requests
 
 - **Search first.** Before opening a new issue, look through existing issues to avoid duplicates.
-- **Issue types.** Create issues for bugs, enhancements, or questions.
-- **Pull Requests.** Keep PRs small and focused. Target the `main` branch. Every PR must pass all checks and receive at least one approving review before merging.
-- **Commit messages.** Use [Conventional Commits](https://www.conventionalcommits.org/). A `commit-msg` hook enforces this; run `uv run cz commit` to help format messages if needed.
+- **Issue types.** Use the Bug report, Feature request, and Question forms where they fit; use a blank issue if the topic does not fit cleanly into a form.
+- **Pull requests.** Keep PRs small and focused. Target `main`. Every PR must pass all checks and receive at least one approving review before merging.
+- **Commit messages.** Use [Conventional Commits](https://www.conventionalcommits.org/). A `commit-msg` hook enforces this; run `uv run cz commit` if you want help formatting messages.
 
 ## Code style and tooling
 
-- Formatting and linting are performed by [ruff](https://docs.astral.sh/ruff/).
+- Formatting and linting are handled by [ruff](https://docs.astral.sh/ruff/).
 - Type checking uses [ty](https://docs.astral.sh/ty/).
 - Pre-commit hooks are managed by [prek](https://prek.j178.dev/).
-- Tests run with `pytest`; quality of tests is enforced by `uv run tq check`.
-
-You can run individual tasks directly (e.g. `uv run ruff format`).
+- Tests run with `pytest`; test quality is checked with `uv run tq check`.
 
 ## Documentation
 
-Documentation in this repository is treated as first‑class. See `docs/developer/standards/docs.md` for guidelines.
+Documentation in this repository is treated as first-class. See `docs/developer/standards/docs.md` for the durable rules.
 
-- Keep docs **useful, stable, concise, and small**.
-- Prefer one canonical reference per concept and avoid redundancy.
-- Document contracts and workflows, not implementation details.
+- Keep docs useful, stable, concise, and small.
+- Prefer one reference doc per concept and avoid duplication.
+- Document contracts and workflows rather than implementation trivia.
 
-If you update code that has public behavior, make sure to update corresponding documentation and tests.
+If you update code with user-facing behavior, update the corresponding documentation and tests.
 
 ## Support and communication
 
-If you need help or have questions, open an issue tagged `question`.  The maintainers monitor the repository and will respond as soon as possible.
+If you need help or have questions, open an issue with the Question template. For suspected vulnerabilities, follow `SECURITY.md` rather than creating a public issue.
 
-Thanks again for contributing to `tq`! We appreciate your effort in making the toolkit better for everyone.
+Thanks again for contributing to `Test Quality Toolkit`! We appreciate your effort in making the project better for everyone.

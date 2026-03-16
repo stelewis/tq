@@ -1,11 +1,14 @@
-# Default ownership
+# CODEOWNERS
+
 * @stelewis
 
-# Workflow and release controls
+## Workflow and release controls
+
 /.github/workflows/ @stelewis
 /.github/actions/ @stelewis
 
-# Packaging and release metadata
+## Packaging and release metadata
+
 /pyproject.toml @stelewis
 /uv.lock @stelewis
 /CHANGELOG.md @stelewis

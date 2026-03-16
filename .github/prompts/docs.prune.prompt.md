@@ -2,8 +2,7 @@
 agent: agent
 ---
 
-Your task is to audit a documentation file and decide whether it should be kept,
-refactored into developer docs, or removed.
+Your task is to audit a documentation file and decide whether it should be kept, refactored into developer docs, or removed.
 
 ## Context
 
@@ -31,7 +30,6 @@ User will provide a documentation file to audit: `[file_name]`
    - Confirm what exists, what’s missing, and what’s obsolete.
 3. Decide:
    - **Keep**: if it is already durable and non-redundant.
-   - **Refactor**: move enduring content into the best canonical developer doc(s);
-     delete the original if it becomes redundant.
+   - **Refactor**: move enduring content into the best developer doc(s); delete the original if it becomes redundant.
    - **Remove**: if implemented, redundant, or purely historical.
 4. If removing, delete it via `rm`.
