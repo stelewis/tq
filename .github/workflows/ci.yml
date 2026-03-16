@@ -199,6 +199,51 @@ jobs:
           uv run --isolated --no-project --with "$sdist_path" -- tq --help
           uv run --isolated --no-project --with "$sdist_path" -- tq check --help
 
+  package-compatibility:
+    name: Package compatibility (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Setup Python + uv + deps
+        uses: ./.github/actions/setup-python-uv
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Build Python package artifacts
+        run: uv build
+
+      - name: Smoke check built package entrypoints
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          wheel_path="$(find "$PWD/dist" -maxdepth 1 -type f -name '*.whl' | head -n 1)"
+          if [ -z "$wheel_path" ]; then
+            echo "No wheel artifact found in dist/"
+            exit 1
+          fi
+
+          sdist_path="$(find "$PWD/dist" -maxdepth 1 -type f -name '*.tar.gz' | head -n 1)"
+          if [ -z "$sdist_path" ]; then
+            echo "No source distribution artifact found in dist/"
+            exit 1
+          fi
+
+          uv run --isolated --no-project --with "$wheel_path" -- tq --help
+          uv run --isolated --no-project --with "$wheel_path" -- tq check --help
+          uv run --isolated --no-project --with "$sdist_path" -- tq --help
+          uv run --isolated --no-project --with "$sdist_path" -- tq check --help
+
   security:
     name: Security checks
     runs-on: ubuntu-latest
