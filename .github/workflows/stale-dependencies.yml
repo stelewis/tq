@@ -23,11 +23,8 @@ jobs:
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
 
-      - name: Install cargo-outdated
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo install --locked cargo-outdated@0.17.0
+      - name: Setup Rust maintenance tools
+        uses: ./.github/actions/setup-rust-maintenance-tools
 
       - name: Check stale direct dependencies
         shell: bash

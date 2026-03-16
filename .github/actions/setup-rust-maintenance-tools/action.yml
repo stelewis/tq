@@ -1,0 +1,18 @@
+name: Setup Rust maintenance tools
+description: Install pinned Rust maintenance CLIs used by repository workflows
+
+inputs:
+  cargo-outdated-version:
+    description: cargo-outdated release to install with the active Rust toolchain
+    required: false
+    default: "0.17.0"
+
+runs:
+  using: composite
+  steps:
+    - name: Install cargo-outdated
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        cargo install --force --locked "cargo-outdated@${{ inputs.cargo-outdated-version }}"
