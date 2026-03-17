@@ -20,7 +20,7 @@ fn generate_config_examples_updates_marked_sections() {
     );
     write(
         &manifest_path,
-        "examples:\n  quickstart_minimal: |\n    [tool.tq]\n    [[tool.tq.targets]]\n    name = \"app\"\n    package = \"your_package\"\n    source_root = \"src\"\n    test_root = \"tests\"\n  configuration_minimal: |\n    [tool.tq]\n    [[tool.tq.targets]]\n    name = \"app\"\n    package = \"your_package\"\n    source_root = \"src\"\n    test_root = \"tests\"\n  configuration_typical: |\n    [tool.tq]\n    ignore_init_modules = true\n    [[tool.tq.targets]]\n    name = \"app\"\n    package = \"your_package\"\n    source_root = \"src\"\n    test_root = \"tests\"\n",
+        "examples:\n  quickstart_minimal: |\n    [tool.tq]\n    [[tool.tq.targets]]\n    name = \"app\"\n    package = \"your_package\"\n    source_root = \"src\"\n    test_root = \"tests\"\n  configuration_minimal: |\n    [tool.tq]\n    [[tool.tq.targets]]\n    name = \"app\"\n    package = \"your_package\"\n    source_root = \"src\"\n    test_root = \"tests\"\n  configuration_typical: |\n    [tool.tq]\n    init_modules = \"ignore\"\n    [[tool.tq.targets]]\n    name = \"app\"\n    package = \"your_package\"\n    source_root = \"src\"\n    test_root = \"tests\"\n",
     );
 
     tq_docsgen::generate_config_examples(temp.path()).expect("generate config examples");
@@ -30,7 +30,7 @@ fn generate_config_examples_updates_marked_sections() {
     assert!(quickstart.contains("```toml"));
     assert!(quickstart.contains("name = \"app\""));
     assert!(!quickstart.contains("placeholder"));
-    assert!(configuration.contains("ignore_init_modules = true"));
+    assert!(configuration.contains("init_modules = \"ignore\""));
     assert!(!configuration.contains("placeholder"));
 }
 

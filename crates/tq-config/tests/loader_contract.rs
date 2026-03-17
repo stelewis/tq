@@ -1,7 +1,8 @@
 use std::path::Path;
 
 use tq_config::{
-    CliOverrides, QualifierStrategy, resolve_tq_config, resolve_tq_config_with_user_config,
+    CliOverrides, InitModulesMode, QualifierStrategy, resolve_tq_config,
+    resolve_tq_config_with_user_config,
 };
 
 fn write(path: &Path, content: &str) {
@@ -243,7 +244,7 @@ fn cli_overrides_precede_config_defaults() {
     write(
         &config_path,
         "[tool.tq]\n\
-         ignore_init_modules = false\n\
+         init_modules = \"include\"\n\
          qualifier_strategy = \"none\"\n\
          [[tool.tq.targets]]\n\
          name = \"core\"\n\
@@ -257,7 +258,7 @@ fn cli_overrides_precede_config_defaults() {
         Some(&config_path),
         false,
         &CliOverrides {
-            ignore_init_modules: Some(true),
+            init_modules: Some(InitModulesMode::Ignore),
             qualifier_strategy: Some(QualifierStrategy::AnySuffix),
             ..CliOverrides::default()
         },
@@ -265,7 +266,7 @@ fn cli_overrides_precede_config_defaults() {
     .expect("config should resolve");
 
     assert_eq!(resolved.targets.len(), 1);
-    assert!(resolved.targets[0].ignore_init_modules);
+    assert_eq!(resolved.targets[0].init_modules, InitModulesMode::Ignore);
     assert_eq!(
         resolved.targets[0].qualifier_strategy,
         QualifierStrategy::AnySuffix
@@ -390,7 +391,7 @@ fn discovery_project_overrides_user_for_defaults_and_targets() {
     write(
         &user_config,
         "[tool.tq]\n\
-         ignore_init_modules = true\n\
+         init_modules = \"ignore\"\n\
          [[tool.tq.targets]]\n\
          name = \"user\"\n\
          package = \"scripts\"\n\
@@ -403,7 +404,7 @@ fn discovery_project_overrides_user_for_defaults_and_targets() {
     write(
         &project_config,
         "[tool.tq]\n\
-         ignore_init_modules = false\n\
+         init_modules = \"include\"\n\
          [[tool.tq.targets]]\n\
          name = \"project\"\n\
          package = \"tq\"\n\
@@ -425,7 +426,7 @@ fn discovery_project_overrides_user_for_defaults_and_targets() {
     assert_eq!(resolved.targets.len(), 1);
     assert_eq!(resolved.targets[0].name, "project");
     assert_eq!(resolved.targets[0].source_root, project_root.join("src"));
-    assert!(!resolved.targets[0].ignore_init_modules);
+    assert_eq!(resolved.targets[0].init_modules, InitModulesMode::Include);
 }
 
 #[test]
@@ -436,7 +437,7 @@ fn discovery_keeps_user_targets_when_project_has_only_defaults() {
     write(
         &user_config,
         "[tool.tq]\n\
-         ignore_init_modules = true\n\
+         init_modules = \"ignore\"\n\
          [[tool.tq.targets]]\n\
          name = \"user\"\n\
          package = \"scripts\"\n\
@@ -446,7 +447,7 @@ fn discovery_keeps_user_targets_when_project_has_only_defaults() {
 
     let project_root = temp.path().join("project");
     let project_config = project_root.join("pyproject.toml");
-    write(&project_config, "[tool.tq]\nignore_init_modules = false\n");
+    write(&project_config, "[tool.tq]\ninit_modules = \"include\"\n");
 
     let resolved = resolve_tq_config_with_user_config(
         &project_root,
@@ -460,7 +461,7 @@ fn discovery_keeps_user_targets_when_project_has_only_defaults() {
     assert_eq!(resolved.targets.len(), 1);
     assert_eq!(resolved.targets[0].name, "user");
     assert_eq!(resolved.targets[0].source_root, user_root.join("src"));
-    assert!(!resolved.targets[0].ignore_init_modules);
+    assert_eq!(resolved.targets[0].init_modules, InitModulesMode::Include);
 }
 
 #[cfg(unix)]

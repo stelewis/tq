@@ -155,7 +155,7 @@ fn check_command_respects_target_filtering() {
 }
 
 #[test]
-fn check_command_honors_ignore_init_modules_override() {
+fn check_command_honors_init_modules_ignore_override() {
     let project = create_project();
     write(
         &project.path().join("pyproject.toml"),
@@ -166,7 +166,7 @@ name = "app"
 package = "pkg"
 source_root = "src"
 test_root = "tests"
-ignore_init_modules = false
+init_modules = "include"
 "#,
     );
     write(
@@ -185,11 +185,87 @@ ignore_init_modules = false
         .arg("check")
         .arg("--config")
         .arg(project.path().join("pyproject.toml"))
-        .arg("--ignore-init-modules")
+        .arg("--init-modules")
+        .arg("ignore")
         .assert();
 
     assert_eq!(default_assert.get_output().status.code(), Some(1));
     assert!(override_assert.get_output().status.success());
+}
+
+#[test]
+fn check_command_honors_init_modules_include_override() {
+    let project = create_project();
+    write(
+        &project.path().join("pyproject.toml"),
+        r#"[tool.tq]
+
+[[tool.tq.targets]]
+name = "app"
+package = "pkg"
+source_root = "src"
+test_root = "tests"
+init_modules = "ignore"
+"#,
+    );
+    write(
+        &project.path().join("src").join("pkg").join("__init__.py"),
+        "def exported() -> None:\n    pass\n",
+    );
+
+    let default_assert = Command::new(env!("CARGO_BIN_EXE_tq"))
+        .current_dir(project.path())
+        .arg("check")
+        .arg("--config")
+        .arg(project.path().join("pyproject.toml"))
+        .assert();
+    let override_assert = Command::new(env!("CARGO_BIN_EXE_tq"))
+        .current_dir(project.path())
+        .arg("check")
+        .arg("--config")
+        .arg(project.path().join("pyproject.toml"))
+        .arg("--init-modules")
+        .arg("include")
+        .assert();
+
+    assert!(default_assert.get_output().status.success());
+    assert_eq!(override_assert.get_output().status.code(), Some(1));
+}
+
+#[test]
+fn top_level_help_lists_the_check_command_cleanly() {
+    let assert = Command::new(env!("CARGO_BIN_EXE_tq"))
+        .arg("--help")
+        .assert();
+
+    let output = assert.get_output();
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8(output.stdout.clone()).expect("stdout should be utf8");
+    assert!(stdout.contains("Check Python test layout quality."));
+    assert!(stdout.contains("check  Run test quality checks against configured targets"));
+    assert!(!stdout.contains("\n  help   "));
+}
+
+#[test]
+fn check_help_groups_options_and_uses_init_modules_mode() {
+    let assert = Command::new(env!("CARGO_BIN_EXE_tq"))
+        .arg("check")
+        .arg("--help")
+        .assert();
+
+    let output = assert.get_output();
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8(output.stdout.clone()).expect("stdout should be utf8");
+    assert!(stdout.contains("Configuration:"));
+    assert!(stdout.contains("Rule configuration:"));
+    assert!(stdout.contains("Rule selection:"));
+    assert!(stdout.contains("Output:"));
+    assert!(stdout.contains("--init-modules <MODE>"));
+    assert!(stdout.contains("[possible values: include, ignore]"));
+    assert!(!stdout.contains("--ignore-init-modules"));
+    assert!(!stdout.contains("--no-ignore-init-modules"));
 }
 
 #[test]

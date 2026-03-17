@@ -33,7 +33,7 @@ Missing unit tests reduce discoverability and leave source modules without direc
 - `--select mapping-missing-test`
 - `--ignore mapping-missing-test`
 - `[tool.tq].select / [tool.tq].ignore`
-- `[tool.tq].ignore_init_modules`
+- `[tool.tq].init_modules`
 - `[tool.tq].qualifier_strategy`
 - `[tool.tq].allowed_qualifiers`
 

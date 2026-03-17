@@ -107,7 +107,7 @@ fn partial_from_cli(overrides: &CliOverrides) -> Result<PartialTqConfig, ConfigE
 
     Ok(PartialTqConfig {
         defaults: PartialRuleConfig {
-            ignore_init_modules: overrides.ignore_init_modules,
+            init_modules: overrides.init_modules,
             max_test_file_non_blank_lines: overrides.max_test_file_non_blank_lines,
             qualifier_strategy: overrides.qualifier_strategy,
             allowed_qualifiers: overrides.allowed_qualifiers.clone(),

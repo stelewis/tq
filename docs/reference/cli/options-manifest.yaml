@@ -10,6 +10,9 @@ cli_options:
       - target_names
     config_key: null
   - arg_ids:
+      - init_modules
+    config_key: init_modules
+  - arg_ids:
       - max_test_file_non_blank_lines
     config_key: max_test_file_non_blank_lines
   - arg_ids:
@@ -19,21 +22,17 @@ cli_options:
       - allowed_qualifiers
     config_key: allowed_qualifiers
   - arg_ids:
-      - ignore_init_modules
-      - no_ignore_init_modules
-    config_key: ignore_init_modules
-  - arg_ids:
       - select_rules
     config_key: select
   - arg_ids:
       - ignore_rules
     config_key: ignore
   - arg_ids:
-      - exit_zero
+      - output_format
     config_key: null
   - arg_ids:
       - show_suggestions
     config_key: null
   - arg_ids:
-      - output_format
+      - exit_zero
     config_key: null

@@ -2,8 +2,37 @@ use std::path::PathBuf;
 
 use crate::{ConfigError, paths::normalize_absolute};
 
-pub const DEFAULT_IGNORE_INIT_MODULES: bool = false;
+pub const DEFAULT_INIT_MODULES: InitModulesMode = InitModulesMode::Include;
 pub const DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES: u64 = 600;
+
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
+pub enum InitModulesMode {
+    #[default]
+    Include,
+    Ignore,
+}
+
+impl InitModulesMode {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Include => "include",
+            Self::Ignore => "ignore",
+        }
+    }
+
+    pub(crate) fn parse(raw: &str) -> Option<Self> {
+        match raw {
+            "include" => Some(Self::Include),
+            "ignore" => Some(Self::Ignore),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub const fn should_ignore(self) -> bool {
+        matches!(self, Self::Ignore)
+    }
+}
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
 pub enum QualifierStrategy {
@@ -91,7 +120,7 @@ impl std::fmt::Display for RuleId {
 
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct PartialRuleConfig {
-    pub ignore_init_modules: Option<bool>,
+    pub init_modules: Option<InitModulesMode>,
     pub max_test_file_non_blank_lines: Option<u64>,
     pub qualifier_strategy: Option<QualifierStrategy>,
     pub allowed_qualifiers: Option<Vec<String>>,
@@ -105,7 +134,7 @@ pub struct PartialTargetConfig {
     pub package: Option<String>,
     pub source_root: Option<String>,
     pub test_root: Option<String>,
-    pub ignore_init_modules: Option<bool>,
+    pub init_modules: Option<InitModulesMode>,
     pub max_test_file_non_blank_lines: Option<u64>,
     pub qualifier_strategy: Option<QualifierStrategy>,
     pub allowed_qualifiers: Option<Vec<String>>,
@@ -121,7 +150,7 @@ pub struct PartialTqConfig {
 
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct CliOverrides {
-    pub ignore_init_modules: Option<bool>,
+    pub init_modules: Option<InitModulesMode>,
     pub max_test_file_non_blank_lines: Option<u64>,
     pub qualifier_strategy: Option<QualifierStrategy>,
     pub allowed_qualifiers: Option<Vec<String>>,
@@ -135,7 +164,7 @@ pub struct TqTargetConfig {
     pub package: String,
     pub source_root: PathBuf,
     pub test_root: PathBuf,
-    pub ignore_init_modules: bool,
+    pub init_modules: InitModulesMode,
     pub max_test_file_non_blank_lines: u64,
     pub qualifier_strategy: QualifierStrategy,
     pub allowed_qualifiers: Vec<String>,

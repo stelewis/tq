@@ -3,9 +3,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::{
-    ConfigError, DEFAULT_IGNORE_INIT_MODULES, DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES,
-    PartialRuleConfig, PartialTargetConfig, PartialTqConfig, QualifierStrategy, TqConfig,
-    TqTargetConfig, paths::normalize_absolute,
+    ConfigError, DEFAULT_INIT_MODULES, DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES, PartialRuleConfig,
+    PartialTargetConfig, PartialTqConfig, QualifierStrategy, TqConfig, TqTargetConfig,
+    paths::normalize_absolute,
 };
 
 pub fn merge_partial(base: &PartialTqConfig, override_: &PartialTqConfig) -> PartialTqConfig {
@@ -78,7 +78,7 @@ fn merge_rule_partial(
     override_: &PartialRuleConfig,
 ) -> PartialRuleConfig {
     PartialRuleConfig {
-        ignore_init_modules: override_.ignore_init_modules.or(base.ignore_init_modules),
+        init_modules: override_.init_modules.or(base.init_modules),
         max_test_file_non_blank_lines: override_
             .max_test_file_non_blank_lines
             .or(base.max_test_file_non_blank_lines),
@@ -123,7 +123,7 @@ fn materialize_target(
     let merged_rules = merge_rule_partial(
         defaults,
         &PartialRuleConfig {
-            ignore_init_modules: target.ignore_init_modules,
+            init_modules: target.init_modules,
             max_test_file_non_blank_lines: target.max_test_file_non_blank_lines,
             qualifier_strategy: target.qualifier_strategy,
             allowed_qualifiers: target.allowed_qualifiers.clone(),
@@ -147,9 +147,7 @@ fn materialize_target(
         package,
         source_root: resolve_path(targets_base_dir, &source_root_value),
         test_root: resolve_path(targets_base_dir, &test_root_value),
-        ignore_init_modules: final_rules
-            .ignore_init_modules
-            .unwrap_or(DEFAULT_IGNORE_INIT_MODULES),
+        init_modules: final_rules.init_modules.unwrap_or(DEFAULT_INIT_MODULES),
         max_test_file_non_blank_lines: final_rules
             .max_test_file_non_blank_lines
             .unwrap_or(DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES),

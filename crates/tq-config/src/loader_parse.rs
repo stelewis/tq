@@ -5,7 +5,8 @@ use std::path::Path;
 use toml::Table;
 
 use crate::{
-    ConfigError, PartialRuleConfig, PartialTargetConfig, PartialTqConfig, QualifierStrategy, RuleId,
+    ConfigError, InitModulesMode, PartialRuleConfig, PartialTargetConfig, PartialTqConfig,
+    QualifierStrategy, RuleId,
 };
 
 pub fn load_partial_from_pyproject(
@@ -57,7 +58,7 @@ pub fn load_partial_from_pyproject(
     reject_unknown_keys(
         tq_table,
         &[
-            "ignore_init_modules",
+            "init_modules",
             "max_test_file_non_blank_lines",
             "qualifier_strategy",
             "allowed_qualifiers",
@@ -69,7 +70,7 @@ pub fn load_partial_from_pyproject(
     )?;
 
     let defaults = PartialRuleConfig {
-        ignore_init_modules: expect_optional_bool(tq_table, "ignore_init_modules", "tool.tq")?,
+        init_modules: expect_optional_init_modules(tq_table, "init_modules", "tool.tq")?,
         max_test_file_non_blank_lines: expect_optional_positive_int(
             tq_table,
             "max_test_file_non_blank_lines",
@@ -156,18 +157,28 @@ fn expect_optional_str(
     Ok(Some(string.to_owned()))
 }
 
-fn expect_optional_bool(
+fn expect_optional_init_modules(
     table: &Table,
     key: &str,
     location: &str,
-) -> Result<Option<bool>, ConfigError> {
+) -> Result<Option<InitModulesMode>, ConfigError> {
     let Some(value) = table.get(key) else {
         return Ok(None);
     };
-    value
-        .as_bool()
-        .map(Some)
-        .ok_or_else(|| ConfigError::validation(format!("{location}.{key} must be a boolean")))
+
+    let Some(raw) = value.as_str() else {
+        return Err(ConfigError::validation(format!(
+            "{location}.{key} must be a string"
+        )));
+    };
+
+    InitModulesMode::parse(raw).map(Some).ok_or_else(|| {
+        ConfigError::validation(format!(
+            "{location}.{key} must be one of: {}, {}",
+            InitModulesMode::Include.as_str(),
+            InitModulesMode::Ignore.as_str(),
+        ))
+    })
 }
 
 fn expect_optional_positive_int(
@@ -315,7 +326,7 @@ fn expect_optional_targets(
                 "package",
                 "source_root",
                 "test_root",
-                "ignore_init_modules",
+                "init_modules",
                 "max_test_file_non_blank_lines",
                 "qualifier_strategy",
                 "allowed_qualifiers",
@@ -330,11 +341,7 @@ fn expect_optional_targets(
             package: expect_optional_str(target_table, "package", &location)?,
             source_root: expect_optional_str(target_table, "source_root", &location)?,
             test_root: expect_optional_str(target_table, "test_root", &location)?,
-            ignore_init_modules: expect_optional_bool(
-                target_table,
-                "ignore_init_modules",
-                &location,
-            )?,
+            init_modules: expect_optional_init_modules(target_table, "init_modules", &location)?,
             max_test_file_non_blank_lines: expect_optional_positive_int(
                 target_table,
                 "max_test_file_non_blank_lines",

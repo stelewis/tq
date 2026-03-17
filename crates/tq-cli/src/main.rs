@@ -4,8 +4,10 @@ use std::collections::BTreeSet;
 use std::io;
 
 use clap::Parser;
-use tq_cli::{CheckArgs, Cli, Command, OutputFormat, QualifierStrategyArg};
-use tq_config::{CliOverrides, QualifierStrategy, RuleId, TqTargetConfig, resolve_tq_config};
+use tq_cli::{CheckArgs, Cli, Command, InitModuleModeArg, OutputFormat, QualifierStrategyArg};
+use tq_config::{
+    CliOverrides, InitModulesMode, QualifierStrategy, RuleId, TqTargetConfig, resolve_tq_config,
+};
 use tq_engine::{RuleEngine, TargetPlanInput, aggregate_results, plan_target_runs};
 use tq_reporting::{JsonReporter, TextReporter};
 use tq_rules::{
@@ -74,7 +76,7 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
             .expect("planned target must exist in resolved config");
 
         let options = BuiltinRuleOptions::new(
-            target_config.ignore_init_modules,
+            target_config.init_modules.should_ignore(),
             target_config.max_test_file_non_blank_lines,
             map_qualifier_strategy(target_config.qualifier_strategy),
             target_config.allowed_qualifiers.clone(),
@@ -108,29 +110,13 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
 
 fn build_cli_overrides(args: &CheckArgs) -> Result<CliOverrides> {
     Ok(CliOverrides {
-        ignore_init_modules: resolve_ignore_init_modules(args)?,
+        init_modules: args.init_modules.map(map_init_module_mode),
         max_test_file_non_blank_lines: args.max_test_file_non_blank_lines,
         qualifier_strategy: args.qualifier_strategy.map(map_cli_qualifier_strategy),
         allowed_qualifiers: (!args.allowed_qualifiers.is_empty())
             .then(|| args.allowed_qualifiers.clone()),
         select: parse_cli_rule_ids(&args.select_rules)?,
         ignore: parse_cli_rule_ids(&args.ignore_rules)?,
-    })
-}
-
-fn resolve_ignore_init_modules(args: &CheckArgs) -> Result<Option<bool>> {
-    if args.init_module_args.ignore_init_modules && args.init_module_args.no_ignore_init_modules {
-        return Err(CliError::validation(
-            "--ignore-init-modules cannot be combined with --no-ignore-init-modules",
-        ));
-    }
-
-    Ok(if args.init_module_args.ignore_init_modules {
-        Some(true)
-    } else if args.init_module_args.no_ignore_init_modules {
-        Some(false)
-    } else {
-        None
     })
 }
 
@@ -245,6 +231,13 @@ const fn map_cli_qualifier_strategy(strategy: QualifierStrategyArg) -> Qualifier
         QualifierStrategyArg::None => QualifierStrategy::None,
         QualifierStrategyArg::AnySuffix => QualifierStrategy::AnySuffix,
         QualifierStrategyArg::Allowlist => QualifierStrategy::Allowlist,
+    }
+}
+
+const fn map_init_module_mode(mode: InitModuleModeArg) -> InitModulesMode {
+    match mode {
+        InitModuleModeArg::Include => InitModulesMode::Include,
+        InitModuleModeArg::Ignore => InitModulesMode::Ignore,
     }
 }
 

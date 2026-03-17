@@ -9,7 +9,7 @@ fn generate_cli_docs_updates_marked_section_from_rust_cli_contract() {
 
     write(
         &manifest_path,
-        "version: 1\ncli_options:\n  - arg_ids:\n      - config\n    config_key: null\n  - arg_ids:\n      - isolated\n    config_key: null\n  - arg_ids:\n      - target_names\n    config_key: null\n  - arg_ids:\n      - max_test_file_non_blank_lines\n    config_key: max_test_file_non_blank_lines\n  - arg_ids:\n      - qualifier_strategy\n    config_key: qualifier_strategy\n  - arg_ids:\n      - allowed_qualifiers\n    config_key: allowed_qualifiers\n  - arg_ids:\n      - ignore_init_modules\n      - no_ignore_init_modules\n    config_key: ignore_init_modules\n  - arg_ids:\n      - select_rules\n    config_key: select\n  - arg_ids:\n      - ignore_rules\n    config_key: ignore\n  - arg_ids:\n      - exit_zero\n    config_key: null\n  - arg_ids:\n      - show_suggestions\n    config_key: null\n  - arg_ids:\n      - output_format\n    config_key: null\n",
+        "version: 1\ncli_options:\n  - arg_ids:\n      - config\n    config_key: null\n  - arg_ids:\n      - isolated\n    config_key: null\n  - arg_ids:\n      - target_names\n    config_key: null\n  - arg_ids:\n      - init_modules\n    config_key: init_modules\n  - arg_ids:\n      - max_test_file_non_blank_lines\n    config_key: max_test_file_non_blank_lines\n  - arg_ids:\n      - qualifier_strategy\n    config_key: qualifier_strategy\n  - arg_ids:\n      - allowed_qualifiers\n    config_key: allowed_qualifiers\n  - arg_ids:\n      - select_rules\n    config_key: select\n  - arg_ids:\n      - ignore_rules\n    config_key: ignore\n  - arg_ids:\n      - output_format\n    config_key: null\n  - arg_ids:\n      - show_suggestions\n    config_key: null\n  - arg_ids:\n      - exit_zero\n    config_key: null\n",
     );
     write(
         &cli_doc_path,
@@ -20,7 +20,7 @@ fn generate_cli_docs_updates_marked_section_from_rust_cli_contract() {
 
     let generated = fs::read_to_string(&cli_doc_path).expect("read generated CLI docs");
     assert!(generated.contains("| `--target` | — | `[]` | Run only listed target names. |"));
-    assert!(generated.contains("--ignore-init-modules, --no-ignore-init-modules"));
+    assert!(generated.contains("| `--init-modules` | [`init_modules`](./configuration.md#init_modules-optional) | `none` | How mapping checks handle __init__.py modules. |"));
     assert!(generated.contains("Run `tq check --help` for the runtime source of truth."));
 }
 
@@ -48,7 +48,7 @@ fn generate_cli_docs_fails_when_markers_are_missing() {
 
     write(
         &manifest_path,
-        "version: 1\ncli_options:\n  - arg_ids:\n      - config\n    config_key: null\n  - arg_ids:\n      - isolated\n    config_key: null\n  - arg_ids:\n      - target_names\n    config_key: null\n  - arg_ids:\n      - max_test_file_non_blank_lines\n    config_key: max_test_file_non_blank_lines\n  - arg_ids:\n      - qualifier_strategy\n    config_key: qualifier_strategy\n  - arg_ids:\n      - allowed_qualifiers\n    config_key: allowed_qualifiers\n  - arg_ids:\n      - ignore_init_modules\n      - no_ignore_init_modules\n    config_key: ignore_init_modules\n  - arg_ids:\n      - select_rules\n    config_key: select\n  - arg_ids:\n      - ignore_rules\n    config_key: ignore\n  - arg_ids:\n      - exit_zero\n    config_key: null\n  - arg_ids:\n      - show_suggestions\n    config_key: null\n  - arg_ids:\n      - output_format\n    config_key: null\n",
+        "version: 1\ncli_options:\n  - arg_ids:\n      - config\n    config_key: null\n  - arg_ids:\n      - isolated\n    config_key: null\n  - arg_ids:\n      - target_names\n    config_key: null\n  - arg_ids:\n      - init_modules\n    config_key: init_modules\n  - arg_ids:\n      - max_test_file_non_blank_lines\n    config_key: max_test_file_non_blank_lines\n  - arg_ids:\n      - qualifier_strategy\n    config_key: qualifier_strategy\n  - arg_ids:\n      - allowed_qualifiers\n    config_key: allowed_qualifiers\n  - arg_ids:\n      - select_rules\n    config_key: select\n  - arg_ids:\n      - ignore_rules\n    config_key: ignore\n  - arg_ids:\n      - output_format\n    config_key: null\n  - arg_ids:\n      - show_suggestions\n    config_key: null\n  - arg_ids:\n      - exit_zero\n    config_key: null\n",
     );
     write(&cli_doc_path, "# CLI\nNo markers here.\n");
 

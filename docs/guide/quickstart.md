@@ -27,7 +27,6 @@ Create or update `pyproject.toml`:
 
 ```toml
 [tool.tq]
-ignore_init_modules = true
 
 [[tool.tq.targets]]
 name = "app"

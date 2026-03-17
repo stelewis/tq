@@ -48,11 +48,13 @@ In TOML, `targets` is an array-of-tables under `[tool.tq]`. Each `[[tool.tq.targ
 
 Top-level keys in `[tool.tq]` (other than `targets`) act as shared defaults.
 
-### `ignore_init_modules` (optional)
+### `init_modules` (optional)
 
-- Type: `boolean`
-- Default: `false`
-- Meaning: when `true`, mapping checks skip `__init__.py` modules
+- Type: `string`
+- Default: `"include"`
+- Allowed values:
+  - `include`: treat `__init__.py` modules like any other source module
+  - `ignore`: skip `__init__.py` modules in mapping checks
 
 ### `max_test_file_non_blank_lines` (optional)
 
@@ -134,7 +136,7 @@ Each `[[tool.tq.targets]]` entry supports:
 
 A target may override any shared top-level optional key:
 
-- `ignore_init_modules`
+- `init_modules`
 - `max_test_file_non_blank_lines`
 - `qualifier_strategy`
 - `allowed_qualifiers`
@@ -166,7 +168,6 @@ Severity remapping may be applied at CLI/config boundaries without changing rule
 
 ```toml
 [tool.tq]
-ignore_init_modules = true
 
 [[tool.tq.targets]]
 name = "app"
@@ -182,7 +183,7 @@ test_root = "tests"
 
 ```toml
 [tool.tq]
-ignore_init_modules = true
+init_modules = "ignore"
 max_test_file_non_blank_lines = 600
 qualifier_strategy = "allowlist"
 allowed_qualifiers = ["regression", "config", "fixtures_golden"]
