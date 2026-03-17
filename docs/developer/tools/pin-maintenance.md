@@ -77,7 +77,7 @@ When that issue appears:
 2. Rotate remaining stale refs manually using the steps above.
 3. Re-run or wait for the drift workflow after merge so it can close the issue automatically.
 
-If the workflow cannot resolve an upstream SemVer release tag, treat that as a manual review task. Either update the dependency source, or document why the upstream release surface does not fit the repository's frozen-pin maintenance model.
+If the workflow cannot resolve an upstream SemVer release tag, or cannot derive a supported GitHub remote for a pre-commit repo entry, treat that as a manual review task. Either update the dependency source, or document why the upstream release surface does not fit the repository's frozen-pin maintenance model.
 
 ## Review checklist
 

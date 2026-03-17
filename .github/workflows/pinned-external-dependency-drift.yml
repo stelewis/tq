@@ -40,7 +40,17 @@ jobs:
           report_file = ARGV.fetch(0)
           issue_body_file = ARGV.fetch(1)
 
-          Ref = Struct.new(:surface, :name, :remote, :pinned, :source, :valid_pin, keyword_init: true)
+          Ref = Struct.new(
+            :surface,
+            :name,
+            :remote,
+            :pinned,
+            :source,
+            :valid_pin,
+            :lookup_supported,
+            :lookup_message,
+            keyword_init: true
+          )
           Result = Struct.new(:ref, :latest_tag, :latest_sha, :status, :message, keyword_init: true)
 
           def capture_lines(*command)
@@ -123,7 +133,9 @@ jobs:
                   remote: "https://github.com/#{repo}.git",
                   pinned: pinned,
                   source: file,
-                  valid_pin: valid_pin
+                  valid_pin: valid_pin,
+                  lookup_supported: true,
+                  lookup_message: nil
                 )
               end
             end
@@ -159,17 +171,31 @@ jobs:
               repo = repo_entry["repo"]
               next if repo.nil? || repo == "local"
 
-              remote = github_remote_from_pre_commit(repo)
-              next if remote.nil?
-
               rev = repo_entry["rev"]
+              remote = github_remote_from_pre_commit(repo)
+
+              if remote.nil?
+                next Ref.new(
+                  surface: "pre-commit hook",
+                  name: repo,
+                  remote: nil,
+                  pinned: rev,
+                  source: ".pre-commit-config.yaml",
+                  valid_pin: rev.is_a?(String) && rev.match?(/\A[a-f0-9]{40}\z/),
+                  lookup_supported: false,
+                  lookup_message: "Unsupported pre-commit repository URL for automated drift lookup; manual review required"
+                )
+              end
+
               Ref.new(
                 surface: "pre-commit hook",
                 name: repo,
                 remote: remote,
                 pinned: rev,
                 source: ".pre-commit-config.yaml",
-                valid_pin: rev.is_a?(String) && rev.match?(/\A[a-f0-9]{40}\z/)
+                valid_pin: rev.is_a?(String) && rev.match?(/\A[a-f0-9]{40}\z/),
+                lookup_supported: true,
+                lookup_message: nil
               )
             end
           end
@@ -184,6 +210,16 @@ jobs:
                 latest_sha: nil,
                 status: "invalid pin",
                 message: "Pinned ref is not a full 40-character commit SHA"
+              )
+            end
+
+            unless ref.lookup_supported
+              next Result.new(
+                ref: ref,
+                latest_tag: nil,
+                latest_sha: nil,
+                status: "lookup failed",
+                message: ref.lookup_message
               )
             end
 
@@ -263,37 +299,39 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           ISSUE_TITLE: ${{ steps.drift.outputs.title }}
           ISSUE_BODY_FILE: ${{ steps.drift.outputs.issue_body_file }}
         run: |
           set -euo pipefail
 
-          existing_issue_number="$(gh issue list --state open --search "$ISSUE_TITLE in:title" --json number,title | ruby -rjson -e 'issues = JSON.parse(STDIN.read); match = issues.find { |issue| issue.fetch("title") == ENV.fetch("ISSUE_TITLE") }; print(match ? match.fetch("number") : "")')"
+          existing_issue_number="$(gh issue list --repo "$GH_REPO" --state open --limit 100 --search "$ISSUE_TITLE in:title" --json number,title | ruby -rjson -e 'issues = JSON.parse(STDIN.read); match = issues.find { |issue| issue.fetch("title") == ENV.fetch("ISSUE_TITLE") }; print(match ? match.fetch("number") : "")')"
 
           if [[ -n "$existing_issue_number" ]]; then
-            gh issue comment "$existing_issue_number" --body-file "$ISSUE_BODY_FILE"
+            gh issue edit "$existing_issue_number" --repo "$GH_REPO" --body-file "$ISSUE_BODY_FILE"
             exit 0
           fi
 
-          gh issue create --title "$ISSUE_TITLE" --body-file "$ISSUE_BODY_FILE"
+          gh issue create --repo "$GH_REPO" --title "$ISSUE_TITLE" --body-file "$ISSUE_BODY_FILE"
 
       - name: Close resolved pin drift issue
         if: ${{ steps.drift.outputs.drift_detected != 'true' && github.event_name == 'schedule' }}
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           ISSUE_TITLE: ${{ steps.drift.outputs.title }}
         run: |
           set -euo pipefail
 
-          existing_issue_number="$(gh issue list --state open --search "$ISSUE_TITLE in:title" --json number,title | ruby -rjson -e 'issues = JSON.parse(STDIN.read); match = issues.find { |issue| issue.fetch("title") == ENV.fetch("ISSUE_TITLE") }; print(match ? match.fetch("number") : "")')"
+          existing_issue_number="$(gh issue list --repo "$GH_REPO" --state open --limit 100 --search "$ISSUE_TITLE in:title" --json number,title | ruby -rjson -e 'issues = JSON.parse(STDIN.read); match = issues.find { |issue| issue.fetch("title") == ENV.fetch("ISSUE_TITLE") }; print(match ? match.fetch("number") : "")')"
 
           if [[ -z "$existing_issue_number" ]]; then
             exit 0
           fi
 
-          gh issue comment "$existing_issue_number" --body "Frozen action and pre-commit pins are current again. Closing this tracking issue."
-          gh issue close "$existing_issue_number"
+          gh issue comment "$existing_issue_number" --repo "$GH_REPO" --body "Frozen action and pre-commit pins are current again. Closing this tracking issue."
+          gh issue close "$existing_issue_number" --repo "$GH_REPO"
 
       - name: Fail on drift
         if: ${{ steps.drift.outputs.drift_detected == 'true' }}
