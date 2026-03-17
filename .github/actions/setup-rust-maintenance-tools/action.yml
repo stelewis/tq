@@ -21,7 +21,7 @@ inputs:
   cargo-audit-rev:
     description: RustSec repository revision to install cargo-audit from
     required: false
-    default: "2513b9f2"
+    default: "c9f8506963a0050a7b53ce4d3781baa9485c7a89"  # pragma: allowlist secret
   install-cargo-deny:
     description: Install cargo-deny from the pinned stable release
     required: false
@@ -47,6 +47,11 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
+
+        if [[ "${{ inputs.install-stable-toolchain }}" == "true" ]]; then
+          cargo +stable install --force --locked "cargo-outdated@${{ inputs.cargo-outdated-version }}"
+          exit 0
+        fi
 
         cargo install --force --locked "cargo-outdated@${{ inputs.cargo-outdated-version }}"
 

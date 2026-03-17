@@ -20,11 +20,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - name: Setup Rust toolchain
-        uses: ./.github/actions/setup-rust
-
       - name: Setup Rust maintenance tools
         uses: ./.github/actions/setup-rust-maintenance-tools
+        with:
+          install-stable-toolchain: "true"
 
       - name: Check stale direct dependencies
         shell: bash
@@ -33,7 +32,7 @@ jobs:
 
           report_file="$(mktemp)"
           status=0
-          cargo outdated --workspace --root-deps-only --exit-code 1 | tee "$report_file" || status=$?
+          cargo +stable outdated --workspace --root-deps-only --exit-code 1 | tee "$report_file" || status=$?
 
           {
             echo "## Stale direct dependency report"

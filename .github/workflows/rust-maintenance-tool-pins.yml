@@ -1,0 +1,191 @@
+name: Rust maintenance tool pins
+
+on:
+  schedule:
+    - cron: "45 5 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  maintenance-tool-pins:
+    name: Review pinned Rust maintenance tools
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Read pinned maintenance tool versions
+        id: pinned
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ruby <<'RUBY' >> "$GITHUB_OUTPUT"
+          require "yaml"
+
+          inputs = YAML.load_file(".github/actions/setup-rust-maintenance-tools/action.yml").fetch("inputs")
+
+          puts "cargo_outdated_version=#{inputs.fetch("cargo-outdated-version").fetch("default")}"
+          puts "cargo_audit_rev=#{inputs.fetch("cargo-audit-rev").fetch("default")}"
+          puts "cargo_deny_version=#{inputs.fetch("cargo-deny-version").fetch("default")}"
+          RUBY
+
+      - name: Check upstream drift for pinned maintenance tools
+        id: drift
+        shell: bash
+        env:
+          PINNED_CARGO_OUTDATED: ${{ steps.pinned.outputs.cargo_outdated_version }}
+          PINNED_CARGO_AUDIT_REV: ${{ steps.pinned.outputs.cargo_audit_rev }}
+          PINNED_CARGO_DENY: ${{ steps.pinned.outputs.cargo_deny_version }}
+        run: |
+          set -euo pipefail
+
+          report_file="$(mktemp)"
+          issue_body_file="$(mktemp)"
+          drift_detected="false"
+
+          crates_io_latest_version() {
+            local crate_name="$1"
+            curl -fsSL "https://crates.io/api/v1/crates/${crate_name}" \
+              | ruby -rjson -e 'payload = JSON.parse(STDIN.read); print payload.fetch("crate").fetch("newest_version")'
+          }
+
+          latest_cargo_audit_tag_and_sha() {
+            local remote_tags
+            local latest_tag
+            local latest_sha
+
+            remote_tags="$(git ls-remote --refs --tags https://github.com/RustSec/rustsec.git 'refs/tags/cargo-audit/v*')"
+            if [[ -z "$remote_tags" ]]; then
+              echo "Unable to enumerate cargo-audit tags from RustSec/rustsec" >&2
+              return 1
+            fi
+
+            latest_tag="$({ printf '%s\n' "$remote_tags" | awk '{print $2}' | sed 's#refs/tags/##'; } | grep -E '^cargo-audit/v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)"
+            latest_sha="$(printf '%s\n' "$remote_tags" | awk -v expected_ref="refs/tags/${latest_tag}" '$2 == expected_ref { print $1 }')"
+
+            if [[ -z "$latest_tag" || -z "$latest_sha" ]]; then
+              echo "Unable to resolve latest cargo-audit tag and commit" >&2
+              return 1
+            fi
+
+            printf '%s\n%s\n' "$latest_tag" "$latest_sha"
+          }
+
+          latest_cargo_outdated="$(crates_io_latest_version cargo-outdated)"
+          latest_cargo_deny="$(crates_io_latest_version cargo-deny)"
+
+          mapfile -t cargo_audit_release < <(latest_cargo_audit_tag_and_sha)
+          latest_cargo_audit_tag="${cargo_audit_release[0]}"
+          latest_cargo_audit_sha="${cargo_audit_release[1]}"
+
+          if [[ "$PINNED_CARGO_OUTDATED" != "$latest_cargo_outdated" ]]; then
+            drift_detected="true"
+          fi
+
+          if [[ "$PINNED_CARGO_DENY" != "$latest_cargo_deny" ]]; then
+            drift_detected="true"
+          fi
+
+          if [[ "$latest_cargo_audit_sha" != "$PINNED_CARGO_AUDIT_REV"* ]]; then
+            drift_detected="true"
+          fi
+
+          {
+            echo "## Rust maintenance tool pin review"
+            echo
+            echo "| Tool | Pinned | Latest | Status |"
+            echo "| --- | --- | --- | --- |"
+
+            cargo_outdated_status="up to date"
+            if [[ "$PINNED_CARGO_OUTDATED" != "$latest_cargo_outdated" ]]; then
+              cargo_outdated_status="update required"
+            fi
+            echo "| cargo-outdated | ${PINNED_CARGO_OUTDATED} | ${latest_cargo_outdated} | ${cargo_outdated_status} |"
+
+            cargo_audit_status="up to date"
+            if [[ "$latest_cargo_audit_sha" != "$PINNED_CARGO_AUDIT_REV"* ]]; then
+              cargo_audit_status="update required"
+            fi
+            echo "| cargo-audit | ${PINNED_CARGO_AUDIT_REV} | ${latest_cargo_audit_tag} (${latest_cargo_audit_sha}) | ${cargo_audit_status} |"
+
+            cargo_deny_status="up to date"
+            if [[ "$PINNED_CARGO_DENY" != "$latest_cargo_deny" ]]; then
+              cargo_deny_status="update required"
+            fi
+            echo "| cargo-deny | ${PINNED_CARGO_DENY} | ${latest_cargo_deny} | ${cargo_deny_status} |"
+            echo
+
+            if [[ "$drift_detected" == "true" ]]; then
+              echo "The centralized pins in .github/actions/setup-rust-maintenance-tools/action.yml need review."
+            else
+              echo "All centralized maintenance tool pins are current."
+            fi
+          } | tee "$report_file"
+
+          {
+            echo "title=chore: review Rust maintenance tool pins"
+            echo "drift_detected=${drift_detected}"
+            echo "report_file=${report_file}"
+            echo "issue_body_file=${issue_body_file}"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            cat "$report_file"
+            echo
+            echo "Detected by workflow run: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          } > "$issue_body_file"
+
+          cat "$report_file" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open or refresh maintenance issue
+        if: ${{ steps.drift.outputs.drift_detected == 'true' && github.event_name == 'schedule' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_TITLE: ${{ steps.drift.outputs.title }}
+          ISSUE_BODY_FILE: ${{ steps.drift.outputs.issue_body_file }}
+        run: |
+          set -euo pipefail
+
+          existing_issue_number="$(gh issue list --state open --search "$ISSUE_TITLE in:title" --json number,title | ruby -rjson -e 'issues = JSON.parse(STDIN.read); match = issues.find { |issue| issue.fetch("title") == ENV.fetch("ISSUE_TITLE") }; print(match ? match.fetch("number") : "")')"
+
+          if [[ -n "$existing_issue_number" ]]; then
+            gh issue comment "$existing_issue_number" --body-file "$ISSUE_BODY_FILE"
+            exit 0
+          fi
+
+          gh issue create --title "$ISSUE_TITLE" --body-file "$ISSUE_BODY_FILE"
+
+      - name: Close resolved maintenance issue
+        if: ${{ steps.drift.outputs.drift_detected != 'true' && github.event_name == 'schedule' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_TITLE: ${{ steps.drift.outputs.title }}
+        run: |
+          set -euo pipefail
+
+          existing_issue_number="$(gh issue list --state open --search "$ISSUE_TITLE in:title" --json number,title | ruby -rjson -e 'issues = JSON.parse(STDIN.read); match = issues.find { |issue| issue.fetch("title") == ENV.fetch("ISSUE_TITLE") }; print(match ? match.fetch("number") : "")')"
+
+          if [[ -z "$existing_issue_number" ]]; then
+            exit 0
+          fi
+
+          gh issue comment "$existing_issue_number" --body "Pinned Rust maintenance tools are current again. Closing this tracking issue."
+          gh issue close "$existing_issue_number"
+
+      - name: Fail on drift
+        if: ${{ steps.drift.outputs.drift_detected == 'true' }}
+        shell: bash
+        run: |
+          echo "Rust maintenance tool pins are stale. Review the workflow summary for details."
+          exit 1

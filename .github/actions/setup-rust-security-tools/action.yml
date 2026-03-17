@@ -1,16 +1,6 @@
 name: Setup Rust security tools
 description: Install the stable Rust toolchain and the cargo security scanners used in CI
 
-inputs:
-  cargo-audit-rev:
-    description: RustSec repository revision to install cargo-audit from
-    required: false
-    default: "2513b9f2"
-  cargo-deny-version:
-    description: cargo-deny release to install with the stable toolchain
-    required: false
-    default: "0.19.0"
-
 runs:
   using: composite
   steps:
@@ -20,6 +10,4 @@ runs:
         install-stable-toolchain: "true"
         install-cargo-outdated: "false"
         install-cargo-audit: "true"
-        cargo-audit-rev: ${{ inputs.cargo-audit-rev }}
         install-cargo-deny: "true"
-        cargo-deny-version: ${{ inputs.cargo-deny-version }}
