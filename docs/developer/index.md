@@ -22,6 +22,7 @@ This section contains documentation for contributors and maintainers.
 - [Developer tools overview](./tools/index.md)
 - [Local workflows](./tools/local-workflows.md)
 - [CI and automation](./tools/ci.md)
+- [Pin maintenance](./tools/pin-maintenance.md)
 - [Docs and release tooling](./tools/docs-and-release.md)
 
 ## User contract references

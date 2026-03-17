@@ -2,13 +2,13 @@ name: Pinned Actions Policy
 
 on:
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
     paths:
       - ".github/workflows/**"
       - ".github/actions/**"
       - ".github/dependabot.yml"
   push:
-    branches: [ "main" ]
+    branches: ["main"]
     paths:
       - ".github/workflows/**"
       - ".github/actions/**"
@@ -32,7 +32,7 @@ jobs:
           set -euo pipefail
 
           fail=0
-          mapfile -t files < <(git ls-files '.github/workflows/*.yml' '.github/actions/**/action.yml')
+          mapfile -t files < <(git ls-files '.github/workflows/*.yml' '.github/workflows/*.yaml' '.github/actions/**/action.yml' '.github/actions/**/action.yaml')
 
           for file in "${files[@]}"; do
             while IFS=: read -r line_no line; do

@@ -1,0 +1,303 @@
+name: Pinned External Dependency Drift
+
+on:
+  schedule:
+    - cron: "15 5 * * 3"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pinned-external-drift:
+    name: Review pinned action and pre-commit refs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Check upstream drift for pinned action and pre-commit refs
+        id: drift
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          report_file="$(mktemp)"
+          issue_body_file="$(mktemp)"
+
+          ruby <<'RUBY' "$report_file" "$issue_body_file" >> "$GITHUB_OUTPUT"
+          require "open3"
+          require "rubygems"
+          require "uri"
+          require "yaml"
+
+          report_file = ARGV.fetch(0)
+          issue_body_file = ARGV.fetch(1)
+
+          Ref = Struct.new(:surface, :name, :remote, :pinned, :source, :valid_pin, keyword_init: true)
+          Result = Struct.new(:ref, :latest_tag, :latest_sha, :status, :message, keyword_init: true)
+
+          def capture_lines(*command)
+            stdout, status = Open3.capture2(*command)
+            raise "command failed: #{command.join(" ")}" unless status.success?
+
+            stdout.lines(chomp: true)
+          end
+
+          def release_sort_key(tag)
+            Gem::Version.new(tag.delete_prefix("v"))
+          rescue ArgumentError
+            Gem::Version.new("0")
+          end
+
+          def semver_tag?(tag)
+            tag.match?(/\Av?\d+\.\d+\.\d+\z/)
+          end
+
+          def latest_release(remote, cache)
+            return cache.fetch(remote) if cache.key?(remote)
+
+            tags = {}
+
+            capture_lines("git", "ls-remote", "--tags", remote).each do |line|
+              sha, ref = line.split(/\s+/, 2)
+              next if sha.nil? || ref.nil?
+              next unless ref.start_with?("refs/tags/")
+
+              tag = ref.delete_prefix("refs/tags/").sub(/\^\{\}\z/, "")
+              next unless semver_tag?(tag)
+
+              tags[tag] ||= {}
+              if ref.end_with?("^{}")
+                tags[tag][:peeled_sha] = sha
+              else
+                tags[tag][:sha] = sha
+              end
+            end
+
+            releases = tags.filter_map do |tag, entry|
+              sha = entry[:peeled_sha] || entry[:sha]
+              next if sha.nil?
+
+              [tag, sha]
+            end
+
+            cache[remote] = releases.max_by { |tag, _sha| release_sort_key(tag) }
+          rescue StandardError => error
+            cache[remote] = [:error, error.message]
+          end
+
+          def action_refs
+            refs = []
+            files = capture_lines(
+              "git",
+              "ls-files",
+              ".github/workflows/*.yml",
+              ".github/workflows/*.yaml",
+              ".github/actions/**/action.yml",
+              ".github/actions/**/action.yaml"
+            )
+
+            files.each do |file|
+              File.foreach(file) do |line|
+                next unless line =~ /^\s*-?\s*uses:\s*/
+
+                ref = line.sub(/^\s*-?\s*uses:\s*/, "").strip
+                ref = ref.sub(/\s+#.*\z/, "")
+                ref = ref.gsub(/\A['"]|['"]\z/, "")
+
+                next if ref.start_with?("./", "docker://")
+
+                repo, pinned = ref.split("@", 2)
+                valid_pin = pinned.is_a?(String) && pinned.match?(/\A[a-f0-9]{40}\z/)
+
+                refs << Ref.new(
+                  surface: "GitHub Action",
+                  name: repo,
+                  remote: "https://github.com/#{repo}.git",
+                  pinned: pinned,
+                  source: file,
+                  valid_pin: valid_pin
+                )
+              end
+            end
+
+            refs
+          end
+
+          def github_remote_from_pre_commit(repo)
+            return nil if repo.nil? || repo == "local"
+
+            case repo
+            when %r{\Ahttps://github\.com/[^/]+/[^/]+(?:\.git)?/?\z}
+              path = URI(repo).path.delete_prefix("/").sub(/\.git\z/, "")
+              "https://github.com/#{path}.git"
+            when %r{\Agit@github\.com:[^/]+/[^/]+(?:\.git)?\z}
+              path = repo.delete_prefix("git@github.com:").sub(/\.git\z/, "")
+              "https://github.com/#{path}.git"
+            else
+              nil
+            end
+          rescue URI::InvalidURIError
+            nil
+          end
+
+          def pre_commit_refs
+            config = YAML.safe_load(
+              File.read(".pre-commit-config.yaml"),
+              permitted_classes: [],
+              aliases: false
+            ) || {}
+
+            config.fetch("repos", []).filter_map do |repo_entry|
+              repo = repo_entry["repo"]
+              next if repo.nil? || repo == "local"
+
+              remote = github_remote_from_pre_commit(repo)
+              next if remote.nil?
+
+              rev = repo_entry["rev"]
+              Ref.new(
+                surface: "pre-commit hook",
+                name: repo,
+                remote: remote,
+                pinned: rev,
+                source: ".pre-commit-config.yaml",
+                valid_pin: rev.is_a?(String) && rev.match?(/\A[a-f0-9]{40}\z/)
+              )
+            end
+          end
+
+          cache = {}
+          refs = action_refs + pre_commit_refs
+          results = refs.map do |ref|
+            unless ref.valid_pin
+              next Result.new(
+                ref: ref,
+                latest_tag: nil,
+                latest_sha: nil,
+                status: "invalid pin",
+                message: "Pinned ref is not a full 40-character commit SHA"
+              )
+            end
+
+            latest = latest_release(ref.remote, cache)
+            if latest.nil?
+              next Result.new(
+                ref: ref,
+                latest_tag: nil,
+                latest_sha: nil,
+                status: "lookup failed",
+                message: "No SemVer release tags were found for #{ref.remote}"
+              )
+            end
+
+            if latest.first == :error
+              next Result.new(
+                ref: ref,
+                latest_tag: nil,
+                latest_sha: nil,
+                status: "lookup failed",
+                message: latest.last
+              )
+            end
+
+            latest_tag, latest_sha = latest
+            status = latest_sha == ref.pinned ? "up to date" : "update required"
+            Result.new(
+              ref: ref,
+              latest_tag: latest_tag,
+              latest_sha: latest_sha,
+              status: status,
+              message: nil
+            )
+          end
+
+          drift_detected = results.any? { |result| result.status != "up to date" }
+
+          report_lines = []
+          report_lines << "## Frozen external pin review"
+          report_lines << ""
+          report_lines << "| Surface | Source | Dependency | Pinned | Latest | Status |"
+          report_lines << "| --- | --- | --- | --- | --- | --- |"
+          results.each do |result|
+            latest = if result.latest_tag && result.latest_sha
+              "#{result.latest_tag} (#{result.latest_sha})"
+            elsif result.message
+              result.message
+            else
+              "unavailable"
+            end
+
+            report_lines << "| #{result.ref.surface} | #{result.ref.source} | #{result.ref.name} | #{result.ref.pinned.inspect} | #{latest} | #{result.status} |"
+          end
+          report_lines << ""
+          report_lines << if drift_detected
+            "One or more frozen external pins need review."
+          else
+            "All frozen external pins are current."
+          end
+
+          File.write(report_file, report_lines.join("\n") + "\n")
+          File.write(
+            issue_body_file,
+            report_lines.join("\n") + "\n\nDetected by workflow run: https://github.com/#{ENV.fetch("GITHUB_REPOSITORY")}/actions/runs/#{ENV.fetch("GITHUB_RUN_ID")}\n"
+          )
+
+          puts "title=chore: review frozen external pins"
+          puts "drift_detected=#{drift_detected}"
+          puts "report_file=#{report_file}"
+          puts "issue_body_file=#{issue_body_file}"
+          RUBY
+
+          cat "$report_file" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open or refresh pin drift issue
+        if: ${{ steps.drift.outputs.drift_detected == 'true' && github.event_name == 'schedule' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_TITLE: ${{ steps.drift.outputs.title }}
+          ISSUE_BODY_FILE: ${{ steps.drift.outputs.issue_body_file }}
+        run: |
+          set -euo pipefail
+
+          existing_issue_number="$(gh issue list --state open --search "$ISSUE_TITLE in:title" --json number,title | ruby -rjson -e 'issues = JSON.parse(STDIN.read); match = issues.find { |issue| issue.fetch("title") == ENV.fetch("ISSUE_TITLE") }; print(match ? match.fetch("number") : "")')"
+
+          if [[ -n "$existing_issue_number" ]]; then
+            gh issue comment "$existing_issue_number" --body-file "$ISSUE_BODY_FILE"
+            exit 0
+          fi
+
+          gh issue create --title "$ISSUE_TITLE" --body-file "$ISSUE_BODY_FILE"
+
+      - name: Close resolved pin drift issue
+        if: ${{ steps.drift.outputs.drift_detected != 'true' && github.event_name == 'schedule' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_TITLE: ${{ steps.drift.outputs.title }}
+        run: |
+          set -euo pipefail
+
+          existing_issue_number="$(gh issue list --state open --search "$ISSUE_TITLE in:title" --json number,title | ruby -rjson -e 'issues = JSON.parse(STDIN.read); match = issues.find { |issue| issue.fetch("title") == ENV.fetch("ISSUE_TITLE") }; print(match ? match.fetch("number") : "")')"
+
+          if [[ -z "$existing_issue_number" ]]; then
+            exit 0
+          fi
+
+          gh issue comment "$existing_issue_number" --body "Frozen action and pre-commit pins are current again. Closing this tracking issue."
+          gh issue close "$existing_issue_number"
+
+      - name: Fail on drift
+        if: ${{ steps.drift.outputs.drift_detected == 'true' }}
+        shell: bash
+        run: |
+          echo "Frozen action or pre-commit pins are stale. Review the workflow summary for details."
+          exit 1

@@ -17,10 +17,18 @@ The main CI workflow enforces:
 - build validation via `cargo build`, `cargo package --workspace --locked`, `uv build`, artifact policy verification, and built wheel/sdist entrypoint smoke checks
 - security checks via `cargo audit`, `cargo deny`, `gitleaks`, and `detect-secrets`
 
+Separate policy workflows enforce frozen automation refs:
+
+- external GitHub Action refs must be pinned to full commit SHAs
+- external pre-commit hook revs must be pinned to full commit SHAs
+
 Separate scheduled workflows handle dependency drift outside the main PR and push pipeline:
 
 - direct workspace dependency drift via `cargo outdated --workspace --root-deps-only`
 - centralized Rust maintenance tool pin drift in `.github/actions/setup-rust-maintenance-tools/action.yml` for `cargo-outdated`, `cargo-audit`, and `cargo-deny`
+- frozen GitHub Action and pre-commit pin drift via `.github/workflows/pinned-external-dependency-drift.yml`
+
+For manual rotation and drift response steps, see [Pin maintenance](./pin-maintenance.md).
 
 ## Security toolchain policy
 

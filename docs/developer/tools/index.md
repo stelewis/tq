@@ -17,6 +17,7 @@ The product MSRV is Rust 1.94.0. Local and CI commands should use the pinned wor
 - [Local workflows](./local-workflows.md)
 - [Docs and release tooling](./docs-and-release.md)
 - [CI and automation](./ci.md)
+- [Pin maintenance](./pin-maintenance.md)
 
 ## Core commands
 

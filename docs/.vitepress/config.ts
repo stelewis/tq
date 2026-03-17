@@ -62,6 +62,10 @@ const developerSidebar = [
       { text: "Overview", link: "/developer/tools/" },
       { text: "Local Workflows", link: "/developer/tools/local-workflows" },
       { text: "CI and Automation", link: "/developer/tools/ci" },
+      {
+        text: "Pin Maintenance",
+        link: "/developer/tools/pin-maintenance"
+      },
       { text: "Docs and Release", link: "/developer/tools/docs-and-release" }
     ]
   },

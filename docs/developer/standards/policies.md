@@ -21,6 +21,24 @@ Why this matters:
 - supports reproducible and auditable CI behavior,
 - reduces supply-chain risk.
 
+## Pre-commit hook policy
+
+### External pre-commit hooks must be SHA pinned
+
+Policy file: [frozen pre-commit policy](https://github.com/stelewis/tq/blob/main/.github/workflows/frozen-pre-commit-policy.yml)
+
+All external pre-commit hooks in `.pre-commit-config.yaml` must pin `rev:` to a full 40-character commit SHA.
+
+Allowed exceptions:
+
+- local hooks (`repo: local`)
+
+Why this matters:
+
+- protects local quality and secret-scanning automation from mutable tag drift,
+- keeps hook execution reproducible across contributor machines and CI,
+- aligns pre-commit hooks with the same supply-chain bar as GitHub Actions.
+
 ## Dependabot coverage policy
 
 GitHub Actions dependency updates must cover both workflow files and local composite actions.
@@ -39,6 +57,22 @@ Why this matters:
 
 - prevents local actions from drifting outside automated dependency updates,
 - keeps workflow and composite-action maintenance in one explicit policy surface,
+
+## Frozen pin drift visibility
+
+Policy file: [pinned external dependency drift](https://github.com/stelewis/tq/blob/main/.github/workflows/pinned-external-dependency-drift.yml)
+
+Pinned GitHub Action refs and frozen pre-commit hook revs must be reviewed for upstream drift on a schedule, even when they are already commit-pinned.
+
+Enforcement:
+
+- the scheduled workflow writes a summary, opens or refreshes a tracking issue when drift is detected, and fails so stale pins stay visible.
+
+Why this matters:
+
+- commit pinning prevents mutable ref drift but does not keep versions current,
+- scheduled review catches stale frozen refs that live outside lockfiles,
+- a single tracking issue keeps maintenance visible without scattering ad hoc reminders.
 
 ## Release provenance policy
 

@@ -33,6 +33,7 @@ Repository automation must also preserve the security posture:
 - external GitHub Actions are SHA pinned,
 - pre-commit hooks are high-quality and SHA pinned,
 - Dependabot must cover the full GitHub Actions surface,
+- frozen automation refs must remain reviewable and regularly rotated,
 - Rust dependency changes must remain compatible with `cargo audit` and `cargo deny`,
 - lockfiles are part of code review,
 - release artifacts must pass provenance and content policy checks.
