@@ -25,12 +25,14 @@ fn generate_rules_docs_writes_index_pages_and_sidebar() {
     .expect("read sidebar");
 
     assert!(index_content.contains("# Rules"));
-    assert!(index_content.contains("[`orphaned-test`](./orphaned-test.md)"));
+    assert!(index_content.contains("[`Orphaned Test`](./orphaned-test.md)"));
+    assert!(index_content.contains("`orphaned-test`; default severity: `warning`"));
     assert!(index_content.contains("[governance policy](../../developer/governance.md)"));
-    assert!(page_content.contains("# orphaned-test"));
+    assert!(page_content.contains("# Orphaned Test"));
+    assert!(page_content.contains("Rule ID: `orphaned-test`"));
     assert!(page_content.contains("## Trigger conditions"));
     assert!(sidebar_content.contains("export const rulesSidebarItems = ["));
-    assert!(sidebar_content.contains("text: \"orphaned-test\""));
+    assert!(sidebar_content.contains("text: \"Orphaned Test\""));
 }
 
 #[test]

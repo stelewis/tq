@@ -1,4 +1,5 @@
 {
+  "version": 1,
   "examples": {
     "quickstart_minimal": "[tool.tq]\n\n[[tool.tq.targets]]\nname = \"app\"\npackage = \"your_package\"\nsource_root = \"src\"\ntest_root = \"tests\"",
     "configuration_minimal": "[tool.tq]\n\n[[tool.tq.targets]]\nname = \"app\"\npackage = \"your_package\"\nsource_root = \"src\"\ntest_root = \"tests\"",

@@ -1,4 +1,6 @@
-# test-file-too-large
+# Test File Too Large
+
+Rule ID: `test-file-too-large`
 
 ## What it does
 

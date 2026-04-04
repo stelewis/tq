@@ -188,8 +188,8 @@ fn render_index(entries: &[RuleManifestEntry], severity_vocabulary: &[String]) -
 
     lines.extend(entries.iter().map(|entry| {
         format!(
-            "- [`{}`](./{}.md) (default severity: `{}`)",
-            entry.id, entry.id, entry.default_severity
+            "- [`{}`](./{}.md) (`{}`; default severity: `{}`)",
+            entry.title, entry.id, entry.id, entry.default_severity
         )
     }));
 
@@ -220,7 +220,9 @@ fn render_index(entries: &[RuleManifestEntry], severity_vocabulary: &[String]) -
 
 fn render_rule_page(entry: &RuleManifestEntry) -> String {
     let mut lines = vec![
-        format!("# {}", entry.id),
+        format!("# {}", entry.title),
+        String::new(),
+        format!("Rule ID: `{}`", entry.id),
         String::new(),
         "## What it does".to_owned(),
         String::new(),
@@ -286,7 +288,7 @@ fn render_rules_sidebar_items(entries: &[RuleManifestEntry]) -> String {
     for entry in entries {
         lines.extend([
             "  {".to_owned(),
-            format!("    text: \"{}\",", entry.id),
+            format!("    text: \"{}\",", entry.title),
             format!("    link: \"/reference/rules/{}\"", entry.id),
             "  },".to_owned(),
         ]);

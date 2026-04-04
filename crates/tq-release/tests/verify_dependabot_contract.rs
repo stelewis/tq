@@ -213,6 +213,72 @@ fn verify_dependabot_rejects_update_without_package_ecosystem() {
 }
 
 #[test]
+fn verify_dependabot_rejects_update_with_both_directory_fields() {
+    let temp = tempfile::tempdir().expect("tempdir");
+
+    write(
+        &temp.path().join(".github/dependabot.yml"),
+        concat!(
+            "version: 2\n",
+            "updates:\n",
+            "  - package-ecosystem: \"github-actions\"\n",
+            "    directory: \"/\"\n",
+            "    directories:\n",
+            "      - \"/.github/actions/*\"\n",
+        ),
+    );
+
+    let error =
+        tq_release::verify_dependabot(temp.path()).expect_err("both directory shapes should fail");
+    let message = error.to_string();
+    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("exactly one of directory or directories"));
+}
+
+#[test]
+fn verify_dependabot_rejects_update_without_directory_fields() {
+    let temp = tempfile::tempdir().expect("tempdir");
+
+    write(
+        &temp.path().join(".github/dependabot.yml"),
+        concat!(
+            "version: 2\n",
+            "updates:\n",
+            "  - package-ecosystem: \"github-actions\"\n",
+            "    schedule:\n",
+            "      interval: \"weekly\"\n",
+        ),
+    );
+
+    let error = tq_release::verify_dependabot(temp.path())
+        .expect_err("missing directory shapes should fail");
+    let message = error.to_string();
+    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("exactly one of directory or directories"));
+}
+
+#[test]
+fn verify_dependabot_rejects_empty_directories_list() {
+    let temp = tempfile::tempdir().expect("tempdir");
+
+    write(
+        &temp.path().join(".github/dependabot.yml"),
+        concat!(
+            "version: 2\n",
+            "updates:\n",
+            "  - package-ecosystem: \"github-actions\"\n",
+            "    directories:\n",
+        ),
+    );
+
+    let error =
+        tq_release::verify_dependabot(temp.path()).expect_err("empty directories list should fail");
+    let message = error.to_string();
+    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("directories must contain at least one entry"));
+}
+
+#[test]
 fn verify_dependabot_accepts_single_quoted_scalars() {
     let temp = tempfile::tempdir().expect("tempdir");
 

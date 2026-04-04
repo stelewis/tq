@@ -20,7 +20,7 @@ fn generate_config_examples_updates_marked_sections() {
     );
     write(
         &manifest_path,
-        "{\n  \"examples\": {\n    \"quickstart_minimal\": \"[tool.tq]\\n\\n[[tool.tq.targets]]\\nname = \\\"app\\\"\\npackage = \\\"your_package\\\"\\nsource_root = \\\"src\\\"\\ntest_root = \\\"tests\\\"\",\n    \"configuration_minimal\": \"[tool.tq]\\n\\n[[tool.tq.targets]]\\nname = \\\"app\\\"\\npackage = \\\"your_package\\\"\\nsource_root = \\\"src\\\"\\ntest_root = \\\"tests\\\"\",\n    \"configuration_typical\": \"[tool.tq]\\ninit_modules = \\\"ignore\\\"\\n[[tool.tq.targets]]\\nname = \\\"app\\\"\\npackage = \\\"your_package\\\"\\nsource_root = \\\"src\\\"\\ntest_root = \\\"tests\\\"\"\n  }\n}\n",
+        "{\n  \"version\": 1,\n  \"examples\": {\n    \"quickstart_minimal\": \"[tool.tq]\\n\\n[[tool.tq.targets]]\\nname = \\\"app\\\"\\npackage = \\\"your_package\\\"\\nsource_root = \\\"src\\\"\\ntest_root = \\\"tests\\\"\",\n    \"configuration_minimal\": \"[tool.tq]\\n\\n[[tool.tq.targets]]\\nname = \\\"app\\\"\\npackage = \\\"your_package\\\"\\nsource_root = \\\"src\\\"\\ntest_root = \\\"tests\\\"\",\n    \"configuration_typical\": \"[tool.tq]\\ninit_modules = \\\"ignore\\\"\\n[[tool.tq.targets]]\\nname = \\\"app\\\"\\npackage = \\\"your_package\\\"\\nsource_root = \\\"src\\\"\\ntest_root = \\\"tests\\\"\"\n  }\n}\n",
     );
 
     tq_docsgen::generate_config_examples(temp.path()).expect("generate config examples");
@@ -74,12 +74,43 @@ fn generate_config_examples_fails_when_markers_are_missing() {
     );
     write(
         &manifest_path,
-        "{\n  \"examples\": {\n    \"quickstart_minimal\": \"x\",\n    \"configuration_minimal\": \"x\",\n    \"configuration_typical\": \"x\"\n  }\n}\n",
+        "{\n  \"version\": 1,\n  \"examples\": {\n    \"quickstart_minimal\": \"x\",\n    \"configuration_minimal\": \"x\",\n    \"configuration_typical\": \"x\"\n  }\n}\n",
     );
 
     let error =
         tq_docsgen::generate_config_examples(temp.path()).expect_err("missing markers should fail");
     assert!(error.to_string().contains("missing or invalid markers"));
+}
+
+#[test]
+fn generate_config_examples_rejects_unsupported_manifest_version() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let quickstart_path = temp.path().join("docs/guide/quickstart.md");
+    let configuration_path = temp.path().join("docs/reference/configuration.md");
+    let manifest_path = temp
+        .path()
+        .join("docs/reference/config/examples-manifest.json");
+
+    write(
+        &quickstart_path,
+        "# QuickStart\n\n<!-- BEGIN GENERATED:quickstart-minimal-config -->\nplaceholder\n<!-- END GENERATED:quickstart-minimal-config -->\n",
+    );
+    write(
+        &configuration_path,
+        "# Configuration\n\n<!-- BEGIN GENERATED:configuration-minimal-config -->\nplaceholder\n<!-- END GENERATED:configuration-minimal-config -->\n\n<!-- BEGIN GENERATED:configuration-typical-config -->\nplaceholder\n<!-- END GENERATED:configuration-typical-config -->\n",
+    );
+    write(
+        &manifest_path,
+        "{\n  \"version\": 2,\n  \"examples\": {\n    \"quickstart_minimal\": \"x\",\n    \"configuration_minimal\": \"x\",\n    \"configuration_typical\": \"x\"\n  }\n}\n",
+    );
+
+    let error = tq_docsgen::generate_config_examples(temp.path())
+        .expect_err("unsupported version should fail");
+    assert!(
+        error
+            .to_string()
+            .contains("unsupported manifest version: 2")
+    );
 }
 
 fn write(path: &Path, contents: &str) {

@@ -1,4 +1,6 @@
-# structure-mismatch
+# Structure Mismatch
+
+Rule ID: `structure-mismatch`
 
 ## What it does
 

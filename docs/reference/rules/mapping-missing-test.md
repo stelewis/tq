@@ -1,4 +1,6 @@
-# mapping-missing-test
+# Mapping Missing Test
+
+Rule ID: `mapping-missing-test`
 
 ## What it does
 

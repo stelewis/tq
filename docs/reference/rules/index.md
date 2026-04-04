@@ -4,10 +4,10 @@ User-facing rules and default severities.
 
 ## Stable rule IDs
 
-- [`mapping-missing-test`](./mapping-missing-test.md) (default severity: `error`)
-- [`structure-mismatch`](./structure-mismatch.md) (default severity: `warning`)
-- [`test-file-too-large`](./test-file-too-large.md) (default severity: `warning`)
-- [`orphaned-test`](./orphaned-test.md) (default severity: `warning`)
+- [`Mapping Missing Test`](./mapping-missing-test.md) (`mapping-missing-test`; default severity: `error`)
+- [`Structure Mismatch`](./structure-mismatch.md) (`structure-mismatch`; default severity: `warning`)
+- [`Test File Too Large`](./test-file-too-large.md) (`test-file-too-large`; default severity: `warning`)
+- [`Orphaned Test`](./orphaned-test.md) (`orphaned-test`; default severity: `warning`)
 
 ## Severity vocabulary
 

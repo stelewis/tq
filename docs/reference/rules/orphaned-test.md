@@ -1,4 +1,6 @@
-# orphaned-test
+# Orphaned Test
+
+Rule ID: `orphaned-test`
 
 ## What it does
 

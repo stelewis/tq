@@ -210,6 +210,7 @@ enum ActiveList {
 struct PendingUpdate {
     package_ecosystem: Option<String>,
     directory: Option<String>,
+    directories_declared: bool,
     directories: Vec<String>,
 }
 
@@ -218,6 +219,16 @@ impl PendingUpdate {
         let package_ecosystem = self
             .package_ecosystem
             .ok_or_else(|| "dependabot update is missing package-ecosystem".to_owned())?;
+
+        if self.directory.is_some() == self.directories_declared {
+            return Err(
+                "dependabot update must define exactly one of directory or directories".to_owned(),
+            );
+        }
+
+        if self.directories_declared && self.directories.is_empty() {
+            return Err("dependabot update directories must contain at least one entry".to_owned());
+        }
 
         Ok(DependabotUpdate {
             package_ecosystem,
@@ -247,6 +258,7 @@ fn apply_update_key(
                     "line {line_number}: directories must be declared as a block list"
                 ));
             }
+            update.directories_declared = true;
             *active_list = ActiveList::Directories;
             return Ok(());
         }

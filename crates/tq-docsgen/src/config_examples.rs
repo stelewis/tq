@@ -18,6 +18,7 @@ const CONFIGURATION_TYPICAL_END: &str = "<!-- END GENERATED:configuration-typica
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ConfigExamplesManifest {
+    version: u64,
     examples: ConfigExamples,
 }
 
@@ -65,6 +66,13 @@ fn load_manifest(path: &Path) -> Result<ConfigExamples, DocsgenError> {
             path: path.to_path_buf(),
             source,
         })?;
+
+    if manifest.version != 1 {
+        return Err(DocsgenError::manifest(
+            path.to_path_buf(),
+            format!("unsupported manifest version: {}", manifest.version),
+        ));
+    }
 
     validate_non_empty(
         path,
