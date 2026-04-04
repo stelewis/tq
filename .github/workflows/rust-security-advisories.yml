@@ -1,0 +1,37 @@
+name: Rust Security Advisories
+
+"on":
+  schedule:
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust-security-advisories:
+    name: Rust advisory and policy scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Setup Rust security tools
+        uses: ./.github/actions/setup-rust-security-tools
+
+      - name: Cargo audit
+        run: cargo audit
+
+      - name: Cargo deny
+        run: cargo deny check

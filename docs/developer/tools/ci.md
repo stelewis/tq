@@ -22,8 +22,9 @@ Separate policy workflows enforce frozen automation refs:
 - external GitHub Action refs must be pinned to full commit SHAs
 - external pre-commit hook revs must be pinned to full commit SHAs
 
-Separate scheduled workflows handle dependency drift outside the main PR and push pipeline:
+Separate scheduled workflows handle dependency drift and security review outside the main PR and push pipeline:
 
+- weekly Rust advisory and policy scanning via `.github/workflows/rust-security-advisories.yml`, `cargo audit`, and `cargo deny check`
 - direct workspace dependency drift via `cargo outdated --workspace --root-deps-only`
 - centralized Rust maintenance tool pin drift in `.github/actions/setup-rust-maintenance-tools/action.yml` for `cargo-outdated`, `cargo-audit`, and `cargo-deny`
 - frozen GitHub Action and pre-commit pin drift via `.github/workflows/pinned-external-dependency-drift.yml`

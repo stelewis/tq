@@ -74,6 +74,22 @@ Why this matters:
 - scheduled review catches stale frozen refs that live outside lockfiles,
 - a single tracking issue keeps maintenance visible without scattering ad hoc reminders.
 
+## Rust advisory visibility
+
+Policy file: [Rust security advisories](https://github.com/stelewis/tq/blob/main/.github/workflows/rust-security-advisories.yml)
+
+Rust advisory and dependency-policy scans must run on a weekly schedule in addition to the main push and pull-request CI pipeline.
+
+Enforcement:
+
+- the scheduled workflow runs `cargo audit` and `cargo deny check` weekly and on demand.
+
+Why this matters:
+
+- new RustSec advisories can be published without any repository changes,
+- Dependabot and stale-version checks help with version drift but do not replace repo-owned advisory scanning,
+- weekly review keeps lockfile risk visible between ordinary development activity.
+
 ## Release provenance policy
 
 Tag-triggered release runs must:
