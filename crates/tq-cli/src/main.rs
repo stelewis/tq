@@ -10,10 +10,7 @@ use tq_config::{
 };
 use tq_engine::{RuleEngine, TargetPlanInput, aggregate_results, plan_target_runs};
 use tq_reporting::{JsonReporter, TextReporter};
-use tq_rules::{
-    BuiltinRuleOptions, BuiltinRuleRegistry, QualifierStrategy as RuleQualifierStrategy,
-    RuleSelection,
-};
+use tq_rules::{BuiltinRuleOptions, BuiltinRuleRegistry, RuleSelection};
 
 use crate::error::{CliError, Result};
 
@@ -56,34 +53,27 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
     let overrides = build_cli_overrides(args)?;
     let config = resolve_tq_config(&cwd, args.config.as_deref(), args.isolated, &overrides)?;
 
-    let active_targets = select_targets(&config.targets, &args.target_names)?;
+    let active_targets = select_targets(config.targets(), &args.target_names)?;
 
     for target in &active_targets {
         validate_target_paths(target)?;
     }
 
-    let configured_targets = build_target_inputs(&config.targets)?;
+    let configured_targets = build_target_inputs(config.targets())?;
     let active_target_inputs = build_target_inputs(&active_targets)?;
     let planned_runs = plan_target_runs(&configured_targets, &active_target_inputs)?;
 
     let mut target_results = Vec::with_capacity(planned_runs.len());
-    for planned_run in planned_runs {
-        let target = planned_run.target();
-        let target_config = config
-            .targets
-            .iter()
-            .find(|candidate| candidate.name == target.name())
-            .expect("planned target must exist in resolved config");
-
+    for (target_config, planned_run) in active_targets.iter().zip(planned_runs) {
         let options = BuiltinRuleOptions::new(
-            target_config.init_modules.should_ignore(),
-            target_config.max_test_file_non_blank_lines,
-            map_qualifier_strategy(target_config.qualifier_strategy),
-            target_config.allowed_qualifiers.clone(),
+            target_config.init_modules().should_ignore(),
+            target_config.max_test_file_non_blank_lines(),
+            target_config.qualifier_strategy(),
+            target_config.allowed_qualifiers().iter().cloned(),
         )?;
         let selection = RuleSelection::new(
-            parse_rule_ids(&target_config.select)?,
-            parse_rule_ids(&target_config.ignore)?,
+            target_config.select().to_vec(),
+            target_config.ignore().to_vec(),
         );
         let rules = BuiltinRuleRegistry::build_rules(&selection, &options)?;
         let engine = RuleEngine::new(rules)?;
@@ -109,15 +99,15 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
 }
 
 fn build_cli_overrides(args: &CheckArgs) -> Result<CliOverrides> {
-    Ok(CliOverrides {
-        init_modules: args.init_modules.map(map_init_module_mode),
-        max_test_file_non_blank_lines: args.max_test_file_non_blank_lines,
-        qualifier_strategy: args.qualifier_strategy.map(map_cli_qualifier_strategy),
-        allowed_qualifiers: (!args.allowed_qualifiers.is_empty())
-            .then(|| args.allowed_qualifiers.clone()),
-        select: parse_cli_rule_ids(&args.select_rules)?,
-        ignore: parse_cli_rule_ids(&args.ignore_rules)?,
-    })
+    Ok(CliOverrides::new()
+        .with_init_modules(args.init_modules.map(map_init_module_mode))
+        .with_max_test_file_non_blank_lines(args.max_test_file_non_blank_lines)
+        .with_qualifier_strategy(args.qualifier_strategy.map(map_cli_qualifier_strategy))
+        .with_allowed_qualifiers(
+            (!args.allowed_qualifiers.is_empty()).then(|| args.allowed_qualifiers.clone()),
+        )
+        .with_select(parse_cli_rule_ids(&args.select_rules)?)
+        .with_ignore(parse_cli_rule_ids(&args.ignore_rules)?))
 }
 
 fn parse_cli_rule_ids(values: &[String]) -> Result<Option<Vec<RuleId>>> {
@@ -128,7 +118,8 @@ fn parse_cli_rule_ids(values: &[String]) -> Result<Option<Vec<RuleId>>> {
     let mut parsed = Vec::with_capacity(values.len());
     let mut seen = BTreeSet::new();
     for value in values {
-        let rule_id = RuleId::parse(value)?;
+        let rule_id =
+            RuleId::parse(value).map_err(|error| CliError::validation(error.to_string()))?;
         let rendered = rule_id.to_string();
         if !seen.insert(rendered.clone()) {
             return Err(CliError::validation(format!(
@@ -151,7 +142,7 @@ fn select_targets(
 
     let by_name = configured_targets
         .iter()
-        .map(|target| (target.name.as_str(), target))
+        .map(|target| (target.name(), target))
         .collect::<std::collections::BTreeMap<_, _>>();
 
     let unknown_names = selected_target_names
@@ -173,12 +164,13 @@ fn select_targets(
             continue;
         }
 
-        selected.push(
-            (*by_name
-                .get(name.as_str())
-                .expect("validated target must exist"))
-            .clone(),
-        );
+        let Some(target) = by_name.get(name.as_str()) else {
+            return Err(CliError::validation(format!(
+                "target selection became inconsistent after validation: {name}"
+            )));
+        };
+
+        selected.push((*target).clone());
     }
 
     Ok(selected)
@@ -188,15 +180,15 @@ fn validate_target_paths(target: &TqTargetConfig) -> Result<()> {
     let source_package_root = target.source_package_root();
     if !source_package_root.exists() {
         return Err(CliError::from_missing_source_package_root(
-            &target.name,
+            target.name(),
             &source_package_root,
         ));
     }
 
-    if !target.test_root.exists() {
+    if !target.test_root().exists() {
         return Err(CliError::from_missing_test_root(
-            &target.name,
-            &target.test_root,
+            target.name(),
+            target.test_root(),
         ));
     }
 
@@ -208,22 +200,14 @@ fn build_target_inputs(targets: &[TqTargetConfig]) -> Result<Vec<TargetPlanInput
         .iter()
         .map(|target| {
             TargetPlanInput::new(
-                target.name.clone(),
+                target.name().to_owned(),
                 target.package_path(),
                 target.source_package_root(),
-                target.test_root.clone(),
+                target.test_root().clone(),
             )
             .map_err(CliError::from)
         })
         .collect()
-}
-
-const fn map_qualifier_strategy(strategy: QualifierStrategy) -> RuleQualifierStrategy {
-    match strategy {
-        QualifierStrategy::None => RuleQualifierStrategy::None,
-        QualifierStrategy::AnySuffix => RuleQualifierStrategy::AnySuffix,
-        QualifierStrategy::Allowlist => RuleQualifierStrategy::Allowlist,
-    }
 }
 
 const fn map_cli_qualifier_strategy(strategy: QualifierStrategyArg) -> QualifierStrategy {
@@ -239,11 +223,4 @@ const fn map_init_module_mode(mode: InitModuleModeArg) -> InitModulesMode {
         InitModuleModeArg::Include => InitModulesMode::Include,
         InitModuleModeArg::Ignore => InitModulesMode::Ignore,
     }
-}
-
-fn parse_rule_ids(rule_ids: &[RuleId]) -> Result<Vec<tq_engine::RuleId>> {
-    rule_ids
-        .iter()
-        .map(|rule_id| tq_engine::RuleId::parse(&rule_id.to_string()).map_err(CliError::from))
-        .collect()
 }

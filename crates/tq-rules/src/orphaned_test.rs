@@ -3,12 +3,15 @@ use std::path::{Path, PathBuf};
 
 use tq_engine::{AnalysisContext, Finding, Rule, RuleId, Severity};
 
+use crate::QualifierStrategy;
 use crate::builtin::{
     is_non_unit_test_path, is_unit_test_filename, package_path_from_context,
     path_to_forward_slashes, starts_with_path_prefix,
 };
+use crate::candidate_module_names;
 use crate::error::RulesError;
-use crate::qualifiers::{QualifierStrategy, candidate_module_names};
+
+const RULE_ID: RuleId = RuleId::from_static("orphaned-test");
 
 pub struct OrphanedTestRule {
     rule_id: RuleId,
@@ -27,11 +30,8 @@ impl OrphanedTestRule {
             ));
         }
 
-        let rule_id = RuleId::parse("orphaned-test")
-            .map_err(|error| RulesError::validation(error.to_string()))?;
-
         Ok(Self {
-            rule_id,
+            rule_id: RULE_ID,
             qualifier_strategy,
             allowed_qualifiers,
         })

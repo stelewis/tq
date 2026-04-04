@@ -1,9 +1,10 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    CliOverrides, ConfigError, PartialRuleConfig, PartialTqConfig, TqConfig,
+    ConfigError,
     loader_materialize::{materialize_config, merge_partial},
     loader_parse::{ensure_unique_strings, load_partial_from_pyproject},
+    model::{CliOverrides, PartialRuleConfig, PartialTqConfig, TqConfig},
     paths::normalize_absolute,
 };
 
@@ -101,18 +102,18 @@ fn find_project_pyproject(cwd: &Path) -> Option<PathBuf> {
 }
 
 fn partial_from_cli(overrides: &CliOverrides) -> Result<PartialTqConfig, ConfigError> {
-    if let Some(values) = &overrides.allowed_qualifiers {
+    if let Some(values) = overrides.allowed_qualifiers() {
         ensure_unique_strings(values, "cli.allowed_qualifiers")?;
     }
 
     Ok(PartialTqConfig {
         defaults: PartialRuleConfig {
-            init_modules: overrides.init_modules,
-            max_test_file_non_blank_lines: overrides.max_test_file_non_blank_lines,
-            qualifier_strategy: overrides.qualifier_strategy,
-            allowed_qualifiers: overrides.allowed_qualifiers.clone(),
-            select: overrides.select.clone(),
-            ignore: overrides.ignore.clone(),
+            init_modules: overrides.init_modules(),
+            max_test_file_non_blank_lines: overrides.max_test_file_non_blank_lines(),
+            qualifier_strategy: overrides.qualifier_strategy(),
+            allowed_qualifiers: overrides.clone_allowed_qualifiers(),
+            select: overrides.clone_select(),
+            ignore: overrides.clone_ignore(),
         },
         targets: None,
     })

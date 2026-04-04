@@ -224,10 +224,8 @@ fn resolve_rejects_duplicate_cli_allowed_qualifiers() {
         temp.path(),
         Some(&config_path),
         false,
-        &CliOverrides {
-            allowed_qualifiers: Some(vec!["regression".to_owned(), "regression".to_owned()]),
-            ..CliOverrides::default()
-        },
+        &CliOverrides::new()
+            .with_allowed_qualifiers(Some(vec!["regression".to_owned(), "regression".to_owned()])),
     )
     .expect_err("must reject duplicate CLI qualifiers");
     assert!(
@@ -257,18 +255,19 @@ fn cli_overrides_precede_config_defaults() {
         temp.path(),
         Some(&config_path),
         false,
-        &CliOverrides {
-            init_modules: Some(InitModulesMode::Ignore),
-            qualifier_strategy: Some(QualifierStrategy::AnySuffix),
-            ..CliOverrides::default()
-        },
+        &CliOverrides::new()
+            .with_init_modules(Some(InitModulesMode::Ignore))
+            .with_qualifier_strategy(Some(QualifierStrategy::AnySuffix)),
     )
     .expect("config should resolve");
 
-    assert_eq!(resolved.targets.len(), 1);
-    assert_eq!(resolved.targets[0].init_modules, InitModulesMode::Ignore);
+    assert_eq!(resolved.targets().len(), 1);
     assert_eq!(
-        resolved.targets[0].qualifier_strategy,
+        resolved.targets()[0].init_modules(),
+        InitModulesMode::Ignore
+    );
+    assert_eq!(
+        resolved.targets()[0].qualifier_strategy(),
         QualifierStrategy::AnySuffix
     );
 }
@@ -306,10 +305,16 @@ fn explicit_config_overrides_discovered_project_config() {
     )
     .expect("config should resolve");
 
-    assert_eq!(resolved.targets.len(), 1);
-    assert_eq!(resolved.targets[0].name, "core");
-    assert_eq!(resolved.targets[0].source_root, temp.path().join("src"));
-    assert_eq!(resolved.targets[0].test_root, temp.path().join("tests"));
+    assert_eq!(resolved.targets().len(), 1);
+    assert_eq!(resolved.targets()[0].name(), "core");
+    assert_eq!(
+        resolved.targets()[0].source_root(),
+        &temp.path().join("src")
+    );
+    assert_eq!(
+        resolved.targets()[0].test_root(),
+        &temp.path().join("tests")
+    );
 }
 
 #[test]
@@ -332,9 +337,12 @@ fn discovered_project_targets_resolve_relative_to_project_config_from_subdir() {
     let resolved = resolve_tq_config(&cwd, None, false, &CliOverrides::default())
         .expect("config should resolve");
 
-    assert_eq!(resolved.targets.len(), 1);
-    assert_eq!(resolved.targets[0].source_root, temp.path());
-    assert_eq!(resolved.targets[0].test_root, temp.path().join("tests"));
+    assert_eq!(resolved.targets().len(), 1);
+    assert_eq!(resolved.targets()[0].source_root(), temp.path());
+    assert_eq!(
+        resolved.targets()[0].test_root(),
+        &temp.path().join("tests")
+    );
 }
 
 #[test]
@@ -423,10 +431,16 @@ fn discovery_project_overrides_user_for_defaults_and_targets() {
     )
     .expect("config should resolve");
 
-    assert_eq!(resolved.targets.len(), 1);
-    assert_eq!(resolved.targets[0].name, "project");
-    assert_eq!(resolved.targets[0].source_root, project_root.join("src"));
-    assert_eq!(resolved.targets[0].init_modules, InitModulesMode::Include);
+    assert_eq!(resolved.targets().len(), 1);
+    assert_eq!(resolved.targets()[0].name(), "project");
+    assert_eq!(
+        resolved.targets()[0].source_root(),
+        &project_root.join("src")
+    );
+    assert_eq!(
+        resolved.targets()[0].init_modules(),
+        InitModulesMode::Include
+    );
 }
 
 #[test]
@@ -458,10 +472,13 @@ fn discovery_keeps_user_targets_when_project_has_only_defaults() {
     )
     .expect("config should resolve");
 
-    assert_eq!(resolved.targets.len(), 1);
-    assert_eq!(resolved.targets[0].name, "user");
-    assert_eq!(resolved.targets[0].source_root, user_root.join("src"));
-    assert_eq!(resolved.targets[0].init_modules, InitModulesMode::Include);
+    assert_eq!(resolved.targets().len(), 1);
+    assert_eq!(resolved.targets()[0].name(), "user");
+    assert_eq!(resolved.targets()[0].source_root(), &user_root.join("src"));
+    assert_eq!(
+        resolved.targets()[0].init_modules(),
+        InitModulesMode::Include
+    );
 }
 
 #[cfg(unix)]

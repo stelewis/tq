@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/tq-cli",
+    "crates/tq-core",
     "crates/tq-config",
     "crates/tq-discovery",
     "crates/tq-engine",
@@ -28,6 +29,7 @@ tar = "0.4.44"
 thiserror = "2.0.18"
 toml = "1.0.6"
 tq-cli = { version = "0.6.3", path = "crates/tq-cli" }
+tq-core = { version = "0.6.3", path = "crates/tq-core" }
 tq-config = { version = "0.6.3", path = "crates/tq-config" }
 tq-discovery = { version = "0.6.3", path = "crates/tq-discovery" }
 tq-docsgen = { version = "0.6.3", path = "crates/tq-docsgen" }

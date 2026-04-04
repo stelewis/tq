@@ -58,9 +58,12 @@ pub fn generate(workspace_root: &Path) -> Result<(), DocsgenError> {
         })?;
     }
 
-    let sidebar_dir = sidebar_path
-        .parent()
-        .expect("generated sidebar path must have a parent directory");
+    let sidebar_dir = sidebar_path.parent().ok_or_else(|| {
+        DocsgenError::manifest(
+            sidebar_path.clone(),
+            "generated sidebar path must have a parent directory",
+        )
+    })?;
     std::fs::create_dir_all(sidebar_dir).map_err(|source| DocsgenError::Io {
         path: sidebar_dir.to_path_buf(),
         source,

@@ -1,12 +1,6 @@
 use std::collections::BTreeSet;
 
-#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
-pub enum QualifierStrategy {
-    None,
-    #[default]
-    AnySuffix,
-    Allowlist,
-}
+use tq_core::QualifierStrategy;
 
 #[must_use]
 pub fn candidate_module_names(

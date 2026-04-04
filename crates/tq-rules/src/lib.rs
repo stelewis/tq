@@ -14,5 +14,6 @@ pub use error::RulesError;
 pub use file_too_large::TestFileTooLargeRule;
 pub use mapping_missing_test::MappingMissingTestRule;
 pub use orphaned_test::OrphanedTestRule;
-pub use qualifiers::{QualifierStrategy, candidate_module_names};
+pub use qualifiers::candidate_module_names;
 pub use structure_mismatch::StructureMismatchRule;
+pub use tq_core::QualifierStrategy;

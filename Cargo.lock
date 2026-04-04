@@ -655,6 +655,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tq-config",
+ "tq-core",
  "tq-engine",
  "tq-reporting",
  "tq-rules",
@@ -668,6 +669,14 @@ dependencies = [
  "tempfile",
  "thiserror",
  "toml",
+ "tq-core",
+]
+
+[[package]]
+name = "tq-core"
+version = "0.6.3"
+dependencies = [
+ "thiserror",
 ]
 
 [[package]]
@@ -697,6 +706,7 @@ version = "0.6.3"
 dependencies = [
  "tempfile",
  "thiserror",
+ "tq-core",
  "tq-discovery",
 ]
 
@@ -731,6 +741,7 @@ version = "0.6.3"
 dependencies = [
  "tempfile",
  "thiserror",
+ "tq-core",
  "tq-discovery",
  "tq-engine",
 ]

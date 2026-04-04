@@ -2,9 +2,11 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use tq_core::QualifierStrategy;
+
 use crate::{
-    ConfigError, DEFAULT_INIT_MODULES, DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES, PartialRuleConfig,
-    PartialTargetConfig, PartialTqConfig, QualifierStrategy, TqConfig, TqTargetConfig,
+    ConfigError, DEFAULT_INIT_MODULES, DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES,
+    model::{PartialRuleConfig, PartialTargetConfig, PartialTqConfig, TqConfig, TqTargetConfig},
     paths::normalize_absolute,
 };
 
@@ -47,13 +49,13 @@ pub fn materialize_config(
             target_index,
         )?;
 
-        if let Some(first_index) = seen_names.get(&resolved.name) {
+        if let Some(first_index) = seen_names.get(resolved.name()) {
             return Err(ConfigError::validation(format!(
                 "Duplicate target name in tool.tq.targets[{first_index}].name and tool.tq.targets[{target_index}].name: {}",
-                resolved.name
+                resolved.name()
             )));
         }
-        seen_names.insert(resolved.name.clone(), target_index);
+        seen_names.insert(resolved.name().to_owned(), target_index);
 
         let source_package_root = source_package_root_key(&resolved);
         if let Some(first_index) = seen_roots.get(&source_package_root) {
@@ -67,7 +69,7 @@ pub fn materialize_config(
         normalized_targets.push(resolved);
     }
 
-    normalized_targets.sort_by(|left, right| left.name.cmp(&right.name));
+    normalized_targets.sort_by(|left, right| left.name().cmp(right.name()));
     Ok(TqConfig {
         targets: normalized_targets,
     })

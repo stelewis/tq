@@ -11,10 +11,7 @@ fn resolve_active_rule_ids_returns_all_builtins_when_select_is_empty() {
     let selected =
         resolve_active_rule_ids(&RuleSelection::default()).expect("selection should resolve");
 
-    assert_eq!(
-        selected,
-        builtin_rule_ids().expect("built-ins should parse")
-    );
+    assert_eq!(selected, builtin_rule_ids());
 }
 
 #[test]

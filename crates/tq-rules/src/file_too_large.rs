@@ -6,6 +6,8 @@ use tq_engine::{AnalysisContext, Finding, Rule, RuleId, Severity};
 use crate::builtin::path_to_forward_slashes;
 use crate::error::RulesError;
 
+const RULE_ID: RuleId = RuleId::from_static("test-file-too-large");
+
 pub struct TestFileTooLargeRule {
     rule_id: RuleId,
     max_non_blank_lines: u64,
@@ -17,10 +19,8 @@ impl TestFileTooLargeRule {
             return Err(RulesError::validation("max_non_blank_lines must be >= 1"));
         }
 
-        let rule_id = RuleId::parse("test-file-too-large")
-            .map_err(|error| RulesError::validation(error.to_string()))?;
         Ok(Self {
-            rule_id,
+            rule_id: RULE_ID,
             max_non_blank_lines,
         })
     }

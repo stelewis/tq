@@ -1,19 +1,75 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-use tq_engine::{AnalysisContext, Rule, RuleId};
+use tq_core::{QualifierStrategy, RuleId};
+use tq_engine::{AnalysisContext, Rule};
 
 use crate::error::RulesError;
 use crate::file_too_large::TestFileTooLargeRule;
 use crate::mapping_missing_test::MappingMissingTestRule;
 use crate::orphaned_test::OrphanedTestRule;
-use crate::qualifiers::QualifierStrategy;
 use crate::structure_mismatch::StructureMismatchRule;
 
-const MAPPING_MISSING_TEST: &str = "mapping-missing-test";
-const STRUCTURE_MISMATCH: &str = "structure-mismatch";
-const TEST_FILE_TOO_LARGE: &str = "test-file-too-large";
-const ORPHANED_TEST: &str = "orphaned-test";
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum BuiltinRule {
+    MappingMissingTest,
+    StructureMismatch,
+    TestFileTooLarge,
+    OrphanedTest,
+}
+
+impl BuiltinRule {
+    const ALL: [Self; 4] = [
+        Self::MappingMissingTest,
+        Self::StructureMismatch,
+        Self::TestFileTooLarge,
+        Self::OrphanedTest,
+    ];
+
+    #[must_use]
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::MappingMissingTest => "mapping-missing-test",
+            Self::StructureMismatch => "structure-mismatch",
+            Self::TestFileTooLarge => "test-file-too-large",
+            Self::OrphanedTest => "orphaned-test",
+        }
+    }
+
+    #[must_use]
+    const fn rule_id(self) -> RuleId {
+        RuleId::from_static(self.as_str())
+    }
+
+    #[must_use]
+    fn from_rule_id(rule_id: &RuleId) -> Option<Self> {
+        match rule_id.as_str() {
+            "mapping-missing-test" => Some(Self::MappingMissingTest),
+            "structure-mismatch" => Some(Self::StructureMismatch),
+            "test-file-too-large" => Some(Self::TestFileTooLarge),
+            "orphaned-test" => Some(Self::OrphanedTest),
+            _ => None,
+        }
+    }
+
+    fn build(self, options: &BuiltinRuleOptions) -> Result<Box<dyn Rule>, RulesError> {
+        match self {
+            Self::MappingMissingTest => Ok(Box::new(MappingMissingTestRule::new(
+                options.ignore_init_modules(),
+                options.qualifier_strategy(),
+                options.allowed_qualifiers().clone(),
+            )?)),
+            Self::StructureMismatch => Ok(Box::new(StructureMismatchRule::new())),
+            Self::TestFileTooLarge => Ok(Box::new(TestFileTooLargeRule::new(
+                options.max_test_file_non_blank_lines(),
+            )?)),
+            Self::OrphanedTest => Ok(Box::new(OrphanedTestRule::new(
+                options.qualifier_strategy(),
+                options.allowed_qualifiers().clone(),
+            )?)),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct BuiltinRuleOptions {
@@ -113,77 +169,38 @@ impl BuiltinRuleRegistry {
         selection: &RuleSelection,
         options: &BuiltinRuleOptions,
     ) -> Result<Vec<Box<dyn Rule>>, RulesError> {
-        let selected_rule_ids = resolve_active_rule_ids(selection)?;
+        let active_rules = resolve_active_rules(selection)?;
 
-        let mut rules: Vec<Box<dyn Rule>> = Vec::with_capacity(selected_rule_ids.len());
-        for rule_id in selected_rule_ids {
-            match rule_id.as_str() {
-                MAPPING_MISSING_TEST => {
-                    rules.push(Box::new(MappingMissingTestRule::new(
-                        options.ignore_init_modules(),
-                        options.qualifier_strategy(),
-                        options.allowed_qualifiers().clone(),
-                    )?));
-                }
-                STRUCTURE_MISMATCH => {
-                    rules.push(Box::new(StructureMismatchRule::new()?));
-                }
-                TEST_FILE_TOO_LARGE => {
-                    rules.push(Box::new(TestFileTooLargeRule::new(
-                        options.max_test_file_non_blank_lines(),
-                    )?));
-                }
-                ORPHANED_TEST => {
-                    rules.push(Box::new(OrphanedTestRule::new(
-                        options.qualifier_strategy(),
-                        options.allowed_qualifiers().clone(),
-                    )?));
-                }
-                _ => {
-                    return Err(RulesError::validation(format!(
-                        "unsupported built-in rule id: {}",
-                        rule_id.as_str()
-                    )));
-                }
-            }
+        let mut rules: Vec<Box<dyn Rule>> = Vec::with_capacity(active_rules.len());
+        for builtin_rule in active_rules {
+            rules.push(builtin_rule.build(options)?);
         }
 
         Ok(rules)
     }
 }
 
-pub fn builtin_rule_ids() -> Result<Vec<RuleId>, RulesError> {
-    let ids = [
-        RuleId::parse(MAPPING_MISSING_TEST),
-        RuleId::parse(STRUCTURE_MISMATCH),
-        RuleId::parse(TEST_FILE_TOO_LARGE),
-        RuleId::parse(ORPHANED_TEST),
-    ];
-
-    let mut parsed = Vec::with_capacity(ids.len());
-    for result in ids {
-        let rule_id = result.map_err(|error| RulesError::validation(error.to_string()))?;
-        parsed.push(rule_id);
-    }
-
-    validate_unique_builtin_rule_ids(&parsed)?;
-    Ok(parsed)
+#[must_use]
+pub fn builtin_rule_ids() -> Vec<RuleId> {
+    BuiltinRule::ALL
+        .into_iter()
+        .map(BuiltinRule::rule_id)
+        .collect()
 }
 
 pub fn resolve_active_rule_ids(selection: &RuleSelection) -> Result<Vec<RuleId>, RulesError> {
-    let builtins = builtin_rule_ids()?;
+    Ok(resolve_active_rules(selection)?
+        .into_iter()
+        .map(BuiltinRule::rule_id)
+        .collect())
+}
 
-    let by_id = builtins
-        .iter()
-        .cloned()
-        .map(|rule_id| (rule_id.as_str().to_owned(), rule_id))
-        .collect::<BTreeMap<_, _>>();
-
+fn resolve_active_rules(selection: &RuleSelection) -> Result<Vec<BuiltinRule>, RulesError> {
     let unknown = selection
         .select()
         .iter()
         .chain(selection.ignore())
-        .filter(|requested| !by_id.contains_key(requested.as_str()))
+        .filter(|requested| BuiltinRule::from_rule_id(requested).is_none())
         .cloned()
         .collect::<Vec<_>>();
     if !unknown.is_empty() {
@@ -193,37 +210,27 @@ pub fn resolve_active_rule_ids(selection: &RuleSelection) -> Result<Vec<RuleId>,
     let selected_lookup = selection
         .select()
         .iter()
-        .map(RuleId::as_str)
+        .filter_map(BuiltinRule::from_rule_id)
         .collect::<BTreeSet<_>>();
     let ignored_lookup = selection
         .ignore()
         .iter()
-        .map(RuleId::as_str)
+        .filter_map(BuiltinRule::from_rule_id)
         .collect::<BTreeSet<_>>();
 
     let selected_base = if selected_lookup.is_empty() {
-        builtins
+        BuiltinRule::ALL.to_vec()
     } else {
-        builtins
+        BuiltinRule::ALL
             .into_iter()
-            .filter(|rule_id| selected_lookup.contains(rule_id.as_str()))
+            .filter(|rule_id| selected_lookup.contains(rule_id))
             .collect::<Vec<_>>()
     };
 
     Ok(selected_base
         .into_iter()
-        .filter(|rule_id| !ignored_lookup.contains(rule_id.as_str()))
+        .filter(|rule_id| !ignored_lookup.contains(rule_id))
         .collect())
-}
-
-fn validate_unique_builtin_rule_ids(rule_ids: &[RuleId]) -> Result<(), RulesError> {
-    let mut seen = BTreeSet::new();
-    for rule_id in rule_ids {
-        if !seen.insert(rule_id.as_str()) {
-            return Err(RulesError::DuplicateBuiltinRuleIds);
-        }
-    }
-    Ok(())
 }
 
 fn normalize_non_empty_trimmed_strings(

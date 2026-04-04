@@ -8,17 +8,23 @@ use crate::builtin::{
     package_path_from_context, path_to_forward_slashes, starts_with_path_prefix,
     test_root_display_from_context,
 };
-use crate::error::RulesError;
+
+const RULE_ID: RuleId = RuleId::from_static("structure-mismatch");
 
 pub struct StructureMismatchRule {
     rule_id: RuleId,
 }
 
+impl Default for StructureMismatchRule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StructureMismatchRule {
-    pub fn new() -> Result<Self, RulesError> {
-        let rule_id = RuleId::parse("structure-mismatch")
-            .map_err(|error| RulesError::validation(error.to_string()))?;
-        Ok(Self { rule_id })
+    #[must_use]
+    pub const fn new() -> Self {
+        Self { rule_id: RULE_ID }
     }
 }
 

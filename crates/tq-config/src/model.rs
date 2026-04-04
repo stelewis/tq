@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use crate::{ConfigError, paths::normalize_absolute};
+use tq_core::{QualifierStrategy, RuleId};
+
+use crate::paths::normalize_absolute;
 
 pub const DEFAULT_INIT_MODULES: InitModulesMode = InitModulesMode::Include;
 pub const DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES: u64 = 600;
@@ -31,90 +33,6 @@ impl InitModulesMode {
     #[must_use]
     pub const fn should_ignore(self) -> bool {
         matches!(self, Self::Ignore)
-    }
-}
-
-#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
-pub enum QualifierStrategy {
-    None,
-    #[default]
-    AnySuffix,
-    Allowlist,
-}
-
-impl QualifierStrategy {
-    pub(crate) const fn as_str(self) -> &'static str {
-        match self {
-            Self::None => "none",
-            Self::AnySuffix => "any-suffix",
-            Self::Allowlist => "allowlist",
-        }
-    }
-
-    pub(crate) fn parse(raw: &str) -> Option<Self> {
-        match raw {
-            "none" => Some(Self::None),
-            "any-suffix" => Some(Self::AnySuffix),
-            "allowlist" => Some(Self::Allowlist),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub struct RuleId(String);
-
-impl RuleId {
-    pub fn parse(value: &str) -> Result<Self, ConfigError> {
-        if value.is_empty() {
-            return Err(ConfigError::validation("RuleId must be non-empty"));
-        }
-
-        let mut chars = value.chars();
-        let Some(first) = chars.next() else {
-            return Err(ConfigError::validation("RuleId must be non-empty"));
-        };
-
-        if !first.is_ascii_lowercase() {
-            return Err(ConfigError::validation(
-                "RuleId must be kebab-case, e.g. mapping-missing-test",
-            ));
-        }
-
-        let mut previous_was_dash = false;
-        for character in chars {
-            if character == '-' {
-                if previous_was_dash {
-                    return Err(ConfigError::validation(
-                        "RuleId must be kebab-case, e.g. mapping-missing-test",
-                    ));
-                }
-                previous_was_dash = true;
-                continue;
-            }
-
-            if !character.is_ascii_lowercase() && !character.is_ascii_digit() {
-                return Err(ConfigError::validation(
-                    "RuleId must be kebab-case, e.g. mapping-missing-test",
-                ));
-            }
-
-            previous_was_dash = false;
-        }
-
-        if previous_was_dash {
-            return Err(ConfigError::validation(
-                "RuleId must be kebab-case, e.g. mapping-missing-test",
-            ));
-        }
-
-        Ok(Self(value.to_owned()))
-    }
-}
-
-impl std::fmt::Display for RuleId {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(&self.0)
     }
 }
 
@@ -150,29 +68,150 @@ pub struct PartialTqConfig {
 
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct CliOverrides {
-    pub init_modules: Option<InitModulesMode>,
-    pub max_test_file_non_blank_lines: Option<u64>,
-    pub qualifier_strategy: Option<QualifierStrategy>,
-    pub allowed_qualifiers: Option<Vec<String>>,
-    pub select: Option<Vec<RuleId>>,
-    pub ignore: Option<Vec<RuleId>>,
+    init_modules: Option<InitModulesMode>,
+    max_test_file_non_blank_lines: Option<u64>,
+    qualifier_strategy: Option<QualifierStrategy>,
+    allowed_qualifiers: Option<Vec<String>>,
+    select: Option<Vec<RuleId>>,
+    ignore: Option<Vec<RuleId>>,
+}
+
+impl CliOverrides {
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    #[must_use]
+    pub const fn with_init_modules(mut self, init_modules: Option<InitModulesMode>) -> Self {
+        self.init_modules = init_modules;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_max_test_file_non_blank_lines(mut self, limit: Option<u64>) -> Self {
+        self.max_test_file_non_blank_lines = limit;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_qualifier_strategy(mut self, strategy: Option<QualifierStrategy>) -> Self {
+        self.qualifier_strategy = strategy;
+        self
+    }
+
+    #[must_use]
+    pub fn with_allowed_qualifiers(mut self, allowed_qualifiers: Option<Vec<String>>) -> Self {
+        self.allowed_qualifiers = allowed_qualifiers;
+        self
+    }
+
+    #[must_use]
+    pub fn with_select(mut self, select: Option<Vec<RuleId>>) -> Self {
+        self.select = select;
+        self
+    }
+
+    #[must_use]
+    pub fn with_ignore(mut self, ignore: Option<Vec<RuleId>>) -> Self {
+        self.ignore = ignore;
+        self
+    }
+
+    pub(crate) const fn init_modules(&self) -> Option<InitModulesMode> {
+        self.init_modules
+    }
+
+    pub(crate) const fn max_test_file_non_blank_lines(&self) -> Option<u64> {
+        self.max_test_file_non_blank_lines
+    }
+
+    pub(crate) const fn qualifier_strategy(&self) -> Option<QualifierStrategy> {
+        self.qualifier_strategy
+    }
+
+    pub(crate) fn allowed_qualifiers(&self) -> Option<&[String]> {
+        self.allowed_qualifiers.as_deref()
+    }
+
+    pub(crate) fn clone_allowed_qualifiers(&self) -> Option<Vec<String>> {
+        self.allowed_qualifiers.clone()
+    }
+
+    pub(crate) fn clone_select(&self) -> Option<Vec<RuleId>> {
+        self.select.clone()
+    }
+
+    pub(crate) fn clone_ignore(&self) -> Option<Vec<RuleId>> {
+        self.ignore.clone()
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TqTargetConfig {
-    pub name: String,
-    pub package: String,
-    pub source_root: PathBuf,
-    pub test_root: PathBuf,
-    pub init_modules: InitModulesMode,
-    pub max_test_file_non_blank_lines: u64,
-    pub qualifier_strategy: QualifierStrategy,
-    pub allowed_qualifiers: Vec<String>,
-    pub select: Vec<RuleId>,
-    pub ignore: Vec<RuleId>,
+    pub(crate) name: String,
+    pub(crate) package: String,
+    pub(crate) source_root: PathBuf,
+    pub(crate) test_root: PathBuf,
+    pub(crate) init_modules: InitModulesMode,
+    pub(crate) max_test_file_non_blank_lines: u64,
+    pub(crate) qualifier_strategy: QualifierStrategy,
+    pub(crate) allowed_qualifiers: Vec<String>,
+    pub(crate) select: Vec<RuleId>,
+    pub(crate) ignore: Vec<RuleId>,
 }
 
 impl TqTargetConfig {
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    #[must_use]
+    pub fn package(&self) -> &str {
+        &self.package
+    }
+
+    #[must_use]
+    pub const fn source_root(&self) -> &PathBuf {
+        &self.source_root
+    }
+
+    #[must_use]
+    pub const fn test_root(&self) -> &PathBuf {
+        &self.test_root
+    }
+
+    #[must_use]
+    pub const fn init_modules(&self) -> InitModulesMode {
+        self.init_modules
+    }
+
+    #[must_use]
+    pub const fn max_test_file_non_blank_lines(&self) -> u64 {
+        self.max_test_file_non_blank_lines
+    }
+
+    #[must_use]
+    pub const fn qualifier_strategy(&self) -> QualifierStrategy {
+        self.qualifier_strategy
+    }
+
+    #[must_use]
+    pub fn allowed_qualifiers(&self) -> &[String] {
+        &self.allowed_qualifiers
+    }
+
+    #[must_use]
+    pub fn select(&self) -> &[RuleId] {
+        &self.select
+    }
+
+    #[must_use]
+    pub fn ignore(&self) -> &[RuleId] {
+        &self.ignore
+    }
+
     #[must_use]
     pub fn package_path(&self) -> PathBuf {
         self.package
@@ -188,5 +227,12 @@ impl TqTargetConfig {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TqConfig {
-    pub targets: Vec<TqTargetConfig>,
+    pub(crate) targets: Vec<TqTargetConfig>,
+}
+
+impl TqConfig {
+    #[must_use]
+    pub fn targets(&self) -> &[TqTargetConfig] {
+        &self.targets
+    }
 }

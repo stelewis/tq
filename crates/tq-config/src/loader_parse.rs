@@ -3,10 +3,11 @@ use std::fs;
 use std::path::Path;
 
 use toml::Table;
+use tq_core::{QualifierStrategy, RuleId};
 
 use crate::{
-    ConfigError, InitModulesMode, PartialRuleConfig, PartialTargetConfig, PartialTqConfig,
-    QualifierStrategy, RuleId,
+    ConfigError, InitModulesMode,
+    model::{PartialRuleConfig, PartialTargetConfig, PartialTqConfig},
 };
 
 pub fn load_partial_from_pyproject(
