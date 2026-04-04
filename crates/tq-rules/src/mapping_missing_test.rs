@@ -5,7 +5,7 @@ use tq_core::InitModulesMode;
 use tq_engine::{AnalysisContext, Finding, Rule, RuleId, Severity};
 
 use crate::QualifierStrategy;
-use crate::builtin::{package_path_from_context, parse_builtin_rule_id, path_to_forward_slashes};
+use crate::builtin::{parse_builtin_rule_id, path_to_forward_slashes};
 use crate::candidate_module_names;
 use crate::error::RulesError;
 
@@ -84,7 +84,7 @@ impl Rule for MappingMissingTestRule {
     }
 
     fn evaluate(&self, context: &AnalysisContext) -> Vec<Finding> {
-        let package_path = package_path_from_context(context);
+        let package_path = context.package_path();
         let mut findings = Vec::new();
 
         for source_file in context.index().source_files() {
@@ -96,11 +96,11 @@ impl Rule for MappingMissingTestRule {
                 continue;
             }
 
-            if self.has_matching_test(source_file, context.index().test_files(), &package_path) {
+            if self.has_matching_test(source_file, context.index().test_files(), package_path) {
                 continue;
             }
 
-            let expected_test_path = expected_test_path(source_file, &package_path);
+            let expected_test_path = expected_test_path(source_file, package_path);
             if let Ok(finding) = Finding::new(
                 self.rule_id.clone(),
                 Severity::Error,

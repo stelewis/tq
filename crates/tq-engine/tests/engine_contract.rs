@@ -190,6 +190,15 @@ fn engine_no_rules_returns_empty_result() {
 }
 
 #[test]
+fn analysis_context_exposes_effective_paths_without_target() {
+    let context = test_context();
+
+    assert_eq!(context.package_path(), Path::new("tq"));
+    assert_eq!(context.test_root_display(), Path::new("tests"));
+    assert!(context.known_target_package_paths().is_empty());
+}
+
+#[test]
 fn engine_aggregates_and_sorts_findings_deterministically() {
     let context = test_context();
     let engine = RuleEngine::new(vec![

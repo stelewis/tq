@@ -80,6 +80,38 @@ impl AnalysisContext {
     pub const fn target(&self) -> Option<&TargetContext> {
         self.target.as_ref()
     }
+
+    #[must_use]
+    pub fn package_path(&self) -> &Path {
+        self.target().map_or_else(
+            || {
+                self.index()
+                    .source_root()
+                    .file_name()
+                    .map_or_else(|| Path::new(""), Path::new)
+            },
+            |target| target.package_path().as_path(),
+        )
+    }
+
+    #[must_use]
+    pub fn test_root_display(&self) -> &Path {
+        self.target().map_or_else(
+            || {
+                self.index()
+                    .test_root()
+                    .file_name()
+                    .map_or_else(|| Path::new(""), Path::new)
+            },
+            TargetContext::test_root_display,
+        )
+    }
+
+    #[must_use]
+    pub fn known_target_package_paths(&self) -> &[RelativePathBuf] {
+        self.target()
+            .map_or_else(|| &[], TargetContext::known_target_package_paths)
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]

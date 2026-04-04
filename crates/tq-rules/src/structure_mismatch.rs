@@ -1,12 +1,12 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
+use tq_core::RelativePathBuf;
 use tq_engine::{AnalysisContext, Finding, Rule, RuleId, Severity};
 
 use crate::builtin::{
-    is_non_unit_test_path, is_unit_test_filename, known_target_package_paths_from_context,
-    package_path_from_context, parse_builtin_rule_id, path_to_forward_slashes,
-    starts_with_path_prefix, test_root_display_from_context,
+    is_non_unit_test_path, is_unit_test_filename, parse_builtin_rule_id, path_to_forward_slashes,
+    starts_with_path_prefix,
 };
 
 pub struct StructureMismatchRule {
@@ -27,9 +27,9 @@ impl Rule for StructureMismatchRule {
     }
 
     fn evaluate(&self, context: &AnalysisContext) -> Vec<Finding> {
-        let package_path = package_path_from_context(context);
-        let test_root_display = test_root_display_from_context(context);
-        let known_target_paths = known_target_package_paths_from_context(context);
+        let package_path = context.package_path();
+        let test_root_display = context.test_root_display();
+        let known_target_paths = context.known_target_package_paths();
         let source_files = context
             .index()
             .source_files()
@@ -50,12 +50,12 @@ impl Rule for StructureMismatchRule {
                 continue;
             }
 
-            if !starts_with_path_prefix(test_file, &package_path) {
-                if belongs_to_other_target(test_file, &package_path, &known_target_paths) {
+            if !starts_with_path_prefix(test_file, package_path) {
+                if belongs_to_other_target(test_file, package_path, known_target_paths) {
                     continue;
                 }
 
-                let suggestion_path = test_root_display.join(&package_path).join(file_name);
+                let suggestion_path = test_root_display.join(package_path).join(file_name);
                 if let Ok(finding) = Finding::new(
                     self.rule_id.clone(),
                     Severity::Warning,
@@ -74,7 +74,7 @@ impl Rule for StructureMismatchRule {
             }
 
             let Some(expected_path) =
-                expected_path_for_test_file(test_file, &source_files, &package_path)
+                expected_path_for_test_file(test_file, &source_files, package_path)
             else {
                 continue;
             };
@@ -184,9 +184,10 @@ fn candidate_source_paths(
 fn belongs_to_other_target(
     test_file: &Path,
     active_package_path: &Path,
-    known_target_paths: &[PathBuf],
+    known_target_paths: &[RelativePathBuf],
 ) -> bool {
-    known_target_paths
-        .iter()
-        .any(|path| path != active_package_path && starts_with_path_prefix(test_file, path))
+    known_target_paths.iter().any(|path| {
+        let known_path = path.as_path();
+        known_path != active_package_path && starts_with_path_prefix(test_file, known_path)
+    })
 }

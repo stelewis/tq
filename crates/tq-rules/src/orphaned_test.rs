@@ -5,8 +5,8 @@ use tq_engine::{AnalysisContext, Finding, Rule, RuleId, Severity};
 
 use crate::QualifierStrategy;
 use crate::builtin::{
-    is_non_unit_test_path, is_unit_test_filename, package_path_from_context, parse_builtin_rule_id,
-    path_to_forward_slashes, starts_with_path_prefix,
+    is_non_unit_test_path, is_unit_test_filename, parse_builtin_rule_id, path_to_forward_slashes,
+    starts_with_path_prefix,
 };
 use crate::candidate_module_names;
 use crate::error::RulesError;
@@ -79,7 +79,7 @@ impl Rule for OrphanedTestRule {
     }
 
     fn evaluate(&self, context: &AnalysisContext) -> Vec<Finding> {
-        let package_path = package_path_from_context(context);
+        let package_path = context.package_path();
         let source_files = context
             .index()
             .source_files()
@@ -100,11 +100,11 @@ impl Rule for OrphanedTestRule {
                 continue;
             }
 
-            if !starts_with_path_prefix(test_file, &package_path) {
+            if !starts_with_path_prefix(test_file, package_path) {
                 continue;
             }
 
-            if self.has_corresponding_source(test_file, &source_files, &package_path) {
+            if self.has_corresponding_source(test_file, &source_files, package_path) {
                 continue;
             }
 

@@ -1,8 +1,8 @@
 use std::collections::BTreeSet;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use tq_core::{InitModulesMode, QualifierStrategy, RuleId};
-use tq_engine::{AnalysisContext, Rule};
+use tq_engine::Rule;
 
 use crate::error::RulesError;
 use crate::file_too_large::TestFileTooLargeRule;
@@ -241,43 +241,6 @@ fn normalize_non_empty_trimmed_strings(
 
 pub fn parse_builtin_rule_id(value: &'static str) -> Result<RuleId, RulesError> {
     RuleId::parse(value).map_err(|source| RulesError::invalid_builtin_rule_id(value, source))
-}
-
-pub fn package_path_from_context(context: &AnalysisContext) -> PathBuf {
-    if let Some(target) = context.target() {
-        return target.package_path().as_path().to_path_buf();
-    }
-
-    context
-        .index()
-        .source_root()
-        .file_name()
-        .map_or_else(PathBuf::new, PathBuf::from)
-}
-
-pub fn test_root_display_from_context(context: &AnalysisContext) -> PathBuf {
-    if let Some(target) = context.target() {
-        return target.test_root_display().to_path_buf();
-    }
-
-    context
-        .index()
-        .test_root()
-        .file_name()
-        .map_or_else(PathBuf::new, PathBuf::from)
-}
-
-pub fn known_target_package_paths_from_context(context: &AnalysisContext) -> Vec<PathBuf> {
-    context
-        .target()
-        .map(|target| {
-            target
-                .known_target_package_paths()
-                .iter()
-                .map(|path| path.as_path().to_path_buf())
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default()
 }
 
 #[must_use]
