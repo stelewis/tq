@@ -20,14 +20,12 @@ Publishing is handled by the [publish workflow](https://github.com/stelewis/tq/b
 
 The workflow performs:
 
-- `cargo package --workspace --locked`
-- `uv build`
+- download of the validated wheel and sdist produced by the successful tag CI run
+- verification of the CI-generated artifact attestations
 - artifact content policy validation via `tq-release`
 - package metadata validation (`twine check dist/*`)
-- smoke checks against built wheel and sdist entrypoints
-- fixture smoke validation with the built wheel
-- GitHub artifact attestation generation for wheel and sdist
-- attestation verification before publish
+- smoke checks against the validated wheel and sdist entrypoints
+- fixture smoke validation with the validated wheel
 - trusted publish with `uv publish` on tag-triggered runs
 - post-publish smoke validation via `uvx --from tqlint tq`
 - consumer provenance verification against the PyPI wheel

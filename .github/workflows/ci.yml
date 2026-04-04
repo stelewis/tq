@@ -3,6 +3,8 @@ name: CI
 on:
   push:
     branches: [ "main" ]
+    tags:
+      - "*.*.*"
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -149,6 +151,10 @@ jobs:
     name: Build and packaging checks
     runs-on: ubuntu-latest
     timeout-minutes: 3
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -198,6 +204,23 @@ jobs:
           uv run --isolated --no-project --with "$wheel_path" -- tq check --help
           uv run --isolated --no-project --with "$sdist_path" -- tq --help
           uv run --isolated --no-project --with "$sdist_path" -- tq check --help
+
+      - name: Generate artifact attestations for validated distributions
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: dist/*
+
+      - name: Upload validated distribution artifacts
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: validated-dist
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
 
   package-compatibility:
     name: Package compatibility (Python ${{ matrix.python-version }})

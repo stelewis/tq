@@ -50,7 +50,7 @@ The artifact verifier inspects built wheels and sdists for repository-only paths
 
 ## Release artifact shape
 
-The publish workflow builds PyPI artifacts through `uv build`, backed by the root `pyproject.toml` and the Rust CLI crate via `maturin`.
+The CI build job builds PyPI artifacts through `uv build`, backed by the root `pyproject.toml` and the Rust CLI crate via `maturin`. The publish workflow promotes those validated CI artifacts rather than rebuilding them.
 
 Current artifacts are:
 

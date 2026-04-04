@@ -78,9 +78,9 @@ Why this matters:
 
 Tag-triggered release runs must:
 
-- build `dist/*` artifacts,
-- generate build provenance attestations,
-- verify those attestations before publish,
+- promote only `dist/*` artifacts validated by the tag-triggered CI run,
+- verify the CI-generated build provenance attestations before publish,
+- re-run artifact content policy validation before publish,
 - publish only after successful provenance verification.
 
 Why this matters:

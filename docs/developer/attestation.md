@@ -12,10 +12,10 @@ This guide covers:
 
 ## Maintainer verification in CI
 
-The publish workflow verifies each built wheel and sdist attestation using:
+The publish workflow verifies each CI-built wheel and sdist attestation using:
 
 - repository identity (`--repo stelewis/tq` via `${GITHUB_REPOSITORY}`),
-- signer workflow identity (`--signer-workflow stelewis/tq/.github/workflows/publish.yml`),
+- signer workflow identity (`--signer-workflow stelewis/tq/.github/workflows/ci.yml`),
 - hosted-runner enforcement (`--deny-self-hosted-runners`).
 
 Equivalent command shape:
@@ -23,7 +23,7 @@ Equivalent command shape:
 ```sh
 gh attestation verify dist/tqlint-<version>-*.whl \
   --repo stelewis/tq \
-  --signer-workflow stelewis/tq/.github/workflows/publish.yml \
+  --signer-workflow stelewis/tq/.github/workflows/ci.yml \
   --deny-self-hosted-runners
 ```
 
@@ -38,13 +38,13 @@ Example:
 python -m pip download --no-deps tqlint==<version>
 gh attestation verify tqlint-<version>-*.whl \
   --repo stelewis/tq \
-  --signer-workflow stelewis/tq/.github/workflows/publish.yml \
+  --signer-workflow stelewis/tq/.github/workflows/ci.yml \
   --deny-self-hosted-runners
 ```
 
 The verified wheel installs the `tq` command. For ephemeral execution through `uvx`, use `uvx --from tqlint tq --help`.
 
-Release automation runs an equivalent consumer check after publish by downloading from PyPI and verifying the wheel attestation before marking the workflow green.
+Release automation runs an equivalent consumer check after publish by downloading from PyPI and verifying the CI-generated wheel attestation before marking the workflow green.
 
 ## Offline verification
 

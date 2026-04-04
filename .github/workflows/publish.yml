@@ -1,59 +1,158 @@
 name: Publish
 
 on:
-  push:
-    tags:
-      - "*.*.*"
-  workflow_dispatch:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
 
 permissions:
+  actions: read
   contents: read
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  publish:
-    name: Build and publish
+  prepare:
+    name: Resolve release candidate
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 8
-    environment: ${{ vars.PYPI_ENVIRONMENT || 'pypi' }}
-    permissions:
-      attestations: write
-      contents: write
-      id-token: write
+    timeout-minutes: 2
+    outputs:
+      should_publish: ${{ steps.release.outputs.should_publish }}
+      release_tag: ${{ steps.release.outputs.release_tag }}
+      source_run_id: ${{ steps.release.outputs.source_run_id }}
     steps:
-      - name: Checkout
+      - name: Checkout triggering revision
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
 
-      - name: Setup Rust toolchain
-        uses: ./.github/actions/setup-rust
-
-      - name: Validate Rust release build
+      - name: Verify source CI run produced validated release artifacts
+        id: artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
 
-          cargo package --workspace --locked
-          cargo build -p tq-cli --release --locked
+          run_id='${{ github.event.workflow_run.id }}'
+          artifact_count="$(
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" \
+              --jq '[.artifacts[] | select(.name == "validated-dist" and .expired == false)] | length'
+          )"
+
+          if [ "$artifact_count" -eq 0 ]; then
+            echo "Source CI run $run_id has no validated-dist artifact; skipping publish."
+            echo "has_validated_dist=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$artifact_count" -ne 1 ]; then
+            echo "Expected exactly one validated-dist artifact for CI run $run_id, found $artifact_count"
+            exit 1
+          fi
+
+          echo "has_validated_dist=true" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve SemVer tag for successful CI run
+        id: release
+        if: ${{ steps.artifacts.outputs.has_validated_dist == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch --force --tags origin
+
+          mapfile -t release_tags < <(git tag --points-at HEAD | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' || true)
+
+          if [ "${#release_tags[@]}" -eq 0 ]; then
+            echo "No SemVer tag points at ${GITHUB_SHA}; skipping publish."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${#release_tags[@]}" -gt 1 ]; then
+            printf 'Multiple SemVer tags point at %s: %s\n' "$GITHUB_SHA" "${release_tags[*]}"
+            exit 1
+          fi
+
+          release_tag="${release_tags[0]}"
+
+          if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "GitHub release '$release_tag' already exists; skipping publish."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+          echo "source_run_id=${{ github.event.workflow_run.id }}" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Publish validated artifacts
+    needs: prepare
+    if: ${{ needs.prepare.outputs.should_publish == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    environment: ${{ vars.PYPI_ENVIRONMENT || 'pypi' }}
+    permissions:
+      actions: read
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout tagged revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: refs/tags/${{ needs.prepare.outputs.release_tag }}
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
 
       - name: Setup Python + uv + deps
         uses: ./.github/actions/setup-python-uv
 
-      - name: Clean previous build artifacts
-        run: rm -rf dist
+      - name: Download validated distribution artifacts
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: validated-dist
+          path: dist
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.prepare.outputs.source_run_id }}
+          github-token: ${{ github.token }}
 
-      - name: Validate release tag format
-        if: ${{ github.event_name == 'push' }}
+      - name: Verify downloaded release artifacts are present
+        shell: bash
         run: |
-          TAG_NAME="${GITHUB_REF#refs/tags/}"
-          if ! [[ "$TAG_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Tag '$TAG_NAME' is not supported. Use SemVer tags like 0.4.0"
+          set -euo pipefail
+
+          if ! compgen -G 'dist/*.whl' > /dev/null; then
+            echo "No wheel artifact found in dist/"
             exit 1
           fi
 
-      - name: Build package
-        run: uv build
+          if ! compgen -G 'dist/*.tar.gz' > /dev/null; then
+            echo "No source distribution artifact found in dist/"
+            exit 1
+          fi
+
+      - name: Verify CI artifact attestations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for artifact in dist/*.whl dist/*.tar.gz; do
+            gh attestation verify "$artifact" \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/ci.yml" \
+              --deny-self-hosted-runners
+          done
 
       - name: Verify artifact contents policy
         run: cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist
@@ -120,33 +219,10 @@ jobs:
             uv run --isolated --no-project --with "$wheel_path" -- tq check
           )
 
-      - name: Generate artifact attestation
-        if: ${{ github.event_name == 'push' }}
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
-        with:
-          subject-path: dist/*
-
-      - name: Verify artifact attestations
-        if: ${{ github.event_name == 'push' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          for artifact in dist/*.whl dist/*.tar.gz; do
-            gh attestation verify "$artifact" \
-              --repo "$GITHUB_REPOSITORY" \
-              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/publish.yml" \
-              --deny-self-hosted-runners
-          done
-
       - name: Publish
-        if: ${{ github.event_name == 'push' }}
         run: uv publish
 
       - name: Post-publish smoke (uvx)
-        if: ${{ github.event_name == 'push' }}
         run: |
           for attempt in 1 2 3 4 5; do
             if uvx --from tqlint tq --help; then
@@ -164,14 +240,13 @@ jobs:
           )
 
       - name: Consumer provenance check (PyPI wheel)
-        if: ${{ github.event_name == 'push' }}
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
 
-          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          TAG_NAME='${{ needs.prepare.outputs.release_tag }}'
           mkdir -p tmp/pypi-verify
 
           for attempt in 1 2 3 4 5; do
@@ -193,11 +268,10 @@ jobs:
 
           gh attestation verify "$wheel_path" \
             --repo "$GITHUB_REPOSITORY" \
-            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/publish.yml" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/ci.yml" \
             --deny-self-hosted-runners
 
       - name: Generate release checksums
-        if: ${{ github.event_name == 'push' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -205,14 +279,13 @@ jobs:
           sha256sum dist/*.whl dist/*.tar.gz > dist/SHA256SUMS
 
       - name: Create GitHub release
-        if: ${{ github.event_name == 'push' }}
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
 
-          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          TAG_NAME='${{ needs.prepare.outputs.release_tag }}'
 
           if gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release '$TAG_NAME' already exists"
