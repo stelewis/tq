@@ -151,10 +151,6 @@ jobs:
     name: Build and packaging checks
     runs-on: ubuntu-latest
     timeout-minutes: 3
-    permissions:
-      attestations: write
-      contents: read
-      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -205,14 +201,55 @@ jobs:
           uv run --isolated --no-project --with "$sdist_path" -- tq --help
           uv run --isolated --no-project --with "$sdist_path" -- tq check --help
 
-      - name: Generate artifact attestations for validated distributions
+      - name: Upload tag release candidates
         if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: tag-release-candidate
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  tag-release-artifacts:
+    name: Tag release artifact attestation
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+    steps:
+      - name: Download tag release candidates
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: tag-release-candidate
+          path: dist
+
+      - name: Verify downloaded release artifacts are present
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if ! compgen -G 'dist/*.whl' > /dev/null; then
+            echo "No wheel artifact found in dist/"
+            exit 1
+          fi
+
+          if ! compgen -G 'dist/*.tar.gz' > /dev/null; then
+            echo "No source distribution artifact found in dist/"
+            exit 1
+          fi
+
+      - name: Generate artifact attestations for validated distributions
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: dist/*
 
       - name: Upload validated distribution artifacts
-        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: validated-dist

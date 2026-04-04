@@ -42,4 +42,6 @@ The maintenance-tool pin workflow covers the embedded versions in `.github/actio
 
 ## Publish workflow
 
-The publish workflow runs after a successful tag-triggered CI run, downloads the validated wheel and sdist artifacts from that CI run, verifies the CI-generated provenance attestations, re-runs artifact content policy validation with `tq-release`, smoke-tests the release artifacts, publishes to PyPI with `uv publish`, verifies the consumer-facing wheel, and uploads the release assets and checksums to the GitHub release for the SemVer tag.
+On SemVer tag pushes, the unprivileged CI build job validates and uploads release-candidate wheel and sdist artifacts, then a separate tag-only CI job downloads those artifacts, generates provenance attestations, and uploads the final `validated-dist` artifact for promotion.
+
+The publish workflow runs after that successful tag-triggered CI run, downloads the validated wheel and sdist artifacts from CI, verifies the CI-generated provenance attestations, re-runs artifact content policy validation with `tq-release`, smoke-tests the release artifacts, publishes to PyPI with `uv publish`, verifies the consumer-facing wheel, and uploads the release assets and checksums to the GitHub release for the SemVer tag.

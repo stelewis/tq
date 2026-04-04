@@ -250,13 +250,17 @@ jobs:
           mkdir -p tmp/pypi-verify
 
           for attempt in 1 2 3 4 5; do
-            if python -m pip download --no-deps "tqlint==$TAG_NAME" -d tmp/pypi-verify; then
+            rm -f tmp/pypi-verify/*
+
+            if python -m pip download --no-deps --only-binary=:all: "tqlint==$TAG_NAME" -d tmp/pypi-verify; then
               break
             fi
+
             if [ "$attempt" -eq 5 ]; then
-              echo "Could not download tqlint==$TAG_NAME from PyPI after retries"
+              echo "Could not download wheel for tqlint==$TAG_NAME from PyPI after retries"
               exit 1
             fi
+
             sleep 20
           done
 

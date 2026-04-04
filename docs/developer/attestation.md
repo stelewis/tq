@@ -35,7 +35,7 @@ gh attestation verify dist/tqlint-<version>-*.whl \
 Example:
 
 ```sh
-python -m pip download --no-deps tqlint==<version>
+python -m pip download --no-deps --only-binary=:all: tqlint==<version>
 gh attestation verify tqlint-<version>-*.whl \
   --repo stelewis/tq \
   --signer-workflow stelewis/tq/.github/workflows/ci.yml \

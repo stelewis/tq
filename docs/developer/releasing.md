@@ -21,6 +21,7 @@ Publishing is handled by the [publish workflow](https://github.com/stelewis/tq/b
 The workflow performs:
 
 - download of the validated wheel and sdist produced by the successful tag CI run
+- promotion of artifacts that were built in an unprivileged CI job and attested in a separate tag-only CI job
 - verification of the CI-generated artifact attestations
 - artifact content policy validation via `tq-release`
 - package metadata validation (`twine check dist/*`)
@@ -31,22 +32,7 @@ The workflow performs:
 - consumer provenance verification against the PyPI wheel
 - GitHub release upload for wheel, sdist, and checksums
 
-Manual `workflow_dispatch` runs support dry-run build and smoke validation without publishing to PyPI.
-
-## Run a dry-run release validation
-
-1. Open **GitHub → Actions → Publish**.
-2. Click **Run workflow**.
-3. Select branch `main` (or your release branch).
-4. Run it.
-
-Expected behavior for `workflow_dispatch` runs:
-
-- build and metadata validation run
-- wheel and sdist smoke checks run
-- fixture smoke checks run
-- `Publish` step is skipped
-- post-publish steps are skipped
+Dry-run validation happens in local release checks and in the tag-triggered CI build path before the publish workflow is allowed to promote artifacts.
 
 Publishing runs in the `pypi` GitHub Actions environment. This environment must be configured with required reviewers for manual approval before publish runs.
 
@@ -58,12 +44,14 @@ Publishing runs in the `pypi` GitHub Actions environment. This environment must 
    - `cargo clippy --workspace --all-targets --locked -- -D warnings`
    - `cargo test --workspace --locked`
    - `cargo run -p tq-docsgen --locked -- generate all`
+   - `cargo run -p tq-release --locked -- verify-dependabot --repo-root .`
    - `cargo package --workspace --locked`
    - `uv build`
 3. Create and push a signed release tag.
-4. Approve the pending `pypi` environment deployment in GitHub Actions.
-5. Confirm publish workflow success.
-6. Verify install paths in a clean environment:
+4. Confirm the tag-triggered CI run completes, including the tag-only artifact attestation job.
+5. Approve the pending `pypi` environment deployment in GitHub Actions.
+6. Confirm publish workflow success.
+7. Verify install paths in a clean environment:
    - `uvx --from tqlint tq --help`
    - `uvx --from tqlint tq check --help`
    - `uv tool install tqlint && tq --help`
