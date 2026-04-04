@@ -154,6 +154,9 @@ jobs:
               --deny-self-hosted-runners
           done
 
+      - name: Verify release policy
+        run: cargo run -p tq-release --locked -- verify-release-policy --repo-root .
+
       - name: Verify artifact contents policy
         run: cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist
 

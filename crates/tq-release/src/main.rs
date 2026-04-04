@@ -11,8 +11,14 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    VerifyArtifactContents(VerifyArtifactContentsArgs),
-    VerifyDependabot(VerifyDependabotArgs),
+    #[command(name = "verify-artifact-contents")]
+    ArtifactContents(VerifyArtifactContentsArgs),
+    #[command(name = "verify-dependabot")]
+    Dependabot(VerifyDependabotArgs),
+    #[command(name = "verify-release-policy")]
+    ReleasePolicy(VerifyReleasePolicyArgs),
+    #[command(name = "verify-workspace-version")]
+    WorkspaceVersion(VerifyWorkspaceVersionArgs),
 }
 
 #[derive(Debug, clap::Args)]
@@ -29,10 +35,22 @@ struct VerifyDependabotArgs {
     repo_root: PathBuf,
 }
 
+#[derive(Debug, clap::Args)]
+struct VerifyReleasePolicyArgs {
+    #[arg(long, default_value = ".")]
+    repo_root: PathBuf,
+}
+
+#[derive(Debug, clap::Args)]
+struct VerifyWorkspaceVersionArgs {
+    #[arg(long, default_value = ".")]
+    repo_root: PathBuf,
+}
+
 fn main() {
     let cli = Cli::parse();
     let result = match cli.command {
-        Command::VerifyArtifactContents(args) => tq_release::verify_artifact_contents(
+        Command::ArtifactContents(args) => tq_release::verify_artifact_contents(
             &args.dist_dir,
             if args.forbidden_prefixes.is_empty() {
                 None
@@ -40,7 +58,9 @@ fn main() {
                 Some(args.forbidden_prefixes)
             },
         ),
-        Command::VerifyDependabot(args) => tq_release::verify_dependabot(&args.repo_root),
+        Command::Dependabot(args) => tq_release::verify_dependabot(&args.repo_root),
+        Command::ReleasePolicy(args) => tq_release::verify_release_policy(&args.repo_root),
+        Command::WorkspaceVersion(args) => tq_release::verify_workspace_version(&args.repo_root),
     };
 
     if let Err(error) = result {

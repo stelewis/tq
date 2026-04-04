@@ -701,6 +701,7 @@ dependencies = [
  "tar",
  "tempfile",
  "thiserror",
+ "toml",
  "zip",
 ]
 

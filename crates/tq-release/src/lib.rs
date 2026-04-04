@@ -1,6 +1,7 @@
 mod dependabot;
 mod error;
 mod verify;
+mod workspace_version;
 
 use std::path::Path;
 
@@ -16,4 +17,13 @@ pub fn verify_artifact_contents(
 
 pub fn verify_dependabot(repo_root: &Path) -> Result<(), ReleaseError> {
     dependabot::verify_dependabot(repo_root)
+}
+
+pub fn verify_workspace_version(repo_root: &Path) -> Result<(), ReleaseError> {
+    workspace_version::verify_workspace_version(repo_root)
+}
+
+pub fn verify_release_policy(repo_root: &Path) -> Result<(), ReleaseError> {
+    verify_workspace_version(repo_root)?;
+    verify_dependabot(repo_root)
 }
