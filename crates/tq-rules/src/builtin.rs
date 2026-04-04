@@ -36,9 +36,8 @@ impl BuiltinRule {
         }
     }
 
-    #[must_use]
-    const fn rule_id(self) -> RuleId {
-        RuleId::from_static(self.as_str())
+    fn rule_id(self) -> Result<RuleId, RulesError> {
+        parse_builtin_rule_id(self.as_str())
     }
 
     #[must_use]
@@ -59,7 +58,7 @@ impl BuiltinRule {
                 options.qualifier_strategy(),
                 options.allowed_qualifiers().clone(),
             )?)),
-            Self::StructureMismatch => Ok(Box::new(StructureMismatchRule::new())),
+            Self::StructureMismatch => Ok(Box::new(StructureMismatchRule::new()?)),
             Self::TestFileTooLarge => Ok(Box::new(TestFileTooLargeRule::new(
                 options.max_test_file_non_blank_lines(),
             )?)),
@@ -180,8 +179,7 @@ impl BuiltinRuleRegistry {
     }
 }
 
-#[must_use]
-pub fn builtin_rule_ids() -> Vec<RuleId> {
+pub fn builtin_rule_ids() -> Result<Vec<RuleId>, RulesError> {
     BuiltinRule::ALL
         .into_iter()
         .map(BuiltinRule::rule_id)
@@ -189,10 +187,10 @@ pub fn builtin_rule_ids() -> Vec<RuleId> {
 }
 
 pub fn resolve_active_rule_ids(selection: &RuleSelection) -> Result<Vec<RuleId>, RulesError> {
-    Ok(resolve_active_rules(selection)?
+    resolve_active_rules(selection)?
         .into_iter()
         .map(BuiltinRule::rule_id)
-        .collect())
+        .collect::<Result<Vec<_>, _>>()
 }
 
 fn resolve_active_rules(selection: &RuleSelection) -> Result<Vec<BuiltinRule>, RulesError> {
@@ -241,6 +239,10 @@ fn normalize_non_empty_trimmed_strings(
         .map(|value| value.trim().to_owned())
         .filter(|value| !value.is_empty())
         .collect()
+}
+
+pub fn parse_builtin_rule_id(value: &'static str) -> Result<RuleId, RulesError> {
+    RuleId::parse(value).map_err(|source| RulesError::invalid_builtin_rule_id(value, source))
 }
 
 pub fn package_path_from_context(context: &AnalysisContext) -> PathBuf {

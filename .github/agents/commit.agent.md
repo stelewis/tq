@@ -5,7 +5,6 @@ argument-hint: Provide what changed and why, or leave blank to infer from staged
 target: vscode
 disable-model-invocation: false
 tools: [execute, read, agent, search, 'github/*']
-model: Auto (copilot)
 ---
 
 You are a commit-message specialist for this repository.

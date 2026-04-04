@@ -3,10 +3,8 @@ use std::io::{self, BufRead, BufReader};
 
 use tq_engine::{AnalysisContext, Finding, Rule, RuleId, Severity};
 
-use crate::builtin::path_to_forward_slashes;
+use crate::builtin::{parse_builtin_rule_id, path_to_forward_slashes};
 use crate::error::RulesError;
-
-const RULE_ID: RuleId = RuleId::from_static("test-file-too-large");
 
 pub struct TestFileTooLargeRule {
     rule_id: RuleId,
@@ -20,7 +18,7 @@ impl TestFileTooLargeRule {
         }
 
         Ok(Self {
-            rule_id: RULE_ID,
+            rule_id: parse_builtin_rule_id("test-file-too-large")?,
             max_non_blank_lines,
         })
     }

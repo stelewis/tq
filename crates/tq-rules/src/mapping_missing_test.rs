@@ -4,11 +4,9 @@ use std::path::{Path, PathBuf};
 use tq_engine::{AnalysisContext, Finding, Rule, RuleId, Severity};
 
 use crate::QualifierStrategy;
-use crate::builtin::{package_path_from_context, path_to_forward_slashes};
+use crate::builtin::{package_path_from_context, parse_builtin_rule_id, path_to_forward_slashes};
 use crate::candidate_module_names;
 use crate::error::RulesError;
-
-const RULE_ID: RuleId = RuleId::from_static("mapping-missing-test");
 
 pub struct MappingMissingTestRule {
     rule_id: RuleId,
@@ -30,7 +28,7 @@ impl MappingMissingTestRule {
         }
 
         Ok(Self {
-            rule_id: RULE_ID,
+            rule_id: parse_builtin_rule_id("mapping-missing-test")?,
             ignore_init_modules,
             qualifier_strategy,
             allowed_qualifiers,

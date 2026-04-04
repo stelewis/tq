@@ -5,26 +5,19 @@ use tq_engine::{AnalysisContext, Finding, Rule, RuleId, Severity};
 
 use crate::builtin::{
     is_non_unit_test_path, is_unit_test_filename, known_target_package_paths_from_context,
-    package_path_from_context, path_to_forward_slashes, starts_with_path_prefix,
-    test_root_display_from_context,
+    package_path_from_context, parse_builtin_rule_id, path_to_forward_slashes,
+    starts_with_path_prefix, test_root_display_from_context,
 };
-
-const RULE_ID: RuleId = RuleId::from_static("structure-mismatch");
 
 pub struct StructureMismatchRule {
     rule_id: RuleId,
 }
 
-impl Default for StructureMismatchRule {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl StructureMismatchRule {
-    #[must_use]
-    pub const fn new() -> Self {
-        Self { rule_id: RULE_ID }
+    pub fn new() -> Result<Self, crate::error::RulesError> {
+        Ok(Self {
+            rule_id: parse_builtin_rule_id("structure-mismatch")?,
+        })
     }
 }
 

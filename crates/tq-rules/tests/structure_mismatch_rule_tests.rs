@@ -21,7 +21,7 @@ fn structure_rule_emits_warning_for_misplaced_test() {
         vec!["tq".to_owned()],
     );
 
-    let rule = StructureMismatchRule::new();
+    let rule = StructureMismatchRule::new().expect("rule should be valid");
     let findings = rule.evaluate(&context);
 
     assert_eq!(findings.len(), 1);
@@ -47,7 +47,7 @@ fn structure_rule_allows_correctly_placed_test() {
         vec!["tq".to_owned()],
     );
 
-    let rule = StructureMismatchRule::new();
+    let rule = StructureMismatchRule::new().expect("rule should be valid");
     let findings = rule.evaluate(&context);
 
     assert!(findings.is_empty());
@@ -70,7 +70,7 @@ fn structure_rule_skips_non_unit_scopes() {
         vec!["tq".to_owned()],
     );
 
-    let rule = StructureMismatchRule::new();
+    let rule = StructureMismatchRule::new().expect("rule should be valid");
     let findings = rule.evaluate(&context);
 
     assert!(findings.is_empty());
@@ -93,7 +93,7 @@ fn structure_rule_ignores_sibling_target_tests() {
         vec!["tq".to_owned(), "scripts".to_owned()],
     );
 
-    let rule = StructureMismatchRule::new();
+    let rule = StructureMismatchRule::new().expect("rule should be valid");
     let findings = rule.evaluate(&context);
 
     assert!(findings.is_empty());

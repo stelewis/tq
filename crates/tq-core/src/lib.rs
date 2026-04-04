@@ -41,11 +41,6 @@ impl RuleId {
     }
 
     #[must_use]
-    pub const fn from_static(value: &'static str) -> Self {
-        Self(Cow::Borrowed(value))
-    }
-
-    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }

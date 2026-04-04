@@ -1,10 +1,17 @@
 use thiserror::Error;
+use tq_core::RuleIdError;
 use tq_engine::RuleId;
 
 #[derive(Debug, Error)]
 pub enum RulesError {
     #[error("{message}")]
     Validation { message: String },
+    #[error("invalid built-in rule id definition `{id}`: {source}")]
+    InvalidBuiltinRuleId {
+        id: &'static str,
+        #[source]
+        source: RuleIdError,
+    },
     #[error("Unknown built-in rule ID(s): {ids}")]
     UnknownBuiltinRuleIds { ids: String },
     #[error("Rules registry defines duplicate built-in rule IDs")]
@@ -16,6 +23,10 @@ impl RulesError {
         Self::Validation {
             message: message.into(),
         }
+    }
+
+    pub(crate) const fn invalid_builtin_rule_id(id: &'static str, source: RuleIdError) -> Self {
+        Self::InvalidBuiltinRuleId { id, source }
     }
 
     pub(crate) fn unknown_builtin_rule_ids(rule_ids: &[RuleId]) -> Self {
