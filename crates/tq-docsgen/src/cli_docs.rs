@@ -7,19 +7,23 @@ use tq_cli::Cli;
 
 use crate::{DocsgenError, markers::replace_between_markers};
 
-const MANIFEST_PATH: &str = "docs/reference/cli/options-manifest.yaml";
+const MANIFEST_PATH: &str = "docs/reference/cli/options-manifest.json";
 const CLI_DOC_PATH: &str = "docs/reference/cli.md";
 const CLI_MARKER_START: &str = "<!-- BEGIN GENERATED:check-options -->";
 const CLI_MARKER_END: &str = "<!-- END GENERATED:check-options -->";
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct CliManifest {
+    version: u64,
     cli_options: Vec<CliOptionSpec>,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct CliOptionSpec {
     arg_ids: Vec<String>,
+    #[serde(default)]
     config_key: Option<String>,
 }
 
@@ -40,10 +44,17 @@ fn load_manifest(path: &Path) -> Result<Vec<CliOptionSpec>, DocsgenError> {
         source,
     })?;
     let manifest: CliManifest =
-        serde_yaml_ng::from_str(&content).map_err(|source| DocsgenError::Yaml {
+        serde_json::from_str(&content).map_err(|source| DocsgenError::Json {
             path: path.to_path_buf(),
             source,
         })?;
+
+    if manifest.version != 1 {
+        return Err(DocsgenError::manifest(
+            path.to_path_buf(),
+            format!("unsupported manifest version: {}", manifest.version),
+        ));
+    }
 
     if manifest.cli_options.is_empty() {
         return Err(DocsgenError::manifest(

@@ -12,12 +12,8 @@ pub enum ReleaseError {
         #[source]
         source: std::io::Error,
     },
-    #[error("failed to parse yaml file {path}: {source}")]
-    Yaml {
-        path: PathBuf,
-        #[source]
-        source: serde_yaml_ng::Error,
-    },
+    #[error("invalid Dependabot config {path}: {message}")]
+    DependabotConfig { path: PathBuf, message: String },
     #[error("failed to read zip archive {path}: {source}")]
     Zip {
         path: PathBuf,

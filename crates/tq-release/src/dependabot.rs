@@ -1,7 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use serde::Deserialize;
-
 use crate::ReleaseError;
 
 const DEPENDABOT_CONFIG_PATH: &str = ".github/dependabot.yml";
@@ -11,18 +9,10 @@ const WORKFLOWS_ROOT: &str = ".github/workflows";
 const REQUIRED_WORKFLOW_PATTERN: &str = "/";
 const REQUIRED_ACTIONS_PATTERN: &str = "/.github/actions/*";
 
-#[derive(Debug, Deserialize)]
-struct DependabotConfig {
-    #[serde(default)]
-    updates: Vec<DependabotUpdate>,
-}
-
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
 struct DependabotUpdate {
-    #[serde(rename = "package-ecosystem")]
     package_ecosystem: String,
     directory: Option<String>,
-    #[serde(default)]
     directories: Vec<String>,
 }
 
@@ -33,14 +23,14 @@ pub fn verify_dependabot(repo_root: &Path) -> Result<(), ReleaseError> {
             path: config_path.clone(),
             source,
         })?;
-    let config: DependabotConfig =
-        serde_yaml_ng::from_str(&config_contents).map_err(|source| ReleaseError::Yaml {
+    let config = parse_dependabot_updates(&config_contents).map_err(|message| {
+        ReleaseError::DependabotConfig {
             path: config_path.clone(),
-            source,
-        })?;
+            message,
+        }
+    })?;
 
     let github_actions_updates = config
-        .updates
         .into_iter()
         .filter(|update| update.package_ecosystem == GITHUB_ACTIONS_ECOSYSTEM)
         .collect::<Vec<_>>();
@@ -91,6 +81,212 @@ pub fn verify_dependabot(repo_root: &Path) -> Result<(), ReleaseError> {
     Err(ReleaseError::RepositoryPolicyViolation {
         details: violations.join("\n"),
     })
+}
+
+fn parse_dependabot_updates(input: &str) -> Result<Vec<DependabotUpdate>, String> {
+    let mut version: Option<String> = None;
+    let mut updates_section_found = false;
+    let mut updates = Vec::new();
+    let mut current_update: Option<PendingUpdate> = None;
+    let mut active_list = ActiveList::None;
+
+    for (line_index, raw_line) in input.lines().enumerate() {
+        let line_number = line_index + 1;
+        let trimmed = raw_line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+
+        let indent = raw_line
+            .chars()
+            .take_while(|character| *character == ' ')
+            .count();
+        if indent == raw_line.len() {
+            continue;
+        }
+
+        if !updates_section_found {
+            if indent != 0 {
+                continue;
+            }
+
+            let (key, value) = split_key_value(trimmed)
+                .ok_or_else(|| format!("line {line_number}: expected top-level key"))?;
+            match key {
+                "version" => version = Some(parse_scalar(value, line_number)?),
+                "updates" => {
+                    if !value.is_empty() {
+                        return Err(format!(
+                            "line {line_number}: updates must be declared as a block"
+                        ));
+                    }
+                    updates_section_found = true;
+                }
+                _ => {}
+            }
+
+            continue;
+        }
+
+        if indent == 0 {
+            break;
+        }
+
+        if indent == 2 && trimmed.starts_with("- ") {
+            if let Some(update) = current_update.take() {
+                updates.push(update.finish()?);
+            }
+
+            let remainder = trimmed.trim_start_matches("- ").trim();
+            current_update = Some(PendingUpdate::default());
+            active_list = ActiveList::None;
+            if remainder.is_empty() {
+                continue;
+            }
+
+            let (key, value) = split_key_value(remainder).ok_or_else(|| {
+                format!("line {line_number}: expected key/value after update list item marker")
+            })?;
+            apply_update_key(
+                current_update.as_mut().expect("current update must exist"),
+                key,
+                value,
+                line_number,
+                &mut active_list,
+            )?;
+            continue;
+        }
+
+        let Some(update) = current_update.as_mut() else {
+            return Err(format!(
+                "line {line_number}: updates entries must start with '- ' at indent 2"
+            ));
+        };
+
+        if indent == 4 {
+            active_list = ActiveList::None;
+            let (key, value) = split_key_value(trimmed)
+                .ok_or_else(|| format!("line {line_number}: expected update key/value pair"))?;
+            apply_update_key(update, key, value, line_number, &mut active_list)?;
+            continue;
+        }
+
+        if indent == 6 && trimmed.starts_with("- ") {
+            if active_list != ActiveList::Directories {
+                continue;
+            }
+
+            update.directories.push(parse_scalar(
+                trimmed.trim_start_matches("- ").trim(),
+                line_number,
+            )?);
+        }
+    }
+
+    if let Some(update) = current_update {
+        updates.push(update.finish()?);
+    }
+
+    match version.as_deref() {
+        Some("2") => {}
+        Some(other) => return Err(format!("unsupported Dependabot version: {other}")),
+        None => return Err("missing Dependabot version".to_owned()),
+    }
+
+    if !updates_section_found {
+        return Err("missing updates section".to_owned());
+    }
+
+    Ok(updates)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ActiveList {
+    None,
+    Directories,
+}
+
+#[derive(Debug, Default)]
+struct PendingUpdate {
+    package_ecosystem: Option<String>,
+    directory: Option<String>,
+    directories: Vec<String>,
+}
+
+impl PendingUpdate {
+    fn finish(self) -> Result<DependabotUpdate, String> {
+        let package_ecosystem = self
+            .package_ecosystem
+            .ok_or_else(|| "dependabot update is missing package-ecosystem".to_owned())?;
+
+        Ok(DependabotUpdate {
+            package_ecosystem,
+            directory: self.directory,
+            directories: self.directories,
+        })
+    }
+}
+
+fn apply_update_key(
+    update: &mut PendingUpdate,
+    key: &str,
+    value: &str,
+    line_number: usize,
+    active_list: &mut ActiveList,
+) -> Result<(), String> {
+    match key {
+        "package-ecosystem" => {
+            update.package_ecosystem = Some(parse_scalar(value, line_number)?);
+        }
+        "directory" => {
+            update.directory = Some(parse_scalar(value, line_number)?);
+        }
+        "directories" => {
+            if !value.is_empty() {
+                return Err(format!(
+                    "line {line_number}: directories must be declared as a block list"
+                ));
+            }
+            *active_list = ActiveList::Directories;
+            return Ok(());
+        }
+        _ => {}
+    }
+
+    *active_list = ActiveList::None;
+    Ok(())
+}
+
+fn split_key_value(line: &str) -> Option<(&str, &str)> {
+    let (key, value) = line.split_once(':')?;
+    Some((key.trim(), value.trim()))
+}
+
+fn parse_scalar(value: &str, line_number: usize) -> Result<String, String> {
+    if value.is_empty() {
+        return Err(format!("line {line_number}: expected scalar value"));
+    }
+
+    if let Some(unquoted) = strip_wrapping_quotes(value) {
+        return Ok(unquoted.to_owned());
+    }
+
+    Ok(value.to_owned())
+}
+
+fn strip_wrapping_quotes(value: &str) -> Option<&str> {
+    if value.len() < 2 {
+        return None;
+    }
+
+    let bytes = value.as_bytes();
+    let first = bytes.first()?;
+    let last = bytes.last()?;
+    if (*first == b'"' && *last == b'"') || (*first == b'\'' && *last == b'\'') {
+        return Some(&value[1..value.len() - 1]);
+    }
+
+    None
 }
 
 fn collect_directory_patterns(updates: &[DependabotUpdate]) -> Vec<String> {

@@ -56,12 +56,12 @@ Distribution intent is still Python-native even after the runtime rewrite:
 
 Default starting points (baseline references, not constraints):
 
-- CLI UX command and flag set documented in `docs/reference/cli.md` and `docs/reference/cli/options-manifest.yaml`.
+- CLI UX command and flag set documented in `docs/reference/cli.md` and `docs/reference/cli/options-manifest.json`.
 - Config semantics in `src/tq/config/loader.py`:
   - unknown keys fail fast
   - explicit precedence order is preserved
   - target roots are resolved relative to the defining config file directory
-- Rule identity and severity vocabulary parity from `docs/reference/rules/manifest.yaml`.
+- Rule identity and severity vocabulary parity from `docs/reference/rules/manifest.json`.
 - Deterministic ordering parity with existing engine sort behavior in `src/tq/engine/runner.py`.
 - JSON payload shape parity with `src/tq/reporting/json.py`.
 - Exit code semantics parity from `docs/reference/exit-codes.md` and CLI tests.
@@ -135,7 +135,7 @@ Status: Completed (2026-03-05). Audit Completed.
   - `structure-mismatch`
   - `test-file-too-large`
   - `orphaned-test`
-- Keep stable rule IDs and severity defaults aligned with `docs/reference/rules/manifest.yaml`.
+- Keep stable rule IDs and severity defaults aligned with `docs/reference/rules/manifest.json`.
 - Port rule selection/ignore behavior and unknown rule ID errors.
 
 ### Phase 5: Reporting adapters (`tq-reporting`)

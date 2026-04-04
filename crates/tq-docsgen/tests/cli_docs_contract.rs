@@ -5,11 +5,11 @@ use std::path::Path;
 fn generate_cli_docs_updates_marked_section_from_rust_cli_contract() {
     let temp = tempfile::tempdir().expect("tempdir");
     let cli_doc_path = temp.path().join("docs/reference/cli.md");
-    let manifest_path = temp.path().join("docs/reference/cli/options-manifest.yaml");
+    let manifest_path = temp.path().join("docs/reference/cli/options-manifest.json");
 
     write(
         &manifest_path,
-        "version: 1\ncli_options:\n  - arg_ids:\n      - config\n    config_key: null\n  - arg_ids:\n      - isolated\n    config_key: null\n  - arg_ids:\n      - target_names\n    config_key: null\n  - arg_ids:\n      - init_modules\n    config_key: init_modules\n  - arg_ids:\n      - max_test_file_non_blank_lines\n    config_key: max_test_file_non_blank_lines\n  - arg_ids:\n      - qualifier_strategy\n    config_key: qualifier_strategy\n  - arg_ids:\n      - allowed_qualifiers\n    config_key: allowed_qualifiers\n  - arg_ids:\n      - select_rules\n    config_key: select\n  - arg_ids:\n      - ignore_rules\n    config_key: ignore\n  - arg_ids:\n      - output_format\n    config_key: null\n  - arg_ids:\n      - show_suggestions\n    config_key: null\n  - arg_ids:\n      - exit_zero\n    config_key: null\n",
+        "{\n  \"version\": 1,\n  \"cli_options\": [\n    { \"arg_ids\": [\"config\"] },\n    { \"arg_ids\": [\"isolated\"] },\n    { \"arg_ids\": [\"target_names\"] },\n    { \"arg_ids\": [\"init_modules\"], \"config_key\": \"init_modules\" },\n    { \"arg_ids\": [\"max_test_file_non_blank_lines\"], \"config_key\": \"max_test_file_non_blank_lines\" },\n    { \"arg_ids\": [\"qualifier_strategy\"], \"config_key\": \"qualifier_strategy\" },\n    { \"arg_ids\": [\"allowed_qualifiers\"], \"config_key\": \"allowed_qualifiers\" },\n    { \"arg_ids\": [\"select_rules\"], \"config_key\": \"select\" },\n    { \"arg_ids\": [\"ignore_rules\"], \"config_key\": \"ignore\" },\n    { \"arg_ids\": [\"output_format\"] },\n    { \"arg_ids\": [\"show_suggestions\"] },\n    { \"arg_ids\": [\"exit_zero\"] }\n  ]\n}\n",
     );
     write(
         &cli_doc_path,
@@ -28,27 +28,30 @@ fn generate_cli_docs_updates_marked_section_from_rust_cli_contract() {
 fn generate_cli_docs_fails_for_invalid_manifest_shape() {
     let temp = tempfile::tempdir().expect("tempdir");
     let cli_doc_path = temp.path().join("docs/reference/cli.md");
-    let manifest_path = temp.path().join("docs/reference/cli/options-manifest.yaml");
+    let manifest_path = temp.path().join("docs/reference/cli/options-manifest.json");
 
-    write(&manifest_path, "version: 1\ncli_options: invalid\n");
+    write(
+        &manifest_path,
+        "{\"version\":1,\"cli_options\":\"invalid\"}\n",
+    );
     write(
         &cli_doc_path,
         "# CLI\n\n<!-- BEGIN GENERATED:check-options -->\nplaceholder\n<!-- END GENERATED:check-options -->\n",
     );
 
     let error = tq_docsgen::generate_cli_docs(temp.path()).expect_err("manifest should fail");
-    assert!(error.to_string().contains("failed to parse YAML file"));
+    assert!(error.to_string().contains("failed to parse JSON file"));
 }
 
 #[test]
 fn generate_cli_docs_fails_when_markers_are_missing() {
     let temp = tempfile::tempdir().expect("tempdir");
     let cli_doc_path = temp.path().join("docs/reference/cli.md");
-    let manifest_path = temp.path().join("docs/reference/cli/options-manifest.yaml");
+    let manifest_path = temp.path().join("docs/reference/cli/options-manifest.json");
 
     write(
         &manifest_path,
-        "version: 1\ncli_options:\n  - arg_ids:\n      - config\n    config_key: null\n  - arg_ids:\n      - isolated\n    config_key: null\n  - arg_ids:\n      - target_names\n    config_key: null\n  - arg_ids:\n      - init_modules\n    config_key: init_modules\n  - arg_ids:\n      - max_test_file_non_blank_lines\n    config_key: max_test_file_non_blank_lines\n  - arg_ids:\n      - qualifier_strategy\n    config_key: qualifier_strategy\n  - arg_ids:\n      - allowed_qualifiers\n    config_key: allowed_qualifiers\n  - arg_ids:\n      - select_rules\n    config_key: select\n  - arg_ids:\n      - ignore_rules\n    config_key: ignore\n  - arg_ids:\n      - output_format\n    config_key: null\n  - arg_ids:\n      - show_suggestions\n    config_key: null\n  - arg_ids:\n      - exit_zero\n    config_key: null\n",
+        "{\n  \"version\": 1,\n  \"cli_options\": [\n    { \"arg_ids\": [\"config\"] },\n    { \"arg_ids\": [\"isolated\"] },\n    { \"arg_ids\": [\"target_names\"] },\n    { \"arg_ids\": [\"init_modules\"], \"config_key\": \"init_modules\" },\n    { \"arg_ids\": [\"max_test_file_non_blank_lines\"], \"config_key\": \"max_test_file_non_blank_lines\" },\n    { \"arg_ids\": [\"qualifier_strategy\"], \"config_key\": \"qualifier_strategy\" },\n    { \"arg_ids\": [\"allowed_qualifiers\"], \"config_key\": \"allowed_qualifiers\" },\n    { \"arg_ids\": [\"select_rules\"], \"config_key\": \"select\" },\n    { \"arg_ids\": [\"ignore_rules\"], \"config_key\": \"ignore\" },\n    { \"arg_ids\": [\"output_format\"] },\n    { \"arg_ids\": [\"show_suggestions\"] },\n    { \"arg_ids\": [\"exit_zero\"] }\n  ]\n}\n",
     );
     write(&cli_doc_path, "# CLI\nNo markers here.\n");
 

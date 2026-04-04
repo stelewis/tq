@@ -22,6 +22,8 @@ fn verify_dependabot_passes_for_repo_style_coverage() {
             "      - \"/.github/actions/*\"\n",
             "    schedule:\n",
             "      interval: \"weekly\"\n",
+            "    commit-message:\n",
+            "      prefix: \"chore\"\n",
         ),
     );
     write(
@@ -97,4 +99,141 @@ fn verify_dependabot_requires_one_github_actions_update_block() {
             .to_string()
             .contains("expected exactly one github-actions update block")
     );
+}
+
+#[test]
+fn verify_dependabot_rejects_invalid_config_shape() {
+    let temp = tempfile::tempdir().expect("tempdir");
+
+    write(
+        &temp.path().join(".github/dependabot.yml"),
+        concat!("version: 2\n", "updates: []\n",),
+    );
+
+    let error = tq_release::verify_dependabot(temp.path()).expect_err("invalid config should fail");
+    assert!(error.to_string().contains("invalid Dependabot config"));
+}
+
+#[test]
+fn verify_dependabot_rejects_missing_version() {
+    let temp = tempfile::tempdir().expect("tempdir");
+
+    write(
+        &temp.path().join(".github/dependabot.yml"),
+        concat!(
+            "updates:\n",
+            "  - package-ecosystem: \"github-actions\"\n",
+            "    directories:\n",
+            "      - \"/\"\n",
+            "      - \"/.github/actions/*\"\n",
+        ),
+    );
+
+    let error =
+        tq_release::verify_dependabot(temp.path()).expect_err("missing version should fail");
+    let message = error.to_string();
+    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("missing Dependabot version"));
+}
+
+#[test]
+fn verify_dependabot_rejects_unsupported_version() {
+    let temp = tempfile::tempdir().expect("tempdir");
+
+    write(
+        &temp.path().join(".github/dependabot.yml"),
+        concat!(
+            "version: 3\n",
+            "updates:\n",
+            "  - package-ecosystem: \"github-actions\"\n",
+            "    directories:\n",
+            "      - \"/\"\n",
+            "      - \"/.github/actions/*\"\n",
+        ),
+    );
+
+    let error =
+        tq_release::verify_dependabot(temp.path()).expect_err("unsupported version should fail");
+    let message = error.to_string();
+    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("unsupported Dependabot version: 3"));
+}
+
+#[test]
+fn verify_dependabot_rejects_inline_updates_declaration() {
+    let temp = tempfile::tempdir().expect("tempdir");
+
+    write(
+        &temp.path().join(".github/dependabot.yml"),
+        concat!("version: 2\n", "updates: []\n",),
+    );
+
+    let error = tq_release::verify_dependabot(temp.path())
+        .expect_err("inline updates declaration should fail");
+    let message = error.to_string();
+    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("updates must be declared as a block"));
+}
+
+#[test]
+fn verify_dependabot_rejects_inline_directories_declaration() {
+    let temp = tempfile::tempdir().expect("tempdir");
+
+    write(
+        &temp.path().join(".github/dependabot.yml"),
+        concat!(
+            "version: 2\n",
+            "updates:\n",
+            "  - package-ecosystem: \"github-actions\"\n",
+            "    directories: [\"/\", \"/.github/actions/*\"]\n",
+        ),
+    );
+
+    let error = tq_release::verify_dependabot(temp.path())
+        .expect_err("inline directories declaration should fail");
+    let message = error.to_string();
+    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("directories must be declared as a block list"));
+}
+
+#[test]
+fn verify_dependabot_rejects_update_without_package_ecosystem() {
+    let temp = tempfile::tempdir().expect("tempdir");
+
+    write(
+        &temp.path().join(".github/dependabot.yml"),
+        concat!("version: 2\n", "updates:\n", "  - directory: \"/\"\n",),
+    );
+
+    let error = tq_release::verify_dependabot(temp.path())
+        .expect_err("missing package ecosystem should fail");
+    let message = error.to_string();
+    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("dependabot update is missing package-ecosystem"));
+}
+
+#[test]
+fn verify_dependabot_accepts_single_quoted_scalars() {
+    let temp = tempfile::tempdir().expect("tempdir");
+
+    write(
+        &temp.path().join(".github/dependabot.yml"),
+        concat!(
+            "version: '2'\n",
+            "updates:\n",
+            "  - package-ecosystem: 'github-actions'\n",
+            "    directories:\n",
+            "      - '/'\n",
+            "      - '/.github/actions/*'\n",
+            "    schedule:\n",
+            "      interval: 'weekly'\n",
+        ),
+    );
+    write(
+        &temp.path().join(".github/actions/setup-rust/action.yml"),
+        "name: Setup Rust\n",
+    );
+    write(&temp.path().join(".github/workflows/ci.yml"), "name: CI\n");
+
+    tq_release::verify_dependabot(temp.path()).expect("single-quoted scalars should be accepted");
 }

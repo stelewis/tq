@@ -10,11 +10,11 @@ pub enum DocsgenError {
         #[source]
         source: std::io::Error,
     },
-    #[error("failed to parse YAML file {path}: {source}")]
-    Yaml {
+    #[error("failed to parse JSON file {path}: {source}")]
+    Json {
         path: PathBuf,
         #[source]
-        source: serde_yaml_ng::Error,
+        source: serde_json::Error,
     },
     #[error("invalid manifest {path}: {message}")]
     Manifest { path: PathBuf, message: String },

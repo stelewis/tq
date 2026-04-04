@@ -41,7 +41,8 @@ This repository already has explicit security standards. Use them as the source 
 
 Review `deny.toml` for the authoritative policy. Today it explicitly bans:
 
-- `serde_yaml` because it is deprecated upstream; use `serde_yaml_ng` instead.
-- `serde_yml` because it is unsound and unmaintained; use `serde_yaml_ng` instead.
+- `serde_yaml` because it is deprecated upstream; use JSON or a crate-local strict parser instead.
+- `serde_yml` because it is unsound and unmaintained; use JSON or a crate-local strict parser instead.
+- `serde_yaml_ng` because it does not meet our supply-chain standards; use JSON or a crate-local strict parser instead.
 
 When a review touches dependency selection, check whether the proposed crate belongs in `deny.toml` or conflicts with an existing ban.

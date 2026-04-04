@@ -34,9 +34,9 @@ The following are locked as baseline contract references for rewrite planning an
 
 - CLI options baseline:
   - `docs/reference/cli.md`
-  - `docs/reference/cli/options-manifest.yaml`
+  - `docs/reference/cli/options-manifest.json`
 - Rule identity and severity baseline:
-  - `docs/reference/rules/manifest.yaml`
+  - `docs/reference/rules/manifest.json`
 - Versioning/release-impact policy baseline:
   - `docs/developer/versioning.md`
 

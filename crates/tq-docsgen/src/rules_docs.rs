@@ -4,19 +4,23 @@ use serde::Deserialize;
 
 use crate::DocsgenError;
 
-const MANIFEST_PATH: &str = "docs/reference/rules/manifest.yaml";
+const MANIFEST_PATH: &str = "docs/reference/rules/manifest.json";
 const RULES_DIR: &str = "docs/reference/rules";
 const SIDEBAR_PATH: &str = "docs/.vitepress/generated/rules-sidebar.ts";
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct RulesManifest {
+    version: u64,
     severity_vocabulary: Vec<String>,
     rules: Vec<RuleManifestEntry>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct RuleManifestEntry {
     id: String,
+    title: String,
     default_severity: String,
     added_in: String,
     behavior_changes: String,
@@ -29,6 +33,7 @@ struct RuleManifestEntry {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct RuleExample {
     source: String,
     test: String,
@@ -82,10 +87,17 @@ fn load_manifest(path: &Path) -> Result<RulesManifest, DocsgenError> {
         source,
     })?;
     let manifest: RulesManifest =
-        serde_yaml_ng::from_str(&content).map_err(|source| DocsgenError::Yaml {
+        serde_json::from_str(&content).map_err(|source| DocsgenError::Json {
             path: path.to_path_buf(),
             source,
         })?;
+
+    if manifest.version != 1 {
+        return Err(DocsgenError::manifest(
+            path.to_path_buf(),
+            format!("unsupported manifest version: {}", manifest.version),
+        ));
+    }
 
     if manifest.severity_vocabulary.is_empty() {
         return Err(DocsgenError::manifest(
@@ -113,6 +125,7 @@ fn load_manifest(path: &Path) -> Result<RulesManifest, DocsgenError> {
 
 fn validate_rule(path: &Path, rule: &RuleManifestEntry) -> Result<(), DocsgenError> {
     validate_non_empty(path, "rules.id", &rule.id)?;
+    validate_non_empty(path, "rules.title", &rule.title)?;
     validate_non_empty(path, "rules.default_severity", &rule.default_severity)?;
     validate_non_empty(path, "rules.added_in", &rule.added_in)?;
     validate_non_empty(path, "rules.behavior_changes", &rule.behavior_changes)?;

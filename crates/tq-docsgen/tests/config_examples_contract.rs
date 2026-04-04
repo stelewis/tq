@@ -8,7 +8,7 @@ fn generate_config_examples_updates_marked_sections() {
     let configuration_path = temp.path().join("docs/reference/configuration.md");
     let manifest_path = temp
         .path()
-        .join("docs/reference/config/examples-manifest.yaml");
+        .join("docs/reference/config/examples-manifest.json");
 
     write(
         &quickstart_path,
@@ -20,7 +20,7 @@ fn generate_config_examples_updates_marked_sections() {
     );
     write(
         &manifest_path,
-        "examples:\n  quickstart_minimal: |\n    [tool.tq]\n    [[tool.tq.targets]]\n    name = \"app\"\n    package = \"your_package\"\n    source_root = \"src\"\n    test_root = \"tests\"\n  configuration_minimal: |\n    [tool.tq]\n    [[tool.tq.targets]]\n    name = \"app\"\n    package = \"your_package\"\n    source_root = \"src\"\n    test_root = \"tests\"\n  configuration_typical: |\n    [tool.tq]\n    init_modules = \"ignore\"\n    [[tool.tq.targets]]\n    name = \"app\"\n    package = \"your_package\"\n    source_root = \"src\"\n    test_root = \"tests\"\n",
+        "{\n  \"examples\": {\n    \"quickstart_minimal\": \"[tool.tq]\\n\\n[[tool.tq.targets]]\\nname = \\\"app\\\"\\npackage = \\\"your_package\\\"\\nsource_root = \\\"src\\\"\\ntest_root = \\\"tests\\\"\",\n    \"configuration_minimal\": \"[tool.tq]\\n\\n[[tool.tq.targets]]\\nname = \\\"app\\\"\\npackage = \\\"your_package\\\"\\nsource_root = \\\"src\\\"\\ntest_root = \\\"tests\\\"\",\n    \"configuration_typical\": \"[tool.tq]\\ninit_modules = \\\"ignore\\\"\\n[[tool.tq.targets]]\\nname = \\\"app\\\"\\npackage = \\\"your_package\\\"\\nsource_root = \\\"src\\\"\\ntest_root = \\\"tests\\\"\"\n  }\n}\n",
     );
 
     tq_docsgen::generate_config_examples(temp.path()).expect("generate config examples");
@@ -41,7 +41,7 @@ fn generate_config_examples_fails_for_invalid_manifest_shape() {
     let configuration_path = temp.path().join("docs/reference/configuration.md");
     let manifest_path = temp
         .path()
-        .join("docs/reference/config/examples-manifest.yaml");
+        .join("docs/reference/config/examples-manifest.json");
 
     write(
         &quickstart_path,
@@ -51,11 +51,11 @@ fn generate_config_examples_fails_for_invalid_manifest_shape() {
         &configuration_path,
         "# Configuration\n\n<!-- BEGIN GENERATED:configuration-minimal-config -->\nplaceholder\n<!-- END GENERATED:configuration-minimal-config -->\n\n<!-- BEGIN GENERATED:configuration-typical-config -->\nplaceholder\n<!-- END GENERATED:configuration-typical-config -->\n",
     );
-    write(&manifest_path, "examples: invalid\n");
+    write(&manifest_path, "{\"examples\":\"invalid\"}\n");
 
     let error =
         tq_docsgen::generate_config_examples(temp.path()).expect_err("manifest should fail");
-    assert!(error.to_string().contains("failed to parse YAML file"));
+    assert!(error.to_string().contains("failed to parse JSON file"));
 }
 
 #[test]
@@ -65,7 +65,7 @@ fn generate_config_examples_fails_when_markers_are_missing() {
     let configuration_path = temp.path().join("docs/reference/configuration.md");
     let manifest_path = temp
         .path()
-        .join("docs/reference/config/examples-manifest.yaml");
+        .join("docs/reference/config/examples-manifest.json");
 
     write(&quickstart_path, "# QuickStart\nNo markers here.\n");
     write(
@@ -74,7 +74,7 @@ fn generate_config_examples_fails_when_markers_are_missing() {
     );
     write(
         &manifest_path,
-        "examples:\n  quickstart_minimal: \"x\"\n  configuration_minimal: \"x\"\n  configuration_typical: \"x\"\n",
+        "{\n  \"examples\": {\n    \"quickstart_minimal\": \"x\",\n    \"configuration_minimal\": \"x\",\n    \"configuration_typical\": \"x\"\n  }\n}\n",
     );
 
     let error =

@@ -1,4 +1,3 @@
-use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use flate2::read::GzDecoder;
@@ -123,12 +122,10 @@ fn find_tar_gz_violations(
         source,
     })?;
     for entry in entries {
-        let mut entry = entry.map_err(|source| ReleaseError::Io {
+        let entry = entry.map_err(|source| ReleaseError::Io {
             path: artifact_path.to_path_buf(),
             source,
         })?;
-        let mut sink = Vec::new();
-        let _ = entry.read_to_end(&mut sink);
         let member_name = entry
             .path()
             .map_err(|source| ReleaseError::Io {

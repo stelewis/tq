@@ -18,8 +18,9 @@ allow = [
 multiple-versions = "allow"
 wildcards = "deny"
 deny = [
-  { crate = "serde_yaml", reason = "deprecated upstream", use-instead = "serde_yaml_ng" },
-  { crate = "serde_yml", reason = "unsound and unmaintained", use-instead = "serde_yaml_ng" },
+  { crate = "serde_yaml", reason = "deprecated upstream", use-instead = "workspace JSON manifests or a crate-local strict parser" },
+  { crate = "serde_yml", reason = "unsound and unmaintained", use-instead = "workspace JSON manifests or a crate-local strict parser" },
+  { crate = "serde_yaml_ng", reason = "workspace avoids general YAML parsers", use-instead = "workspace JSON manifests or a crate-local strict parser" },
 ]
 
 [sources]

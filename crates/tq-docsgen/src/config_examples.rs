@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use crate::{DocsgenError, markers::replace_between_markers};
 
-const MANIFEST_PATH: &str = "docs/reference/config/examples-manifest.yaml";
+const MANIFEST_PATH: &str = "docs/reference/config/examples-manifest.json";
 const QUICKSTART_PATH: &str = "docs/guide/quickstart.md";
 const CONFIGURATION_PATH: &str = "docs/reference/configuration.md";
 
@@ -16,11 +16,13 @@ const CONFIGURATION_TYPICAL_START: &str = "<!-- BEGIN GENERATED:configuration-ty
 const CONFIGURATION_TYPICAL_END: &str = "<!-- END GENERATED:configuration-typical-config -->";
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ConfigExamplesManifest {
     examples: ConfigExamples,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ConfigExamples {
     quickstart_minimal: String,
     configuration_minimal: String,
@@ -59,7 +61,7 @@ fn load_manifest(path: &Path) -> Result<ConfigExamples, DocsgenError> {
         source,
     })?;
     let manifest: ConfigExamplesManifest =
-        serde_yaml_ng::from_str(&content).map_err(|source| DocsgenError::Yaml {
+        serde_json::from_str(&content).map_err(|source| DocsgenError::Json {
             path: path.to_path_buf(),
             source,
         })?;

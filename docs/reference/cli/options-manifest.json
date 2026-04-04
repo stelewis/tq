@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "cli_options": [
+    { "arg_ids": ["config"] },
+    { "arg_ids": ["isolated"] },
+    { "arg_ids": ["target_names"] },
+    { "arg_ids": ["init_modules"], "config_key": "init_modules" },
+    { "arg_ids": ["max_test_file_non_blank_lines"], "config_key": "max_test_file_non_blank_lines" },
+    { "arg_ids": ["qualifier_strategy"], "config_key": "qualifier_strategy" },
+    { "arg_ids": ["allowed_qualifiers"], "config_key": "allowed_qualifiers" },
+    { "arg_ids": ["select_rules"], "config_key": "select" },
+    { "arg_ids": ["ignore_rules"], "config_key": "ignore" },
+    { "arg_ids": ["output_format"] },
+    { "arg_ids": ["show_suggestions"] },
+    { "arg_ids": ["exit_zero"] }
+  ]
+}
