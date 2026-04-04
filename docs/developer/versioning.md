@@ -21,6 +21,16 @@ This policy covers:
 
 After `1.0`, major-version SemVer semantics apply for breaking changes.
 
+## Internal workspace crate policy
+
+The Rust workspace uses one shared version for all internal crates.
+
+- Internal crate APIs are current-only. They are not compatibility surfaces.
+- When a workspace crate changes a public API consumed by another workspace crate, update all internal callers in the same change.
+- Do not preserve old internal APIs with shims, aliases, deprecated wrappers, or dual-path call sites.
+- If an internal public API changes, bump the shared workspace version as a minor pre-`1.0` release before packaging or release validation.
+- `cargo package --workspace --locked` is the enforcement gate for this policy. If it fails because a published crate with the same version no longer matches the current internal API, the correct fix is a version bump, not compatibility code.
+
 ## Change classification
 
 ### Patch changes
@@ -42,6 +52,7 @@ Choose a minor release for:
 - changing exit code semantics
 - removing or renaming CLI flags, configuration keys, or rule IDs
 - changing JSON output fields in a breaking way
+- changing a public API in any internal workspace crate used by another workspace crate
 
 ## Governance linkage
 

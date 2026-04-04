@@ -49,6 +49,11 @@ cargo fmt --all --check && cargo clippy --workspace --all-targets --locked -- -D
 - MUST NOT constrain new designs by trying to maintain compatibility or avoid breaking changes.
   - MUST strive for architectural excellence even if it requires significant changes; prefer architectural clarity over convenience patches.
   - MUST NOT take a convenience driven approach that compromises design quality.
+- MUST treat internal crate APIs as current-only interfaces, not compatibility surfaces.
+  - When an internal crate API changes, MUST update all workspace callers in the same change.
+  - MUST remove the old API immediately instead of adding shims, aliases, adapter helpers, or dual-path call sites.
+  - MUST bump the shared workspace/internal crate minor version before packaging or release validation when an internal public API changes.
+  - If `cargo package --workspace --locked` fails because a published crate version no longer matches the current internal API, MUST fix that by bumping the workspace/internal crate version, not by restoring compatibility code.
 - MUST ensure that test modules are properly refactored when source code changes (split, merge, replace, delete).
 - MUST develop clean, maintainable, well factored, and elegant code.
 - MUST NOT blindly comply with lint rules or contort otherwise clear code to satisfy linting heuristics.

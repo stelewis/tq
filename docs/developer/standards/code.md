@@ -22,6 +22,7 @@ Goals:
 - **Composition root**: construct runtime graphs in binaries such as `tq-cli`, `tq-docsgen`, and `tq-release`. No hidden construction inside domain crates.
 - **Crate ownership is explicit**: each crate owns one boundary. Do not create convenience layers that blur config, discovery, engine, rules, reporting, and tooling responsibilities.
 - **Boundaries are strict**: adapters convert formats; they do not guess intent or silently coerce.
+- **Internal APIs are current-only**: workspace crates must move together. If an internal crate API changes, update all callers and bump the shared version; do not keep transitional compatibility layers between workspace crates.
 - **Domain stays pure**: core logic should not know about CLI parsing, filesystem walking, environment variables, or release automation details.
 - **Workspace consistency**: internal crate dependencies belong in the root workspace dependency table and should be consumed with `.workspace = true`.
 - **Public API is deliberate**: keep `pub` surfaces narrow and avoid re-export hubs that hide ownership.
@@ -48,6 +49,7 @@ Goals:
 - **Stringly-typed identifiers / closed vocabularies**: raw strings drifting through core logic for IDs, rule names, and states.
 - **Silent defaults in runtime models/config**: defaulting missing or invalid fields instead of failing fast.
 - **Compatibility coercion**: do not carry legacy adapters, schema upgrades, or dual-path behavior in runtime crates.
+- **Internal crate API shims**: do not preserve old workspace-crate APIs with wrappers, aliases, helper adapters, or fallback call paths. Update callers and bump the shared version instead.
 - **Hidden IO in domain code**: reading files, env vars, or process state from core planning and evaluation logic.
 - **Global mutable state or convenience interior mutability**: avoid shared hidden state when explicit ownership would be clearer.
 - **Broad `lib.rs` barrels**: do not flatten module ownership behind large re-export surfaces.
