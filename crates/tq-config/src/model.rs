@@ -126,6 +126,7 @@ pub struct TqTargetConfig {
     pub(crate) package: PackageName,
     pub(crate) source_root: PathBuf,
     pub(crate) test_root: PathBuf,
+    pub(crate) test_root_display: PathBuf,
     pub(crate) init_modules: InitModulesMode,
     pub(crate) max_test_file_non_blank_lines: u64,
     pub(crate) qualifier_strategy: QualifierStrategy,
@@ -153,6 +154,11 @@ impl TqTargetConfig {
     #[must_use]
     pub fn test_root(&self) -> &Path {
         &self.test_root
+    }
+
+    #[must_use]
+    pub fn test_root_display(&self) -> &Path {
+        &self.test_root_display
     }
 
     #[must_use]

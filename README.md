@@ -57,7 +57,7 @@ Configure `tq` in `pyproject.toml` under `[tool.tq]`:
 
 ```toml
 [tool.tq]
-ignore_init_modules = true
+init_modules = "ignore"
 max_test_file_non_blank_lines = 600
 qualifier_strategy = "allowlist"
 allowed_qualifiers = ["regression"]

@@ -213,7 +213,10 @@ fn is_python_identifier(value: &str) -> bool {
 mod tests {
     use std::path::Path;
 
-    use super::{PackageName, PackageNameError, RelativePathBuf, RelativePathError, TargetName};
+    use super::{
+        PackageName, PackageNameError, RelativePathBuf, RelativePathError, TargetName,
+        TargetNameError,
+    };
 
     #[test]
     fn target_name_accepts_kebab_case_values() {
@@ -224,7 +227,7 @@ mod tests {
     #[test]
     fn target_name_rejects_invalid_values() {
         let error = TargetName::parse("PythonCore").expect_err("target name should fail");
-        assert_eq!(error.to_string(), "target name must be kebab-case");
+        assert_eq!(error, TargetNameError::InvalidFormat);
     }
 
     #[test]
@@ -252,6 +255,17 @@ mod tests {
             error,
             RelativePathError::ParentDir {
                 path: "../tests".into(),
+            }
+        );
+    }
+
+    #[test]
+    fn relative_path_rejects_current_directory_components() {
+        let error = RelativePathBuf::new("./tests").expect_err("path should fail");
+        assert_eq!(
+            error,
+            RelativePathError::CurrentDir {
+                path: "./tests".into(),
             }
         );
     }

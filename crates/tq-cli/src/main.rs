@@ -204,6 +204,7 @@ fn build_target_inputs(targets: &[TqTargetConfig]) -> Result<Vec<TargetPlanInput
                 target.package_path().clone(),
                 target.source_package_root(),
                 target.test_root().to_path_buf(),
+                target.test_root_display().to_path_buf(),
             ))
         })
         .collect()

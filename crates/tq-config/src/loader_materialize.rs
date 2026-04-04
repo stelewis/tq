@@ -152,6 +152,7 @@ fn materialize_target(
         package,
         source_root: resolve_path(targets_base_dir, &source_root_value),
         test_root: resolve_path(targets_base_dir, &test_root_value),
+        test_root_display: PathBuf::from(&test_root_value),
         init_modules: final_rules.init_modules.unwrap_or(DEFAULT_INIT_MODULES),
         max_test_file_non_blank_lines: final_rules
             .max_test_file_non_blank_lines

@@ -4,8 +4,8 @@ use tempfile::tempdir;
 use tq_core::{RelativePathBuf, TargetName};
 use tq_discovery::AnalysisIndex;
 use tq_engine::{
-    AnalysisContext, EngineResult, Finding, Rule, RuleEngine, RuleId, Severity, TargetPlanInput,
-    aggregate_results, plan_target_runs,
+    AnalysisContext, EngineError, EngineResult, Finding, Rule, RuleEngine, RuleId, Severity,
+    TargetPlanInput, aggregate_results, plan_target_runs,
 };
 
 struct NoFindingRule {
@@ -288,6 +288,38 @@ fn engine_rejects_duplicate_rule_ids_at_construction() {
 }
 
 #[test]
+fn finding_rejects_empty_message_with_typed_error() {
+    let error = Finding::new(
+        RuleId::parse("rule-a").expect("valid rule id"),
+        Severity::Error,
+        "   ",
+        PathBuf::from("tests/tq/test_alpha.py"),
+        None,
+        None,
+        None,
+    )
+    .expect_err("finding should reject empty messages");
+
+    assert!(matches!(error, EngineError::EmptyFindingMessage));
+}
+
+#[test]
+fn finding_rejects_non_positive_line_with_typed_error() {
+    let error = Finding::new(
+        RuleId::parse("rule-a").expect("valid rule id"),
+        Severity::Error,
+        "valid message",
+        PathBuf::from("tests/tq/test_alpha.py"),
+        Some(0),
+        None,
+        None,
+    )
+    .expect_err("finding should reject line zero");
+
+    assert!(matches!(error, EngineError::InvalidFindingLine));
+}
+
+#[test]
 fn plan_target_runs_creates_context_per_active_target() {
     let temp = tempdir().expect("tempdir");
 
@@ -299,6 +331,7 @@ fn plan_target_runs_creates_context_per_active_target() {
         RelativePathBuf::new("tq").expect("package path should parse"),
         temp.path().join("src").join("tq"),
         temp.path().join("tests"),
+        PathBuf::from("tests"),
     );
 
     let planned = plan_target_runs(std::slice::from_ref(&target), std::slice::from_ref(&target))
@@ -311,13 +344,45 @@ fn plan_target_runs_creates_context_per_active_target() {
         .expect("planner must attach target context");
     assert_eq!(target_context.name().as_str(), "tq");
     assert_eq!(target_context.package_path().as_path(), Path::new("tq"));
-    assert_eq!(
-        target_context.test_root_display().as_path(),
-        Path::new("tests")
-    );
+    assert_eq!(target_context.test_root_display(), Path::new("tests"));
     assert_eq!(
         target_context.known_target_package_paths(),
         &[RelativePathBuf::new("tq").expect("package path should parse")]
+    );
+}
+
+#[test]
+fn plan_target_runs_preserves_nested_test_root_display() {
+    let temp = tempdir().expect("tempdir");
+
+    write(&temp.path().join("src").join("tq").join("module.py"));
+    write(
+        &temp
+            .path()
+            .join("python")
+            .join("tests")
+            .join("tq")
+            .join("test_module.py"),
+    );
+
+    let target = TargetPlanInput::new(
+        TargetName::parse("tq").expect("target name should parse"),
+        RelativePathBuf::new("tq").expect("package path should parse"),
+        temp.path().join("src").join("tq"),
+        temp.path().join("python").join("tests"),
+        PathBuf::from("python/tests"),
+    );
+
+    let planned = plan_target_runs(std::slice::from_ref(&target), std::slice::from_ref(&target))
+        .expect("planning should succeed");
+
+    assert_eq!(
+        planned[0]
+            .context()
+            .target()
+            .expect("planner must attach target context")
+            .test_root_display(),
+        Path::new("python/tests")
     );
 }
 
@@ -342,12 +407,14 @@ fn plan_target_runs_uses_configured_targets_for_known_paths() {
         RelativePathBuf::new("tq").expect("package path should parse"),
         temp.path().join("src").join("tq"),
         temp.path().join("tests"),
+        PathBuf::from("tests"),
     );
     let scripts_target = TargetPlanInput::new(
         TargetName::parse("scripts").expect("target name should parse"),
         RelativePathBuf::new("scripts").expect("package path should parse"),
         temp.path().join("scripts"),
         temp.path().join("tests"),
+        PathBuf::from("tests"),
     );
 
     let planned = plan_target_runs(

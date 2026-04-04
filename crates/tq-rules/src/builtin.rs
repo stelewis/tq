@@ -257,7 +257,7 @@ pub fn package_path_from_context(context: &AnalysisContext) -> PathBuf {
 
 pub fn test_root_display_from_context(context: &AnalysisContext) -> PathBuf {
     if let Some(target) = context.target() {
-        return target.test_root_display().as_path().to_path_buf();
+        return target.test_root_display().to_path_buf();
     }
 
     context

@@ -35,12 +35,9 @@ pub fn context_with_target(
             .map(RelativePathBuf::new)
             .collect::<Result<Vec<_>, _>>()
             .expect("known target paths should parse"),
-        RelativePathBuf::new(
-            test_root
-                .file_name()
-                .map_or_else(|| PathBuf::from("tests"), PathBuf::from),
-        )
-        .expect("test root display should parse"),
+        test_root
+            .file_name()
+            .map_or_else(|| PathBuf::from("tests"), PathBuf::from),
     );
 
     AnalysisContext::with_target(index, target)

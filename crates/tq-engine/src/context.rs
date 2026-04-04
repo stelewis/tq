@@ -8,7 +8,7 @@ pub struct TargetContext {
     name: TargetName,
     package_path: RelativePathBuf,
     known_target_package_paths: Vec<RelativePathBuf>,
-    test_root_display: RelativePathBuf,
+    test_root_display: PathBuf,
 }
 
 impl TargetContext {
@@ -17,7 +17,7 @@ impl TargetContext {
         name: TargetName,
         package_path: RelativePathBuf,
         known_target_package_paths: Vec<RelativePathBuf>,
-        test_root_display: RelativePathBuf,
+        test_root_display: PathBuf,
     ) -> Self {
         Self {
             name,
@@ -43,7 +43,7 @@ impl TargetContext {
     }
 
     #[must_use]
-    pub const fn test_root_display(&self) -> &RelativePathBuf {
+    pub fn test_root_display(&self) -> &Path {
         &self.test_root_display
     }
 }
@@ -88,6 +88,7 @@ pub struct TargetPlanInput {
     package_path: RelativePathBuf,
     source_package_root: PathBuf,
     test_root: PathBuf,
+    test_root_display: PathBuf,
 }
 
 impl TargetPlanInput {
@@ -97,15 +98,18 @@ impl TargetPlanInput {
         package_path: RelativePathBuf,
         source_package_root: impl Into<PathBuf>,
         test_root: impl Into<PathBuf>,
+        test_root_display: impl Into<PathBuf>,
     ) -> Self {
         let source_package_root = source_package_root.into();
         let test_root = test_root.into();
+        let test_root_display = test_root_display.into();
 
         Self {
             name,
             package_path,
             source_package_root,
             test_root,
+            test_root_display,
         }
     }
 
@@ -127,6 +131,11 @@ impl TargetPlanInput {
     #[must_use]
     pub fn test_root(&self) -> &Path {
         &self.test_root
+    }
+
+    #[must_use]
+    pub fn test_root_display(&self) -> &Path {
+        &self.test_root_display
     }
 }
 
