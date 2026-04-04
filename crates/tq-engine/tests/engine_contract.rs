@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use tempfile::tempdir;
+use tq_core::{RelativePathBuf, TargetName};
 use tq_discovery::AnalysisIndex;
 use tq_engine::{
     AnalysisContext, EngineResult, Finding, Rule, RuleEngine, RuleId, Severity, TargetPlanInput,
@@ -294,12 +295,11 @@ fn plan_target_runs_creates_context_per_active_target() {
     write(&temp.path().join("tests").join("tq").join("test_module.py"));
 
     let target = TargetPlanInput::new(
-        "tq",
-        PathBuf::from("tq"),
+        TargetName::parse("tq").expect("target name should parse"),
+        RelativePathBuf::new("tq").expect("package path should parse"),
         temp.path().join("src").join("tq"),
         temp.path().join("tests"),
-    )
-    .expect("target input should be valid");
+    );
 
     let planned = plan_target_runs(std::slice::from_ref(&target), std::slice::from_ref(&target))
         .expect("planning should succeed");
@@ -309,12 +309,15 @@ fn plan_target_runs_creates_context_per_active_target() {
         .context()
         .target()
         .expect("planner must attach target context");
-    assert_eq!(target_context.name(), "tq");
-    assert_eq!(target_context.package_path(), "tq");
-    assert_eq!(target_context.test_root_display(), "tests");
+    assert_eq!(target_context.name().as_str(), "tq");
+    assert_eq!(target_context.package_path().as_path(), Path::new("tq"));
+    assert_eq!(
+        target_context.test_root_display().as_path(),
+        Path::new("tests")
+    );
     assert_eq!(
         target_context.known_target_package_paths(),
-        &["tq".to_owned()]
+        &[RelativePathBuf::new("tq").expect("package path should parse")]
     );
 }
 
@@ -335,19 +338,17 @@ fn plan_target_runs_uses_configured_targets_for_known_paths() {
     );
 
     let tq_target = TargetPlanInput::new(
-        "tq",
-        PathBuf::from("tq"),
+        TargetName::parse("tq").expect("target name should parse"),
+        RelativePathBuf::new("tq").expect("package path should parse"),
         temp.path().join("src").join("tq"),
         temp.path().join("tests"),
-    )
-    .expect("tq target should be valid");
+    );
     let scripts_target = TargetPlanInput::new(
-        "scripts",
-        PathBuf::from("scripts"),
+        TargetName::parse("scripts").expect("target name should parse"),
+        RelativePathBuf::new("scripts").expect("package path should parse"),
         temp.path().join("scripts"),
         temp.path().join("tests"),
-    )
-    .expect("scripts target should be valid");
+    );
 
     let planned = plan_target_runs(
         &[tq_target, scripts_target.clone()],
@@ -360,9 +361,12 @@ fn plan_target_runs_uses_configured_targets_for_known_paths() {
         .context()
         .target()
         .expect("planner must attach target context");
-    assert_eq!(target_context.name(), "scripts");
+    assert_eq!(target_context.name().as_str(), "scripts");
     assert_eq!(
         target_context.known_target_package_paths(),
-        &["tq".to_owned(), "scripts".to_owned()]
+        &[
+            RelativePathBuf::new("tq").expect("package path should parse"),
+            RelativePathBuf::new("scripts").expect("package path should parse"),
+        ]
     );
 }

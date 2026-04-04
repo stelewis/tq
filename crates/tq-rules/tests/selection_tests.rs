@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 
+use tq_core::InitModulesMode;
 use tq_engine::RuleId;
 use tq_rules::{
     BuiltinRuleOptions, BuiltinRuleRegistry, QualifierStrategy, RuleSelection, builtin_rule_ids,
@@ -32,7 +33,7 @@ fn resolve_active_rule_ids_rejects_unknown_ids() {
 #[test]
 fn registry_builds_selected_rules_in_builtin_order() {
     let options = BuiltinRuleOptions::new(
-        true,
+        InitModulesMode::Ignore,
         120,
         QualifierStrategy::Allowlist,
         ["regression".to_owned()],
@@ -65,8 +66,13 @@ fn registry_builds_selected_rules_in_builtin_order() {
 
 #[test]
 fn options_validate_allowlist_requires_qualifiers() {
-    let error = BuiltinRuleOptions::new(false, 600, QualifierStrategy::Allowlist, BTreeSet::new())
-        .expect_err("empty allowlist should fail");
+    let error = BuiltinRuleOptions::new(
+        InitModulesMode::Include,
+        600,
+        QualifierStrategy::Allowlist,
+        BTreeSet::new(),
+    )
+    .expect_err("empty allowlist should fail");
 
     assert_eq!(
         error.to_string(),

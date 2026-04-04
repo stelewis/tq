@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-use tq_core::{QualifierStrategy, RuleId};
+use tq_core::{InitModulesMode, QualifierStrategy, RuleId};
 use tq_engine::{AnalysisContext, Rule};
 
 use crate::error::RulesError;
@@ -54,7 +54,7 @@ impl BuiltinRule {
     fn build(self, options: &BuiltinRuleOptions) -> Result<Box<dyn Rule>, RulesError> {
         match self {
             Self::MappingMissingTest => Ok(Box::new(MappingMissingTestRule::new(
-                options.ignore_init_modules(),
+                options.init_modules(),
                 options.qualifier_strategy(),
                 options.allowed_qualifiers().clone(),
             )?)),
@@ -72,7 +72,7 @@ impl BuiltinRule {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct BuiltinRuleOptions {
-    ignore_init_modules: bool,
+    init_modules: InitModulesMode,
     max_test_file_non_blank_lines: u64,
     qualifier_strategy: QualifierStrategy,
     allowed_qualifiers: BTreeSet<String>,
@@ -80,26 +80,24 @@ pub struct BuiltinRuleOptions {
 
 impl BuiltinRuleOptions {
     pub fn new(
-        ignore_init_modules: bool,
+        init_modules: InitModulesMode,
         max_test_file_non_blank_lines: u64,
         qualifier_strategy: QualifierStrategy,
         allowed_qualifiers: impl IntoIterator<Item = String>,
     ) -> Result<Self, RulesError> {
         if max_test_file_non_blank_lines < 1 {
-            return Err(RulesError::validation(
-                "max_test_file_non_blank_lines must be >= 1",
+            return Err(RulesError::value_must_be_positive(
+                "max_test_file_non_blank_lines",
             ));
         }
 
         let allowed_qualifiers = normalize_non_empty_trimmed_strings(allowed_qualifiers);
         if qualifier_strategy == QualifierStrategy::Allowlist && allowed_qualifiers.is_empty() {
-            return Err(RulesError::validation(
-                "allowed_qualifiers must be non-empty for allowlist strategy",
-            ));
+            return Err(RulesError::allowlist_requires_qualifiers());
         }
 
         Ok(Self {
-            ignore_init_modules,
+            init_modules,
             max_test_file_non_blank_lines,
             qualifier_strategy,
             allowed_qualifiers,
@@ -107,8 +105,8 @@ impl BuiltinRuleOptions {
     }
 
     #[must_use]
-    pub const fn ignore_init_modules(&self) -> bool {
-        self.ignore_init_modules
+    pub const fn init_modules(&self) -> InitModulesMode {
+        self.init_modules
     }
 
     #[must_use]
@@ -130,7 +128,7 @@ impl BuiltinRuleOptions {
 impl Default for BuiltinRuleOptions {
     fn default() -> Self {
         Self {
-            ignore_init_modules: false,
+            init_modules: InitModulesMode::Include,
             max_test_file_non_blank_lines: 600,
             qualifier_strategy: QualifierStrategy::AnySuffix,
             allowed_qualifiers: BTreeSet::new(),
@@ -247,7 +245,7 @@ pub fn parse_builtin_rule_id(value: &'static str) -> Result<RuleId, RulesError> 
 
 pub fn package_path_from_context(context: &AnalysisContext) -> PathBuf {
     if let Some(target) = context.target() {
-        return PathBuf::from(target.package_path());
+        return target.package_path().as_path().to_path_buf();
     }
 
     context
@@ -259,7 +257,7 @@ pub fn package_path_from_context(context: &AnalysisContext) -> PathBuf {
 
 pub fn test_root_display_from_context(context: &AnalysisContext) -> PathBuf {
     if let Some(target) = context.target() {
-        return PathBuf::from(target.test_root_display());
+        return target.test_root_display().as_path().to_path_buf();
     }
 
     context
@@ -276,7 +274,7 @@ pub fn known_target_package_paths_from_context(context: &AnalysisContext) -> Vec
             target
                 .known_target_package_paths()
                 .iter()
-                .map(PathBuf::from)
+                .map(|path| path.as_path().to_path_buf())
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default()

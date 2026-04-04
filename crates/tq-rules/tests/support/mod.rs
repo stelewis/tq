@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use tempfile::TempDir;
+use tq_core::{RelativePathBuf, TargetName};
 use tq_discovery::AnalysisIndex;
 use tq_engine::{AnalysisContext, TargetContext};
 
@@ -27,15 +28,20 @@ pub fn context_with_target(
     let index = AnalysisIndex::create(source_root, test_root, source_files, test_files)
         .expect("index should be created");
     let target = TargetContext::new(
-        "active",
-        package_path,
-        known_target_package_paths,
-        test_root
-            .file_name()
-            .and_then(std::ffi::OsStr::to_str)
-            .unwrap_or("tests"),
-    )
-    .expect("target context should be valid");
+        TargetName::parse("active").expect("target name should parse"),
+        RelativePathBuf::new(package_path).expect("package path should parse"),
+        known_target_package_paths
+            .into_iter()
+            .map(RelativePathBuf::new)
+            .collect::<Result<Vec<_>, _>>()
+            .expect("known target paths should parse"),
+        RelativePathBuf::new(
+            test_root
+                .file_name()
+                .map_or_else(|| PathBuf::from("tests"), PathBuf::from),
+        )
+        .expect("test root display should parse"),
+    );
 
     AnalysisContext::with_target(index, target)
 }

@@ -1,6 +1,38 @@
+mod domain;
+
 use std::borrow::Cow;
 
 use thiserror::Error;
+
+pub use domain::{
+    PackageName, PackageNameError, RelativePathBuf, RelativePathError, TargetName, TargetNameError,
+};
+
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
+pub enum InitModulesMode {
+    #[default]
+    Include,
+    Ignore,
+}
+
+impl InitModulesMode {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Include => "include",
+            Self::Ignore => "ignore",
+        }
+    }
+
+    #[must_use]
+    pub fn parse(raw: &str) -> Option<Self> {
+        match raw {
+            "include" => Some(Self::Include),
+            "ignore" => Some(Self::Ignore),
+            _ => None,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
 pub enum QualifierStrategy {

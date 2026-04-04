@@ -15,10 +15,9 @@ pub fn load_partial_from_pyproject(
     require_section: bool,
 ) -> Result<PartialTqConfig, ConfigError> {
     if !path.exists() {
-        return Err(ConfigError::validation(format!(
-            "Config file not found: {}",
-            path.display()
-        )));
+        return Err(ConfigError::ConfigNotFound {
+            path: path.to_path_buf(),
+        });
     }
 
     let raw = fs::read_to_string(path).map_err(|error| ConfigError::Read {
@@ -31,15 +30,14 @@ pub fn load_partial_from_pyproject(
     })?;
 
     let Some(root_table) = document.as_table() else {
-        return Err(ConfigError::validation("TOML document must be a table"));
+        return Err(ConfigError::DocumentMustBeTable);
     };
 
     let Some(tool_value) = root_table.get("tool") else {
         if require_section {
-            return Err(ConfigError::validation(format!(
-                "Missing [tool.tq] section in config file: {}",
-                path.display()
-            )));
+            return Err(ConfigError::MissingToolTqSection {
+                path: path.to_path_buf(),
+            });
         }
         return Ok(PartialTqConfig::default());
     };
@@ -47,10 +45,9 @@ pub fn load_partial_from_pyproject(
     let tool_table = as_table(tool_value, "[tool]")?;
     let Some(tq_value) = tool_table.get("tq") else {
         if require_section {
-            return Err(ConfigError::validation(format!(
-                "Missing [tool.tq] section in config file: {}",
-                path.display()
-            )));
+            return Err(ConfigError::MissingToolTqSection {
+                path: path.to_path_buf(),
+            });
         }
         return Ok(PartialTqConfig::default());
     };
@@ -100,9 +97,12 @@ pub fn ensure_unique_strings(values: &[String], location: &str) -> Result<(), Co
     let mut seen_indices: BTreeMap<&str, usize> = BTreeMap::new();
     for (index, value) in values.iter().enumerate() {
         if let Some(first_index) = seen_indices.get(value.as_str()) {
-            return Err(ConfigError::validation(format!(
-                "{location} contains duplicate value {value:?} at indices {first_index} and {index}"
-            )));
+            return Err(ConfigError::DuplicateValue {
+                location: location.to_owned(),
+                value: value.clone(),
+                first_index: *first_index,
+                second_index: index,
+            });
         }
         seen_indices.insert(value.as_str(), index);
     }
@@ -110,13 +110,8 @@ pub fn ensure_unique_strings(values: &[String], location: &str) -> Result<(), Co
 }
 
 fn as_table<'a>(value: &'a toml::Value, location: &str) -> Result<&'a Table, ConfigError> {
-    value.as_table().ok_or_else(|| {
-        let message = if location == "[tool.tq]" {
-            "[tool.tq] must be a table".to_owned()
-        } else {
-            format!("{location} must be a table")
-        };
-        ConfigError::validation(message)
+    value.as_table().ok_or_else(|| ConfigError::TableExpected {
+        location: location.to_owned(),
     })
 }
 
@@ -133,7 +128,10 @@ fn reject_unknown_keys(table: &Table, expected: &[&str], prefix: &str) -> Result
     }
 
     let keys = unknown.join(", ");
-    Err(ConfigError::validation(format!("{prefix} {keys}")))
+    Err(ConfigError::UnknownKeys {
+        prefix: prefix.to_owned(),
+        keys,
+    })
 }
 
 fn expect_optional_str(
@@ -146,14 +144,14 @@ fn expect_optional_str(
     };
 
     let Some(string) = value.as_str() else {
-        return Err(ConfigError::validation(format!(
-            "{location}.{key} must be a string"
-        )));
+        return Err(ConfigError::StringExpected {
+            location: format!("{location}.{key}"),
+        });
     };
     if string.trim().is_empty() {
-        return Err(ConfigError::validation(format!(
-            "{location}.{key} must be non-empty"
-        )));
+        return Err(ConfigError::EmptyString {
+            location: format!("{location}.{key}"),
+        });
     }
     Ok(Some(string.to_owned()))
 }
@@ -168,18 +166,21 @@ fn expect_optional_init_modules(
     };
 
     let Some(raw) = value.as_str() else {
-        return Err(ConfigError::validation(format!(
-            "{location}.{key} must be a string"
-        )));
+        return Err(ConfigError::StringExpected {
+            location: format!("{location}.{key}"),
+        });
     };
 
-    InitModulesMode::parse(raw).map(Some).ok_or_else(|| {
-        ConfigError::validation(format!(
-            "{location}.{key} must be one of: {}, {}",
-            InitModulesMode::Include.as_str(),
-            InitModulesMode::Ignore.as_str(),
-        ))
-    })
+    InitModulesMode::parse(raw)
+        .map(Some)
+        .ok_or_else(|| ConfigError::InvalidEnumValue {
+            location: format!("{location}.{key}"),
+            expected: format!(
+                "{}, {}",
+                InitModulesMode::Include.as_str(),
+                InitModulesMode::Ignore.as_str()
+            ),
+        })
 }
 
 fn expect_optional_positive_int(
@@ -192,17 +193,18 @@ fn expect_optional_positive_int(
     };
 
     let Some(integer) = value.as_integer() else {
-        return Err(ConfigError::validation(format!(
-            "{location}.{key} must be an integer"
-        )));
+        return Err(ConfigError::IntegerExpected {
+            location: format!("{location}.{key}"),
+        });
     };
     if integer < 1 {
-        return Err(ConfigError::validation(format!(
-            "{location}.{key} must be >= 1"
-        )));
+        return Err(ConfigError::PositiveIntegerExpected {
+            location: format!("{location}.{key}"),
+        });
     }
-    let integer = u64::try_from(integer)
-        .map_err(|_| ConfigError::validation(format!("{location}.{key} must be >= 1")))?;
+    let integer = u64::try_from(integer).map_err(|_| ConfigError::PositiveIntegerExpected {
+        location: format!("{location}.{key}"),
+    })?;
     Ok(Some(integer))
 }
 
@@ -216,19 +218,22 @@ fn expect_optional_qualifier_strategy(
     };
 
     let Some(raw) = value.as_str() else {
-        return Err(ConfigError::validation(format!(
-            "{location}.{key} must be a string"
-        )));
+        return Err(ConfigError::StringExpected {
+            location: format!("{location}.{key}"),
+        });
     };
 
-    QualifierStrategy::parse(raw).map(Some).ok_or_else(|| {
-        ConfigError::validation(format!(
-            "{location}.{key} must be one of: {}, {}, {}",
-            QualifierStrategy::None.as_str(),
-            QualifierStrategy::AnySuffix.as_str(),
-            QualifierStrategy::Allowlist.as_str(),
-        ))
-    })
+    QualifierStrategy::parse(raw)
+        .map(Some)
+        .ok_or_else(|| ConfigError::InvalidEnumValue {
+            location: format!("{location}.{key}"),
+            expected: format!(
+                "{}, {}, {}",
+                QualifierStrategy::None.as_str(),
+                QualifierStrategy::AnySuffix.as_str(),
+                QualifierStrategy::Allowlist.as_str()
+            ),
+        })
 }
 
 fn expect_optional_string_list(
@@ -242,30 +247,33 @@ fn expect_optional_string_list(
     };
 
     let Some(array) = value.as_array() else {
-        return Err(ConfigError::validation(format!(
-            "{location}.{key} must be an array of strings"
-        )));
+        return Err(ConfigError::StringArrayExpected {
+            location: format!("{location}.{key}"),
+        });
     };
 
     let mut items = Vec::with_capacity(array.len());
     let mut seen_indices: BTreeMap<String, usize> = BTreeMap::new();
     for (index, item) in array.iter().enumerate() {
         let Some(item) = item.as_str() else {
-            return Err(ConfigError::validation(format!(
-                "{location}.{key}[{index}] must be a non-empty string"
-            )));
+            return Err(ConfigError::EmptyString {
+                location: format!("{location}.{key}[{index}]"),
+            });
         };
         if item.trim().is_empty() {
-            return Err(ConfigError::validation(format!(
-                "{location}.{key}[{index}] must be a non-empty string"
-            )));
+            return Err(ConfigError::EmptyString {
+                location: format!("{location}.{key}[{index}]"),
+            });
         }
 
         if require_unique {
             if let Some(first_index) = seen_indices.get(item) {
-                return Err(ConfigError::validation(format!(
-                    "{location}.{key} contains duplicate value {item:?} at indices {first_index} and {index}"
-                )));
+                return Err(ConfigError::DuplicateValue {
+                    location: format!("{location}.{key}"),
+                    value: item.to_owned(),
+                    first_index: *first_index,
+                    second_index: index,
+                });
             }
             seen_indices.insert(item.to_owned(), index);
         }
@@ -287,10 +295,10 @@ fn expect_optional_rule_ids(
 
     let mut rule_ids = Vec::with_capacity(values.len());
     for (index, value) in values.iter().enumerate() {
-        let parsed = RuleId::parse(value).map_err(|_| {
-            ConfigError::validation(format!(
-                "{location}.{key}[{index}] contains invalid rule id: {value}"
-            ))
+        let parsed = RuleId::parse(value).map_err(|source| ConfigError::InvalidRuleId {
+            location: format!("{location}.{key}[{index}]"),
+            value: value.clone(),
+            source,
         })?;
         rule_ids.push(parsed);
     }
@@ -306,18 +314,16 @@ fn expect_optional_targets(
     };
 
     let Some(array) = value.as_array() else {
-        return Err(ConfigError::validation(
-            "tool.tq.targets must be an array of tables",
-        ));
+        return Err(ConfigError::TableArrayExpected {
+            location: "tool.tq.targets".to_owned(),
+        });
     };
 
     let mut targets = Vec::with_capacity(array.len());
     for (target_index, item) in array.iter().enumerate() {
         let location = format!("tool.tq.targets[{target_index}]");
         let Some(target_table) = item.as_table() else {
-            return Err(ConfigError::validation(format!(
-                "{location} must be a table"
-            )));
+            return Err(ConfigError::TableExpected { location });
         };
 
         reject_unknown_keys(

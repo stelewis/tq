@@ -1,40 +1,13 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use tq_core::{QualifierStrategy, RuleId};
+use tq_core::{
+    InitModulesMode, PackageName, QualifierStrategy, RelativePathBuf, RuleId, TargetName,
+};
 
 use crate::paths::normalize_absolute;
 
 pub const DEFAULT_INIT_MODULES: InitModulesMode = InitModulesMode::Include;
 pub const DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES: u64 = 600;
-
-#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
-pub enum InitModulesMode {
-    #[default]
-    Include,
-    Ignore,
-}
-
-impl InitModulesMode {
-    pub(crate) const fn as_str(self) -> &'static str {
-        match self {
-            Self::Include => "include",
-            Self::Ignore => "ignore",
-        }
-    }
-
-    pub(crate) fn parse(raw: &str) -> Option<Self> {
-        match raw {
-            "include" => Some(Self::Include),
-            "ignore" => Some(Self::Ignore),
-            _ => None,
-        }
-    }
-
-    #[must_use]
-    pub const fn should_ignore(self) -> bool {
-        matches!(self, Self::Ignore)
-    }
-}
 
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct PartialRuleConfig {
@@ -149,8 +122,8 @@ impl CliOverrides {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TqTargetConfig {
-    pub(crate) name: String,
-    pub(crate) package: String,
+    pub(crate) name: TargetName,
+    pub(crate) package: PackageName,
     pub(crate) source_root: PathBuf,
     pub(crate) test_root: PathBuf,
     pub(crate) init_modules: InitModulesMode,
@@ -163,22 +136,22 @@ pub struct TqTargetConfig {
 
 impl TqTargetConfig {
     #[must_use]
-    pub fn name(&self) -> &str {
+    pub const fn name(&self) -> &TargetName {
         &self.name
     }
 
     #[must_use]
-    pub fn package(&self) -> &str {
+    pub const fn package(&self) -> &PackageName {
         &self.package
     }
 
     #[must_use]
-    pub const fn source_root(&self) -> &PathBuf {
+    pub fn source_root(&self) -> &Path {
         &self.source_root
     }
 
     #[must_use]
-    pub const fn test_root(&self) -> &PathBuf {
+    pub fn test_root(&self) -> &Path {
         &self.test_root
     }
 
@@ -213,15 +186,13 @@ impl TqTargetConfig {
     }
 
     #[must_use]
-    pub fn package_path(&self) -> PathBuf {
-        self.package
-            .split('.')
-            .fold(PathBuf::new(), |path, segment| path.join(segment))
+    pub const fn package_path(&self) -> &RelativePathBuf {
+        self.package.relative_path()
     }
 
     #[must_use]
     pub fn source_package_root(&self) -> PathBuf {
-        normalize_absolute(&self.source_root.join(self.package_path()))
+        normalize_absolute(&self.source_root.join(self.package_path().as_path()))
     }
 }
 

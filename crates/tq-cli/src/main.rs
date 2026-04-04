@@ -66,7 +66,7 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
     let mut target_results = Vec::with_capacity(planned_runs.len());
     for (target_config, planned_run) in active_targets.iter().zip(planned_runs) {
         let options = BuiltinRuleOptions::new(
-            target_config.init_modules().should_ignore(),
+            target_config.init_modules(),
             target_config.max_test_file_non_blank_lines(),
             target_config.qualifier_strategy(),
             target_config.allowed_qualifiers().iter().cloned(),
@@ -142,7 +142,7 @@ fn select_targets(
 
     let by_name = configured_targets
         .iter()
-        .map(|target| (target.name(), target))
+        .map(|target| (target.name().as_str(), target))
         .collect::<std::collections::BTreeMap<_, _>>();
 
     let unknown_names = selected_target_names
@@ -180,14 +180,14 @@ fn validate_target_paths(target: &TqTargetConfig) -> Result<()> {
     let source_package_root = target.source_package_root();
     if !source_package_root.exists() {
         return Err(CliError::from_missing_source_package_root(
-            target.name(),
+            target.name().as_str(),
             &source_package_root,
         ));
     }
 
     if !target.test_root().exists() {
         return Err(CliError::from_missing_test_root(
-            target.name(),
+            target.name().as_str(),
             target.test_root(),
         ));
     }
@@ -199,13 +199,12 @@ fn build_target_inputs(targets: &[TqTargetConfig]) -> Result<Vec<TargetPlanInput
     targets
         .iter()
         .map(|target| {
-            TargetPlanInput::new(
-                target.name().to_owned(),
-                target.package_path(),
+            Ok(TargetPlanInput::new(
+                target.name().clone(),
+                target.package_path().clone(),
                 target.source_package_root(),
-                target.test_root().clone(),
-            )
-            .map_err(CliError::from)
+                target.test_root().to_path_buf(),
+            ))
         })
         .collect()
 }

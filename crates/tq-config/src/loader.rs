@@ -74,8 +74,8 @@ fn absolute_from_process(path: &Path) -> Result<PathBuf, ConfigError> {
         return Ok(normalize_absolute(path));
     }
 
-    let current = std::env::current_dir().map_err(|error| {
-        ConfigError::validation(format!("failed to resolve current directory: {error}"))
+    let current = std::env::current_dir().map_err(|error| ConfigError::CurrentDirectory {
+        message: error.to_string(),
     })?;
     Ok(normalize_absolute(&current.join(path)))
 }

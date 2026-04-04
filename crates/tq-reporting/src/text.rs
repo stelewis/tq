@@ -78,7 +78,7 @@ impl<'a> TextReporter<'a> {
 fn render_target_prefix(finding: &Finding) -> String {
     finding
         .target()
-        .map_or_else(String::new, |target| format!("target={target} "))
+        .map_or_else(String::new, |target| format!("target={} ", target.as_str()))
 }
 
 const fn render_severity(severity: Severity) -> &'static str {

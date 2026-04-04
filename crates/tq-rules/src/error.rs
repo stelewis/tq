@@ -4,8 +4,10 @@ use tq_engine::RuleId;
 
 #[derive(Debug, Error)]
 pub enum RulesError {
-    #[error("{message}")]
-    Validation { message: String },
+    #[error("allowed_qualifiers must be non-empty for allowlist strategy")]
+    AllowlistRequiresQualifiers,
+    #[error("{setting} must be >= 1")]
+    ValueMustBePositive { setting: &'static str },
     #[error("invalid built-in rule id definition `{id}`: {source}")]
     InvalidBuiltinRuleId {
         id: &'static str,
@@ -19,14 +21,16 @@ pub enum RulesError {
 }
 
 impl RulesError {
-    pub(crate) fn validation(message: impl Into<String>) -> Self {
-        Self::Validation {
-            message: message.into(),
-        }
-    }
-
     pub(crate) const fn invalid_builtin_rule_id(id: &'static str, source: RuleIdError) -> Self {
         Self::InvalidBuiltinRuleId { id, source }
+    }
+
+    pub(crate) const fn allowlist_requires_qualifiers() -> Self {
+        Self::AllowlistRequiresQualifiers
+    }
+
+    pub(crate) const fn value_must_be_positive(setting: &'static str) -> Self {
+        Self::ValueMustBePositive { setting }
     }
 
     pub(crate) fn unknown_builtin_rule_ids(rule_ids: &[RuleId]) -> Self {

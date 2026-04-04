@@ -2,6 +2,7 @@ use std::io::Write;
 use std::path::Path;
 
 use serde::Serialize;
+use tq_core::TargetName;
 use tq_engine::{EngineResult, Finding};
 
 use crate::ReportingError;
@@ -63,7 +64,7 @@ impl<'a> JsonFinding<'a> {
             path: display_path(finding.path(), cwd),
             line: finding.line(),
             suggestion: finding.suggestion(),
-            target: finding.target(),
+            target: finding.target().map(TargetName::as_str),
         }
     }
 }

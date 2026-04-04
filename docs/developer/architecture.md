@@ -12,6 +12,7 @@ ADRs are stored in `docs/adr/`.
 
 `tq` is a layered, deterministic static analysis tool for test quality:
 
+- **Shared domain model:** `crates/tq-core` owns validated runtime types such as target names, package names, target-relative paths, rule IDs, and shared enums so invariants are parsed once at boundaries and preserved across crates.
 - **Composition root:** `crates/tq-cli/src/main.rs` resolves config, validates targets, plans target runs, constructs rules, executes the engine, and selects the output reporter.
 - **Config boundary:** `crates/tq-config` owns strict config loading, precedence, validation, and materialization into runtime target config.
 - **Discovery boundary:** `crates/tq-discovery` scans configured source and test roots into immutable analysis indexes.

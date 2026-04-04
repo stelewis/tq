@@ -8,7 +8,9 @@ mod paths;
 pub use error::ConfigError;
 pub use loader::{resolve_tq_config, resolve_tq_config_with_user_config};
 pub use model::{
-    CliOverrides, DEFAULT_INIT_MODULES, DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES, InitModulesMode,
-    TqConfig, TqTargetConfig,
+    CliOverrides, DEFAULT_INIT_MODULES, DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES, TqConfig,
+    TqTargetConfig,
 };
-pub use tq_core::{QualifierStrategy, RuleId};
+pub use tq_core::{
+    InitModulesMode, PackageName, QualifierStrategy, RelativePathBuf, RuleId, TargetName,
+};

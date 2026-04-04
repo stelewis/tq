@@ -1,70 +1,49 @@
 use std::path::{Path, PathBuf};
 
+use tq_core::{RelativePathBuf, TargetName};
 use tq_discovery::AnalysisIndex;
-
-use crate::EngineError;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TargetContext {
-    name: String,
-    package_path: String,
-    known_target_package_paths: Vec<String>,
-    test_root_display: String,
+    name: TargetName,
+    package_path: RelativePathBuf,
+    known_target_package_paths: Vec<RelativePathBuf>,
+    test_root_display: RelativePathBuf,
 }
 
 impl TargetContext {
-    pub fn new(
-        name: impl Into<String>,
-        package_path: impl Into<String>,
-        known_target_package_paths: Vec<String>,
-        test_root_display: impl Into<String>,
-    ) -> Result<Self, EngineError> {
-        let name = name.into();
-        if name.trim().is_empty() {
-            return Err(EngineError::Validation {
-                message: "Target context name must be non-empty".to_owned(),
-            });
-        }
-
-        let package_path = package_path.into();
-        if package_path.trim().is_empty() {
-            return Err(EngineError::Validation {
-                message: "Target context package path must be non-empty".to_owned(),
-            });
-        }
-
-        let test_root_display = test_root_display.into();
-        if test_root_display.trim().is_empty() {
-            return Err(EngineError::Validation {
-                message: "Target context test root display must be non-empty".to_owned(),
-            });
-        }
-
-        Ok(Self {
+    #[must_use]
+    pub const fn new(
+        name: TargetName,
+        package_path: RelativePathBuf,
+        known_target_package_paths: Vec<RelativePathBuf>,
+        test_root_display: RelativePathBuf,
+    ) -> Self {
+        Self {
             name,
             package_path,
             known_target_package_paths,
             test_root_display,
-        })
+        }
     }
 
     #[must_use]
-    pub fn name(&self) -> &str {
+    pub const fn name(&self) -> &TargetName {
         &self.name
     }
 
     #[must_use]
-    pub fn package_path(&self) -> &str {
+    pub const fn package_path(&self) -> &RelativePathBuf {
         &self.package_path
     }
 
     #[must_use]
-    pub fn known_target_package_paths(&self) -> &[String] {
+    pub fn known_target_package_paths(&self) -> &[RelativePathBuf] {
         &self.known_target_package_paths
     }
 
     #[must_use]
-    pub fn test_root_display(&self) -> &str {
+    pub const fn test_root_display(&self) -> &RelativePathBuf {
         &self.test_root_display
     }
 }
@@ -105,51 +84,38 @@ impl AnalysisContext {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TargetPlanInput {
-    name: String,
-    package_path: PathBuf,
+    name: TargetName,
+    package_path: RelativePathBuf,
     source_package_root: PathBuf,
     test_root: PathBuf,
 }
 
 impl TargetPlanInput {
+    #[must_use]
     pub fn new(
-        name: impl Into<String>,
-        package_path: impl Into<PathBuf>,
+        name: TargetName,
+        package_path: RelativePathBuf,
         source_package_root: impl Into<PathBuf>,
         test_root: impl Into<PathBuf>,
-    ) -> Result<Self, EngineError> {
-        let name = name.into();
-        if name.trim().is_empty() {
-            return Err(EngineError::Validation {
-                message: "Target name must be non-empty".to_owned(),
-            });
-        }
-
-        let package_path = package_path.into();
-        if package_path.as_os_str().is_empty() || package_path.is_absolute() {
-            return Err(EngineError::Validation {
-                message: "Target package path must be a non-empty relative path".to_owned(),
-            });
-        }
-
+    ) -> Self {
         let source_package_root = source_package_root.into();
         let test_root = test_root.into();
 
-        Ok(Self {
+        Self {
             name,
             package_path,
             source_package_root,
             test_root,
-        })
+        }
     }
 
     #[must_use]
-    pub fn name(&self) -> &str {
+    pub const fn name(&self) -> &TargetName {
         &self.name
     }
 
     #[must_use]
-    pub fn package_path(&self) -> &Path {
+    pub const fn package_path(&self) -> &RelativePathBuf {
         &self.package_path
     }
 

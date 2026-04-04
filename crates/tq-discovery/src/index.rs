@@ -75,18 +75,14 @@ fn normalize_relative_paths(
 
     for path in paths {
         if path.is_absolute() {
-            return Err(DiscoveryError::Validation {
-                message: format!("index file paths must be relative: {}", path.display()),
-            });
+            return Err(DiscoveryError::AbsoluteIndexPath { path });
         }
 
         if path
             .components()
             .any(|component| matches!(component, std::path::Component::ParentDir))
         {
-            return Err(DiscoveryError::Validation {
-                message: format!("index file paths must not contain '..': {}", path.display()),
-            });
+            return Err(DiscoveryError::ParentDirIndexPath { path });
         }
 
         unique.insert(path);

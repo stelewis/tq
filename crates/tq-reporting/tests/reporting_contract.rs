@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use tq_core::TargetName;
 use tq_engine::{EngineResult, Finding, RuleId, Severity};
 use tq_reporting::{JsonReporter, TextReporter};
 
@@ -19,7 +20,7 @@ fn build_finding(
         path,
         line,
         suggestion.map(str::to_owned),
-        target.map(str::to_owned),
+        target.map(|value| TargetName::parse(value).expect("target should parse")),
     )
     .expect("valid finding")
 }

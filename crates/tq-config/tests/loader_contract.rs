@@ -306,7 +306,7 @@ fn explicit_config_overrides_discovered_project_config() {
     .expect("config should resolve");
 
     assert_eq!(resolved.targets().len(), 1);
-    assert_eq!(resolved.targets()[0].name(), "core");
+    assert_eq!(resolved.targets()[0].name().as_str(), "core");
     assert_eq!(
         resolved.targets()[0].source_root(),
         &temp.path().join("src")
@@ -432,7 +432,7 @@ fn discovery_project_overrides_user_for_defaults_and_targets() {
     .expect("config should resolve");
 
     assert_eq!(resolved.targets().len(), 1);
-    assert_eq!(resolved.targets()[0].name(), "project");
+    assert_eq!(resolved.targets()[0].name().as_str(), "project");
     assert_eq!(
         resolved.targets()[0].source_root(),
         &project_root.join("src")
@@ -473,7 +473,7 @@ fn discovery_keeps_user_targets_when_project_has_only_defaults() {
     .expect("config should resolve");
 
     assert_eq!(resolved.targets().len(), 1);
-    assert_eq!(resolved.targets()[0].name(), "user");
+    assert_eq!(resolved.targets()[0].name().as_str(), "user");
     assert_eq!(resolved.targets()[0].source_root(), &user_root.join("src"));
     assert_eq!(
         resolved.targets()[0].init_modules(),

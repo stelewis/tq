@@ -59,15 +59,12 @@ fn scan_recursive(
         }
 
         if file_type.is_file() && matcher(&path) {
-            let relative = path
-                .strip_prefix(root)
-                .map_err(|_| DiscoveryError::Validation {
-                    message: format!(
-                        "discovered file {} is not under root {}",
-                        path.display(),
-                        root.display()
-                    ),
-                })?;
+            let relative =
+                path.strip_prefix(root)
+                    .map_err(|_| DiscoveryError::DiscoveredPathOutsideRoot {
+                        path: path.clone(),
+                        root: root.to_path_buf(),
+                    })?;
             discovered.push(relative.to_path_buf());
         }
     }

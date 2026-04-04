@@ -14,7 +14,7 @@ pub struct TestFileTooLargeRule {
 impl TestFileTooLargeRule {
     pub fn new(max_non_blank_lines: u64) -> Result<Self, RulesError> {
         if max_non_blank_lines < 1 {
-            return Err(RulesError::validation("max_non_blank_lines must be >= 1"));
+            return Err(RulesError::value_must_be_positive("max_non_blank_lines"));
         }
 
         Ok(Self {

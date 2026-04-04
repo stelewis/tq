@@ -12,6 +12,10 @@ pub enum DiscoveryError {
         path: PathBuf,
         source: std::io::Error,
     },
-    #[error("{message}")]
-    Validation { message: String },
+    #[error("index file paths must be relative: {path}")]
+    AbsoluteIndexPath { path: PathBuf },
+    #[error("index file paths must not contain '..': {path}")]
+    ParentDirIndexPath { path: PathBuf },
+    #[error("discovered file {path} is not under root {root}")]
+    DiscoveredPathOutsideRoot { path: PathBuf, root: PathBuf },
 }

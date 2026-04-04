@@ -23,9 +23,7 @@ impl OrphanedTestRule {
         allowed_qualifiers: BTreeSet<String>,
     ) -> Result<Self, RulesError> {
         if qualifier_strategy == QualifierStrategy::Allowlist && allowed_qualifiers.is_empty() {
-            return Err(RulesError::validation(
-                "allowed_qualifiers must be non-empty for allowlist strategy",
-            ));
+            return Err(RulesError::allowlist_requires_qualifiers());
         }
 
         Ok(Self {

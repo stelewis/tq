@@ -3,6 +3,7 @@ mod support;
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
+use tq_core::InitModulesMode;
 use tq_engine::Rule;
 use tq_rules::{MappingMissingTestRule, QualifierStrategy};
 
@@ -22,8 +23,12 @@ fn mapping_rule_emits_error_for_unmapped_source() {
         vec!["tq".to_owned()],
     );
 
-    let rule = MappingMissingTestRule::new(true, QualifierStrategy::AnySuffix, BTreeSet::new())
-        .expect("rule should be valid");
+    let rule = MappingMissingTestRule::new(
+        InitModulesMode::Ignore,
+        QualifierStrategy::AnySuffix,
+        BTreeSet::new(),
+    )
+    .expect("rule should be valid");
     let findings = rule.evaluate(&context);
 
     assert_eq!(findings.len(), 1);
@@ -47,7 +52,7 @@ fn mapping_rule_allowlist_rejects_unknown_suffix_match() {
     );
 
     let rule = MappingMissingTestRule::new(
-        true,
+        InitModulesMode::Ignore,
         QualifierStrategy::Allowlist,
         std::iter::once("regression".to_owned()).collect(),
     )

@@ -1,6 +1,8 @@
+use std::path::PathBuf;
+
+use tq_core::RelativePathBuf;
 use tq_discovery::build_analysis_index;
 
-use crate::context::path_to_forward_slashes;
 use crate::{AnalysisContext, EngineError, PlannedTargetRun, TargetContext, TargetPlanInput};
 
 pub fn plan_target_runs(
@@ -9,7 +11,7 @@ pub fn plan_target_runs(
 ) -> Result<Vec<PlannedTargetRun>, EngineError> {
     let known_target_package_paths = configured_targets
         .iter()
-        .map(|target| path_to_forward_slashes(target.package_path()))
+        .map(|target| target.package_path().clone())
         .collect::<Vec<_>>();
 
     let mut planned_runs = Vec::with_capacity(active_targets.len());
@@ -17,16 +19,26 @@ pub fn plan_target_runs(
         let index = build_analysis_index(target.source_package_root(), target.test_root())
             .map_err(EngineError::Discovery)?;
 
+        let test_root_name = target
+            .test_root()
+            .file_name()
+            .map(PathBuf::from)
+            .ok_or_else(|| EngineError::MissingTestRootDisplay {
+                path: target.test_root().to_path_buf(),
+            })?;
+        let test_root_display = RelativePathBuf::new(test_root_name).map_err(|source| {
+            EngineError::InvalidTestRootDisplay {
+                path: target.test_root().to_path_buf(),
+                source,
+            }
+        })?;
+
         let target_context = TargetContext::new(
-            target.name(),
-            path_to_forward_slashes(target.package_path()),
+            target.name().clone(),
+            target.package_path().clone(),
             known_target_package_paths.clone(),
-            target
-                .test_root()
-                .file_name()
-                .and_then(std::ffi::OsStr::to_str)
-                .unwrap_or_default(),
-        )?;
+            test_root_display,
+        );
 
         planned_runs.push(PlannedTargetRun::new(
             target.clone(),

@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
+use tq_core::InitModulesMode;
 use tq_engine::{AnalysisContext, Finding, Rule, RuleId, Severity};
 
 use crate::QualifierStrategy;
@@ -10,26 +11,24 @@ use crate::error::RulesError;
 
 pub struct MappingMissingTestRule {
     rule_id: RuleId,
-    ignore_init_modules: bool,
+    init_modules: InitModulesMode,
     qualifier_strategy: QualifierStrategy,
     allowed_qualifiers: BTreeSet<String>,
 }
 
 impl MappingMissingTestRule {
     pub fn new(
-        ignore_init_modules: bool,
+        init_modules: InitModulesMode,
         qualifier_strategy: QualifierStrategy,
         allowed_qualifiers: BTreeSet<String>,
     ) -> Result<Self, RulesError> {
         if qualifier_strategy == QualifierStrategy::Allowlist && allowed_qualifiers.is_empty() {
-            return Err(RulesError::validation(
-                "allowed_qualifiers must be non-empty for allowlist strategy",
-            ));
+            return Err(RulesError::allowlist_requires_qualifiers());
         }
 
         Ok(Self {
             rule_id: parse_builtin_rule_id("mapping-missing-test")?,
-            ignore_init_modules,
+            init_modules,
             qualifier_strategy,
             allowed_qualifiers,
         })
@@ -89,7 +88,7 @@ impl Rule for MappingMissingTestRule {
         let mut findings = Vec::new();
 
         for source_file in context.index().source_files() {
-            if self.ignore_init_modules
+            if matches!(self.init_modules, InitModulesMode::Ignore)
                 && source_file
                     .file_name()
                     .is_some_and(|name| name == std::ffi::OsStr::new("__init__.py"))

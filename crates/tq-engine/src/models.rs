@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use tq_core::TargetName;
+
 use crate::EngineError;
 use crate::{RuleId, TargetContext};
 
@@ -29,7 +31,7 @@ pub struct Finding {
     path: PathBuf,
     line: Option<u32>,
     suggestion: Option<String>,
-    target: Option<String>,
+    target: Option<TargetName>,
 }
 
 impl Finding {
@@ -40,25 +42,15 @@ impl Finding {
         path: impl Into<PathBuf>,
         line: Option<u32>,
         suggestion: Option<String>,
-        target: Option<String>,
+        target: Option<TargetName>,
     ) -> Result<Self, EngineError> {
         let message = message.into();
         if message.trim().is_empty() {
-            return Err(EngineError::Validation {
-                message: "Finding message must be non-empty".to_owned(),
-            });
+            return Err(EngineError::EmptyFindingMessage);
         }
 
         if line.is_some_and(|line| line < 1) {
-            return Err(EngineError::Validation {
-                message: "Finding line must be >= 1 when provided".to_owned(),
-            });
-        }
-
-        if target.as_deref().is_some_and(|name| name.trim().is_empty()) {
-            return Err(EngineError::Validation {
-                message: "Finding target must be non-empty when provided".to_owned(),
-            });
+            return Err(EngineError::InvalidFindingLine);
         }
 
         Ok(Self {
@@ -103,8 +95,8 @@ impl Finding {
     }
 
     #[must_use]
-    pub fn target(&self) -> Option<&str> {
-        self.target.as_deref()
+    pub const fn target(&self) -> Option<&TargetName> {
+        self.target.as_ref()
     }
 
     #[must_use]
@@ -118,7 +110,7 @@ impl Finding {
         }
 
         let mut cloned = self.clone();
-        cloned.target = Some(target_name.to_owned());
+        cloned.target = Some(target_name.clone());
         cloned
     }
 }

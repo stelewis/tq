@@ -20,9 +20,7 @@ impl RuleEngine {
             .map(|rule| rule.rule_id().clone())
             .collect::<Vec<_>>();
         if !validate_unique_rule_ids(&rule_ids) {
-            return Err(EngineError::validation(
-                "Rule engine received duplicate rule ids",
-            ));
+            return Err(EngineError::DuplicateRuleIds);
         }
 
         Ok(Self { rules })
@@ -58,7 +56,9 @@ pub fn aggregate_results(results: &[EngineResult]) -> EngineResult {
 
 fn finding_sort_key(finding: &Finding) -> (String, String, u32, Severity, String, usize, String) {
     (
-        finding.target().unwrap_or_default().to_owned(),
+        finding
+            .target()
+            .map_or_else(String::new, ToString::to_string),
         path_to_forward_slashes(finding.path()),
         finding.line().unwrap_or(0),
         finding.severity(),
