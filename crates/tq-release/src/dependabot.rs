@@ -84,11 +84,7 @@ pub fn verify_dependabot(repo_root: &Path) -> Result<(), ReleaseError> {
 }
 
 fn parse_dependabot_updates(input: &str) -> Result<Vec<DependabotUpdate>, String> {
-    let mut version: Option<String> = None;
-    let mut updates_section_found = false;
-    let mut updates = Vec::new();
-    let mut current_update: Option<PendingUpdate> = None;
-    let mut active_list = ActiveList::None;
+    let mut parser = DependabotParser::default();
 
     for (line_index, raw_line) in input.lines().enumerate() {
         let line_number = line_index + 1;
@@ -105,105 +101,232 @@ fn parse_dependabot_updates(input: &str) -> Result<Vec<DependabotUpdate>, String
             continue;
         }
 
-        if !updates_section_found {
-            if indent != 0 {
-                continue;
-            }
-
-            let (key, value) = split_key_value(trimmed)
-                .ok_or_else(|| format!("line {line_number}: expected top-level key"))?;
-            match key {
-                "version" => version = Some(parse_scalar(value, line_number)?),
-                "updates" => {
-                    if !value.is_empty() {
-                        return Err(format!(
-                            "line {line_number}: updates must be declared as a block"
-                        ));
-                    }
-                    updates_section_found = true;
-                }
-                _ => {}
-            }
-
+        if parser.skip_ignored_block(indent) {
             continue;
         }
 
+        parser.parse_line(trimmed, indent, line_number)?;
+    }
+
+    parser.finish()
+}
+
+#[derive(Debug, Default)]
+struct DependabotParser {
+    version: Option<String>,
+    updates_section_found: bool,
+    updates: Vec<DependabotUpdate>,
+    current_update: Option<PendingUpdate>,
+    active_list: ActiveList,
+    ignored_block_indent: Option<usize>,
+}
+
+impl DependabotParser {
+    const fn skip_ignored_block(&mut self, indent: usize) -> bool {
+        if let Some(skip_indent) = self.ignored_block_indent {
+            if indent > skip_indent {
+                return true;
+            }
+            self.ignored_block_indent = None;
+        }
+
+        false
+    }
+
+    fn parse_line(
+        &mut self,
+        trimmed: &str,
+        indent: usize,
+        line_number: usize,
+    ) -> Result<(), String> {
         if indent == 0 {
-            break;
+            return self.parse_top_level_line(trimmed, line_number);
         }
 
-        if indent == 2 && trimmed.starts_with("- ") {
-            if let Some(update) = current_update.take() {
-                updates.push(update.finish()?);
-            }
-
-            let remainder = trimmed.trim_start_matches("- ").trim();
-            current_update = Some(PendingUpdate::default());
-            active_list = ActiveList::None;
-            if remainder.is_empty() {
-                continue;
-            }
-
-            let (key, value) = split_key_value(remainder).ok_or_else(|| {
-                format!("line {line_number}: expected key/value after update list item marker")
-            })?;
-            apply_update_key(
-                current_update.as_mut().expect("current update must exist"),
-                key,
-                value,
-                line_number,
-                &mut active_list,
-            )?;
-            continue;
+        if !self.updates_section_found {
+            return Err(format!(
+                "line {line_number}: unexpected nested content before updates section"
+            ));
         }
 
-        let Some(update) = current_update.as_mut() else {
+        self.parse_update_line(trimmed, indent, line_number)
+    }
+
+    fn parse_top_level_line(&mut self, trimmed: &str, line_number: usize) -> Result<(), String> {
+        self.finish_current_update()?;
+        self.active_list = ActiveList::None;
+
+        let (key, value) = split_key_value(trimmed)
+            .ok_or_else(|| format!("line {line_number}: expected top-level key"))?;
+        match key {
+            "version" => self.parse_version(value, line_number),
+            "updates" => self.parse_updates_section(value, line_number),
+            "registries" | "multi-ecosystem-groups" => {
+                if !value.is_empty() {
+                    return Err(format!(
+                        "line {line_number}: {key} must be declared as a block"
+                    ));
+                }
+                self.ignored_block_indent = Some(0);
+                Ok(())
+            }
+            _ => Err(format!("line {line_number}: unknown top-level key {key}")),
+        }
+    }
+
+    fn parse_version(&mut self, value: &str, line_number: usize) -> Result<(), String> {
+        if self.version.is_some() {
+            return Err(format!(
+                "line {line_number}: duplicate top-level key version"
+            ));
+        }
+
+        self.version = Some(parse_scalar(value, line_number)?);
+        Ok(())
+    }
+
+    fn parse_updates_section(&mut self, value: &str, line_number: usize) -> Result<(), String> {
+        if self.updates_section_found {
+            return Err(format!(
+                "line {line_number}: duplicate top-level key updates"
+            ));
+        }
+        if !value.is_empty() {
+            return Err(format!(
+                "line {line_number}: updates must be declared as a block"
+            ));
+        }
+
+        self.updates_section_found = true;
+        Ok(())
+    }
+
+    fn parse_update_line(
+        &mut self,
+        trimmed: &str,
+        indent: usize,
+        line_number: usize,
+    ) -> Result<(), String> {
+        match indent {
+            2 => self.parse_update_item(trimmed, line_number),
+            4 => self.parse_update_key_line(trimmed, line_number),
+            6 if trimmed.starts_with("- ") => self.parse_directories_item(trimmed, line_number),
+            _ if self.active_list == ActiveList::Directories => Err(format!(
+                "line {line_number}: directories entries must be list items at indent 6"
+            )),
+            _ => Err(format!(
+                "line {line_number}: unsupported update structure or indentation"
+            )),
+        }
+    }
+
+    fn parse_update_item(&mut self, trimmed: &str, line_number: usize) -> Result<(), String> {
+        if !trimmed.starts_with("- ") {
             return Err(format!(
                 "line {line_number}: updates entries must start with '- ' at indent 2"
             ));
-        };
-
-        if indent == 4 {
-            active_list = ActiveList::None;
-            let (key, value) = split_key_value(trimmed)
-                .ok_or_else(|| format!("line {line_number}: expected update key/value pair"))?;
-            apply_update_key(update, key, value, line_number, &mut active_list)?;
-            continue;
         }
 
-        if indent == 6 && trimmed.starts_with("- ") {
-            if active_list != ActiveList::Directories {
-                continue;
-            }
+        self.finish_current_update()?;
 
-            update.directories.push(parse_scalar(
-                trimmed.trim_start_matches("- ").trim(),
-                line_number,
-            )?);
+        let remainder = trimmed.trim_start_matches("- ").trim();
+        self.current_update = Some(PendingUpdate::default());
+        self.active_list = ActiveList::None;
+        if remainder.is_empty() {
+            return Ok(());
         }
+
+        let (key, value) = split_key_value(remainder).ok_or_else(|| {
+            format!("line {line_number}: expected key/value after update list item marker")
+        })?;
+        self.apply_directive(key, value, line_number, 2)
     }
 
-    if let Some(update) = current_update {
-        updates.push(update.finish()?);
+    fn parse_update_key_line(&mut self, trimmed: &str, line_number: usize) -> Result<(), String> {
+        self.active_list = ActiveList::None;
+        let (key, value) = split_key_value(trimmed)
+            .ok_or_else(|| format!("line {line_number}: expected update key/value pair"))?;
+        self.apply_directive(key, value, line_number, 4)
     }
 
-    match version.as_deref() {
-        Some("2") => {}
-        Some(other) => return Err(format!("unsupported Dependabot version: {other}")),
-        None => return Err("missing Dependabot version".to_owned()),
+    fn parse_directories_item(&mut self, trimmed: &str, line_number: usize) -> Result<(), String> {
+        if self.active_list != ActiveList::Directories {
+            return Err(format!(
+                "line {line_number}: unexpected list item outside directories block"
+            ));
+        }
+
+        let update = self.current_update_mut(line_number)?;
+        update.directories.push(parse_scalar(
+            trimmed.trim_start_matches("- ").trim(),
+            line_number,
+        )?);
+        Ok(())
     }
 
-    if !updates_section_found {
-        return Err("missing updates section".to_owned());
+    fn apply_directive(
+        &mut self,
+        key: &str,
+        value: &str,
+        line_number: usize,
+        indent: usize,
+    ) -> Result<(), String> {
+        let directive = apply_update_key(
+            self.current_update_mut(line_number)?,
+            key,
+            value,
+            line_number,
+        )?;
+        match directive {
+            UpdateDirective::None => {}
+            UpdateDirective::Directories => self.active_list = ActiveList::Directories,
+            UpdateDirective::IgnoreNestedBlock => self.ignored_block_indent = Some(indent),
+        }
+        Ok(())
     }
 
-    Ok(updates)
+    fn current_update_mut(&mut self, line_number: usize) -> Result<&mut PendingUpdate, String> {
+        self.current_update.as_mut().ok_or_else(|| {
+            format!("line {line_number}: updates entries must start with '- ' at indent 2")
+        })
+    }
+
+    fn finish_current_update(&mut self) -> Result<(), String> {
+        if let Some(update) = self.current_update.take() {
+            self.updates.push(update.finish()?);
+        }
+        Ok(())
+    }
+
+    fn finish(mut self) -> Result<Vec<DependabotUpdate>, String> {
+        self.finish_current_update()?;
+
+        match self.version.as_deref() {
+            Some("2") => {}
+            Some(other) => return Err(format!("unsupported Dependabot version: {other}")),
+            None => return Err("missing Dependabot version".to_owned()),
+        }
+
+        if !self.updates_section_found {
+            return Err("missing updates section".to_owned());
+        }
+
+        Ok(self.updates)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+enum ActiveList {
+    #[default]
+    None,
+    Directories,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum ActiveList {
+enum UpdateDirective {
     None,
     Directories,
+    IgnoreNestedBlock,
 }
 
 #[derive(Debug, Default)]
@@ -243,14 +366,15 @@ fn apply_update_key(
     key: &str,
     value: &str,
     line_number: usize,
-    active_list: &mut ActiveList,
-) -> Result<(), String> {
+) -> Result<UpdateDirective, String> {
     match key {
         "package-ecosystem" => {
             update.package_ecosystem = Some(parse_scalar(value, line_number)?);
+            Ok(UpdateDirective::None)
         }
         "directory" => {
             update.directory = Some(parse_scalar(value, line_number)?);
+            Ok(UpdateDirective::None)
         }
         "directories" => {
             if !value.is_empty() {
@@ -259,14 +383,34 @@ fn apply_update_key(
                 ));
             }
             update.directories_declared = true;
-            *active_list = ActiveList::Directories;
-            return Ok(());
+            Ok(UpdateDirective::Directories)
         }
-        _ => {}
-    }
+        "schedule"
+        | "commit-message"
+        | "allow"
+        | "ignore"
+        | "labels"
+        | "assignees"
+        | "reviewers"
+        | "registries"
+        | "groups"
+        | "cooldown"
+        | "milestone"
+        | "target-branch"
+        | "open-pull-requests-limit"
+        | "pull-request-branch-name"
+        | "rebase-strategy"
+        | "insecure-external-code-execution"
+        | "vendor" => {
+            if value.is_empty() {
+                return Ok(UpdateDirective::IgnoreNestedBlock);
+            }
 
-    *active_list = ActiveList::None;
-    Ok(())
+            parse_scalar(value, line_number)?;
+            Ok(UpdateDirective::None)
+        }
+        _ => Err(format!("line {line_number}: unknown update key {key}")),
+    }
 }
 
 fn split_key_value(line: &str) -> Option<(&str, &str)> {

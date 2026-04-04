@@ -197,6 +197,76 @@ fn verify_dependabot_rejects_inline_directories_declaration() {
 }
 
 #[test]
+fn verify_dependabot_rejects_unknown_top_level_key() {
+    let temp = tempfile::tempdir().expect("tempdir");
+
+    write(
+        &temp.path().join(".github/dependabot.yml"),
+        concat!(
+            "version: 2\n",
+            "updates:\n",
+            "  - package-ecosystem: \"github-actions\"\n",
+            "    directories:\n",
+            "      - \"/\"\n",
+            "      - \"/.github/actions/*\"\n",
+            "unexpected: true\n",
+        ),
+    );
+
+    let error =
+        tq_release::verify_dependabot(temp.path()).expect_err("unknown top-level keys should fail");
+    let message = error.to_string();
+    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("unknown top-level key unexpected"));
+}
+
+#[test]
+fn verify_dependabot_rejects_unknown_update_key() {
+    let temp = tempfile::tempdir().expect("tempdir");
+
+    write(
+        &temp.path().join(".github/dependabot.yml"),
+        concat!(
+            "version: 2\n",
+            "updates:\n",
+            "  - package-ecosystem: \"github-actions\"\n",
+            "    directories:\n",
+            "      - \"/\"\n",
+            "      - \"/.github/actions/*\"\n",
+            "    unsupported-key: true\n",
+        ),
+    );
+
+    let error =
+        tq_release::verify_dependabot(temp.path()).expect_err("unknown update keys should fail");
+    let message = error.to_string();
+    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("unknown update key unsupported-key"));
+}
+
+#[test]
+fn verify_dependabot_rejects_non_list_directory_entries() {
+    let temp = tempfile::tempdir().expect("tempdir");
+
+    write(
+        &temp.path().join(".github/dependabot.yml"),
+        concat!(
+            "version: 2\n",
+            "updates:\n",
+            "  - package-ecosystem: \"github-actions\"\n",
+            "    directories:\n",
+            "      path: \"/\"\n",
+        ),
+    );
+
+    let error =
+        tq_release::verify_dependabot(temp.path()).expect_err("directories must be a list block");
+    let message = error.to_string();
+    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("directories entries must be list items at indent 6"));
+}
+
+#[test]
 fn verify_dependabot_rejects_update_without_package_ecosystem() {
     let temp = tempfile::tempdir().expect("tempdir");
 
