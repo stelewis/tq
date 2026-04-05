@@ -63,6 +63,8 @@ pub enum ConfigError {
         #[source]
         source: PackageNameError,
     },
+    #[error("{location} must not contain platform path prefixes: {value}")]
+    InvalidTargetPathPrefix { location: String, value: String },
     #[error("{location} must be non-empty when effective qualifier_strategy is 'allowlist'")]
     AllowlistRequiresQualifiers { location: String },
     #[error(

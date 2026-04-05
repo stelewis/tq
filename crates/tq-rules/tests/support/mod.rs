@@ -27,6 +27,14 @@ pub fn context_with_target(
 ) -> AnalysisContext {
     let index = AnalysisIndex::create(source_root, test_root, source_files, test_files)
         .expect("index should be created");
+    let test_root_display = source_root
+        .ancestors()
+        .find_map(|ancestor| test_root.strip_prefix(ancestor).ok().map(PathBuf::from))
+        .unwrap_or_else(|| {
+            test_root
+                .file_name()
+                .map_or_else(|| PathBuf::from("tests"), PathBuf::from)
+        });
     let target = TargetContext::new(
         TargetName::parse("active").expect("target name should parse"),
         RelativePathBuf::new(package_path).expect("package path should parse"),
@@ -35,9 +43,7 @@ pub fn context_with_target(
             .map(RelativePathBuf::new)
             .collect::<Result<Vec<_>, _>>()
             .expect("known target paths should parse"),
-        test_root
-            .file_name()
-            .map_or_else(|| PathBuf::from("tests"), PathBuf::from),
+        test_root_display,
     );
 
     AnalysisContext::with_target(index, target)

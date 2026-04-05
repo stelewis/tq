@@ -310,3 +310,46 @@ fn check_command_rejects_duplicate_cli_select_rule_ids() {
             .contains("Duplicate rule ID in CLI values: mapping-missing-test")
     );
 }
+
+#[test]
+fn check_command_uses_consistent_display_frame_for_structure_suggestions() {
+    let project = create_project();
+    let nested_dir = project.path().join("docs").join("dev");
+    fs::create_dir_all(&nested_dir).expect("create nested cwd");
+    write(
+        &project
+            .path()
+            .join("src")
+            .join("pkg")
+            .join("engine")
+            .join("module.py"),
+        "def run() -> None:\n    pass\n",
+    );
+    write(
+        &project
+            .path()
+            .join("tests")
+            .join("pkg")
+            .join("test_module.py"),
+        "def test_run() -> None:\n    assert True\n",
+    );
+
+    let assert = Command::new(env!("CARGO_BIN_EXE_tq"))
+        .current_dir(&nested_dir)
+        .arg("check")
+        .arg("--show-suggestions")
+        .assert();
+
+    let output = assert.get_output();
+    assert_eq!(output.status.code(), Some(1));
+
+    let stdout = String::from_utf8(output.stdout.clone()).expect("stdout should be utf8");
+    let expected = fs::canonicalize(project.path().join("tests"))
+        .expect("canonicalize test root")
+        .join("pkg")
+        .join("engine")
+        .join("test_module.py")
+        .to_string_lossy()
+        .replace('\\', "/");
+    assert!(stdout.contains(&format!("suggestion: Move to: {expected}")));
+}

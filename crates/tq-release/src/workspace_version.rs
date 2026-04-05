@@ -49,11 +49,11 @@ fn verify_member(
     let crate_name = package
         .get("name")
         .and_then(Value::as_str)
-        .ok_or_else(|| manifest_error(&member_manifest_path, "missing package.name"))?;
+        .ok_or_else(|| workspace_version_error(&member_manifest_path, "missing package.name"))?;
 
     let package_version = package
         .get("version")
-        .ok_or_else(|| manifest_error(&member_manifest_path, "missing package.version"))?;
+        .ok_or_else(|| workspace_version_error(&member_manifest_path, "missing package.version"))?;
 
     let mut violations = Vec::new();
     let uses_workspace_version = package_version
@@ -146,9 +146,9 @@ fn read_toml_table(path: &Path, description: &str) -> Result<Table, ReleaseError
         source,
     })?;
 
-    contents
-        .parse::<Table>()
-        .map_err(|source| manifest_error(path, &format!("invalid {description}: {source}")))
+    contents.parse::<Table>().map_err(|source| {
+        workspace_version_error(path, &format!("invalid {description}: {source}"))
+    })
 }
 
 fn workspace_version<'a>(manifest: &'a Table, path: &Path) -> Result<&'a str, ReleaseError> {
@@ -159,7 +159,7 @@ fn workspace_version<'a>(manifest: &'a Table, path: &Path) -> Result<&'a str, Re
         .and_then(Value::as_table)
         .and_then(|package| package.get("version"))
         .and_then(Value::as_str)
-        .ok_or_else(|| manifest_error(path, "missing workspace.package.version"))
+        .ok_or_else(|| workspace_version_error(path, "missing workspace.package.version"))
 }
 
 fn workspace_members(manifest: &Table, path: &Path) -> Result<Vec<PathBuf>, ReleaseError> {
@@ -168,15 +168,14 @@ fn workspace_members(manifest: &Table, path: &Path) -> Result<Vec<PathBuf>, Rele
         .and_then(Value::as_table)
         .and_then(|workspace| workspace.get("members"))
         .and_then(Value::as_array)
-        .ok_or_else(|| manifest_error(path, "missing workspace.members"))?;
+        .ok_or_else(|| workspace_version_error(path, "missing workspace.members"))?;
 
     members
         .iter()
         .map(|member| {
-            member
-                .as_str()
-                .map(PathBuf::from)
-                .ok_or_else(|| manifest_error(path, "workspace.members entries must be strings"))
+            member.as_str().map(PathBuf::from).ok_or_else(|| {
+                workspace_version_error(path, "workspace.members entries must be strings")
+            })
         })
         .collect()
 }
@@ -187,18 +186,18 @@ fn workspace_dependencies<'a>(manifest: &'a Table, path: &Path) -> Result<&'a Ta
         .and_then(Value::as_table)
         .and_then(|workspace| workspace.get("dependencies"))
         .and_then(Value::as_table)
-        .ok_or_else(|| manifest_error(path, "missing workspace.dependencies"))
+        .ok_or_else(|| workspace_version_error(path, "missing workspace.dependencies"))
 }
 
 fn package_table<'a>(manifest: &'a Table, path: &Path) -> Result<&'a Table, ReleaseError> {
     manifest
         .get("package")
         .and_then(Value::as_table)
-        .ok_or_else(|| manifest_error(path, "missing [package] table"))
+        .ok_or_else(|| workspace_version_error(path, "missing [package] table"))
 }
 
-fn manifest_error(path: &Path, message: &str) -> ReleaseError {
-    ReleaseError::DependabotConfig {
+fn workspace_version_error(path: &Path, message: &str) -> ReleaseError {
+    ReleaseError::WorkspaceVersionInput {
         path: path.to_path_buf(),
         message: message.to_owned(),
     }

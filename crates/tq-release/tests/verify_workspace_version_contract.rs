@@ -169,3 +169,21 @@ fn verify_workspace_version_rejects_member_without_workspace_version_inheritance
 
     assert!(error.to_string().contains("must inherit package.version"));
 }
+
+#[test]
+fn verify_workspace_version_uses_workspace_specific_parse_errors() {
+    let temp = tempfile::tempdir().expect("tempdir");
+
+    write(&temp.path().join("Cargo.toml"), "not valid toml\n");
+    write(&temp.path().join("CHANGELOG.md"), "# Changelog\n");
+
+    let error = tq_release::verify_workspace_version(temp.path())
+        .expect_err("invalid workspace manifest should fail");
+
+    assert!(
+        error
+            .to_string()
+            .contains("invalid workspace version input")
+    );
+    assert!(!error.to_string().contains("invalid Dependabot config"));
+}

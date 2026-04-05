@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use tq_core::{PackageName, QualifierStrategy, TargetName};
 
@@ -38,6 +38,7 @@ pub fn materialize_config(
 
     for (target_index, target) in targets.iter().enumerate() {
         let resolved = materialize_target(
+            cwd,
             &base_dir,
             target,
             &partial.defaults,
@@ -98,6 +99,7 @@ fn source_package_root_key(target: &TqTargetConfig) -> PathBuf {
 }
 
 fn materialize_target(
+    cwd: &Path,
     targets_base_dir: &Path,
     target: &PartialTargetConfig,
     defaults: &PartialRuleConfig,
@@ -147,12 +149,23 @@ fn materialize_target(
         });
     }
 
+    let source_root = resolve_path(
+        targets_base_dir,
+        &source_root_value,
+        &format!("{location}.source_root"),
+    )?;
+    let test_root = resolve_path(
+        targets_base_dir,
+        &test_root_value,
+        &format!("{location}.test_root"),
+    )?;
+
     Ok(TqTargetConfig {
         name,
         package,
-        source_root: resolve_path(targets_base_dir, &source_root_value),
-        test_root: resolve_path(targets_base_dir, &test_root_value),
-        test_root_display: PathBuf::from(&test_root_value),
+        source_root,
+        test_root: test_root.clone(),
+        test_root_display: display_path_from_cwd(&test_root, cwd),
         init_modules: final_rules.init_modules.unwrap_or(DEFAULT_INIT_MODULES),
         max_test_file_non_blank_lines: final_rules
             .max_test_file_non_blank_lines
@@ -182,10 +195,25 @@ fn require_target_key(
     Ok(value.clone())
 }
 
-fn resolve_path(base_dir: &Path, value: &str) -> PathBuf {
+fn resolve_path(base_dir: &Path, value: &str, location: &str) -> Result<PathBuf, ConfigError> {
     let candidate = Path::new(value);
-    if candidate.is_absolute() {
-        return normalize_absolute(candidate);
+    if candidate
+        .components()
+        .any(|component| matches!(component, Component::Prefix(_)))
+    {
+        return Err(ConfigError::InvalidTargetPathPrefix {
+            location: location.to_owned(),
+            value: value.to_owned(),
+        });
     }
-    normalize_absolute(&base_dir.join(candidate))
+
+    if candidate.is_absolute() {
+        return Ok(normalize_absolute(candidate));
+    }
+
+    Ok(normalize_absolute(&base_dir.join(candidate)))
+}
+
+fn display_path_from_cwd(path: &Path, cwd: &Path) -> PathBuf {
+    path.strip_prefix(cwd).unwrap_or(path).to_path_buf()
 }

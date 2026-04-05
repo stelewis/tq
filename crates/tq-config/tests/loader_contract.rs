@@ -148,6 +148,36 @@ fn resolve_rejects_invalid_package_import_syntax() {
     );
 }
 
+#[cfg(windows)]
+#[test]
+fn resolve_rejects_platform_prefixed_target_paths() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let config_path = temp.path().join("pyproject.toml");
+    write(
+        &config_path,
+        "[tool.tq]\n\
+         [[tool.tq.targets]]\n\
+         name = \"core\"\n\
+         package = \"tq\"\n\
+         source_root = \"C:src\"\n\
+         test_root = \"tests\"\n",
+    );
+
+    let error = resolve_tq_config(
+        temp.path(),
+        Some(&config_path),
+        false,
+        &CliOverrides::default(),
+    )
+    .expect_err("must reject platform-prefixed target paths");
+
+    assert!(
+        error
+            .to_string()
+            .contains("tool.tq.targets[0].source_root must not contain platform path prefixes")
+    );
+}
+
 #[test]
 fn resolve_rejects_duplicate_allowed_qualifiers_in_target() {
     let temp = tempfile::tempdir().expect("tempdir");
