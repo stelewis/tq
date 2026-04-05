@@ -69,6 +69,8 @@ impl From<RelativePathBuf> for PathBuf {
 pub enum RelativePathError {
     #[error("relative path must be non-empty")]
     Empty,
+    #[error("relative path must not contain platform path prefixes: {path}")]
+    Prefix { path: PathBuf },
     #[error("relative path must not be absolute: {path}")]
     Absolute { path: PathBuf },
     #[error("relative path must not contain '.' components: {path}")]
@@ -179,6 +181,11 @@ fn validate_relative_path(path: &Path) -> Result<(), RelativePathError> {
 
     for component in path.components() {
         match component {
+            Component::Prefix(_) => {
+                return Err(RelativePathError::Prefix {
+                    path: path.to_path_buf(),
+                });
+            }
             Component::CurDir => {
                 return Err(RelativePathError::CurrentDir {
                     path: path.to_path_buf(),
@@ -189,7 +196,7 @@ fn validate_relative_path(path: &Path) -> Result<(), RelativePathError> {
                     path: path.to_path_buf(),
                 });
             }
-            Component::Prefix(_) | Component::RootDir | Component::Normal(_) => {}
+            Component::RootDir | Component::Normal(_) => {}
         }
     }
 
@@ -268,5 +275,14 @@ mod tests {
                 path: "./tests".into(),
             }
         );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn relative_path_rejects_platform_prefixes() {
+        let prefixed = PathBuf::from("C:tests");
+
+        let error = RelativePathBuf::new(prefixed.clone()).expect_err("path should fail");
+        assert_eq!(error, RelativePathError::Prefix { path: prefixed });
     }
 }

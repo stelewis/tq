@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use crate::DiscoveryError;
 
@@ -74,8 +74,22 @@ fn normalize_relative_paths(
     let mut unique = BTreeSet::new();
 
     for path in paths {
+        if path
+            .components()
+            .any(|component| matches!(component, Component::Prefix(_)))
+        {
+            return Err(DiscoveryError::PrefixedIndexPath { path });
+        }
+
         if path.is_absolute() {
             return Err(DiscoveryError::AbsoluteIndexPath { path });
+        }
+
+        if path
+            .components()
+            .any(|component| matches!(component, Component::CurDir))
+        {
+            return Err(DiscoveryError::CurrentDirIndexPath { path });
         }
 
         if path
@@ -97,7 +111,7 @@ mod tests {
 
     use tempfile::tempdir;
 
-    use crate::AnalysisIndex;
+    use crate::{AnalysisIndex, DiscoveryError};
 
     #[test]
     fn index_create_sorts_and_deduplicates_paths() {
@@ -131,5 +145,51 @@ mod tests {
             index.test_files(),
             &[PathBuf::from("tq/test_a.py"), PathBuf::from("tq/test_z.py")]
         );
+    }
+
+    #[test]
+    fn index_create_rejects_current_directory_components() {
+        let temp = tempdir().expect("tempdir");
+        let source_root = temp.path().join("src").join("tq");
+        let test_root = temp.path().join("tests");
+        std::fs::create_dir_all(&source_root).expect("create source root");
+        std::fs::create_dir_all(&test_root).expect("create test root");
+
+        let error = AnalysisIndex::create(
+            &source_root,
+            &test_root,
+            vec![PathBuf::from("./a.py")],
+            vec![PathBuf::from("tq/test_a.py")],
+        )
+        .expect_err("index should reject current-directory components");
+
+        assert!(matches!(
+            error,
+            DiscoveryError::CurrentDirIndexPath { path } if path == std::path::Path::new("./a.py")
+        ));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn index_create_rejects_platform_prefixes() {
+        let temp = tempdir().expect("tempdir");
+        let source_root = temp.path().join("src").join("tq");
+        let test_root = temp.path().join("tests");
+        std::fs::create_dir_all(&source_root).expect("create source root");
+        std::fs::create_dir_all(&test_root).expect("create test root");
+
+        let prefixed = PathBuf::from("C:module.py");
+        let error = AnalysisIndex::create(
+            &source_root,
+            &test_root,
+            vec![prefixed.clone()],
+            vec![PathBuf::from("tq/test_a.py")],
+        )
+        .expect_err("index should reject platform path prefixes");
+
+        assert!(matches!(
+            error,
+            DiscoveryError::PrefixedIndexPath { path } if path == prefixed
+        ));
     }
 }

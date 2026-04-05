@@ -12,8 +12,12 @@ pub enum DiscoveryError {
         path: PathBuf,
         source: std::io::Error,
     },
+    #[error("index file paths must not contain platform path prefixes: {path}")]
+    PrefixedIndexPath { path: PathBuf },
     #[error("index file paths must be relative: {path}")]
     AbsoluteIndexPath { path: PathBuf },
+    #[error("index file paths must not contain '.': {path}")]
+    CurrentDirIndexPath { path: PathBuf },
     #[error("index file paths must not contain '..': {path}")]
     ParentDirIndexPath { path: PathBuf },
     #[error("discovered file {path} is not under root {root}")]
