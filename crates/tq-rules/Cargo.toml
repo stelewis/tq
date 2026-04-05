@@ -15,7 +15,7 @@ tq-core.workspace = true
 tq-engine.workspace = true
 
 [dev-dependencies]
-tempfile = "3.20.0"
+tempfile = "3.27.0"
 tq-discovery.workspace = true
 
 [lints]
