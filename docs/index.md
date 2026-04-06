@@ -25,7 +25,7 @@ hero:
 features:
   - icon: 📐
     title: Enforce test structure contracts
-    details: Catch missing, orphaned, oversized, and structure-mismatched tests with stable rule IDs.
+    details: Catch missing, orphaned, oversized, and structure-mismatched tests.
   - icon: 🧭
     title: Keep diagnostics deterministic
     details: Get reproducible findings and machine-readable JSON output that stays reliable in CI automation.
