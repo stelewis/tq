@@ -3,6 +3,16 @@ name: Docs Pages
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - "docs/**"
+      - "crates/tq-docsgen/**"
+      - "crates/tq-cli/**"
+      - "package.json"
+      - "package-lock.json"
+      - "mise.toml"
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/docs-pages.yml"
+      - ".github/actions/setup-mise-docs/action.yml"
   workflow_dispatch:
 
 permissions:
@@ -22,6 +32,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
 
       - name: Setup docs toolchain
         uses: ./.github/actions/setup-mise-docs

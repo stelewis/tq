@@ -10,8 +10,8 @@ The main CI workflow enforces:
 - hygiene hooks via `pre-commit`
 - formatting via `cargo fmt --all --check`
 - lint via `cargo clippy --workspace --all-targets --locked -- -D warnings`
-- docs sync via `cargo run -p tq-docsgen --locked -- generate all`
-- docs site build via `mise run docs-build`
+- docs sync via `cargo run -p tq-docsgen --locked -- generate all` only when docs contract inputs, generated reference outputs, `crates/tq-docsgen/**`, or `crates/tq-cli/**` change
+- docs site build via `mise run docs-build` only when docs content, docs toolchain files, or docs generator inputs change
 - tests via `cargo test --workspace --locked`
 - repository policy validation via `cargo run -p tq-release --locked -- verify-dependabot --repo-root .`
 - build validation via `cargo build`, `cargo package --workspace --locked`, `uv build`, artifact policy verification, and built wheel/sdist entrypoint smoke checks
@@ -40,7 +40,9 @@ Security scanners are treated as CI tooling, not as part of the `tq` runtime con
 
 The workspace uses the pinned MSRV from `rust-toolchain.toml`. CI installs `cargo-audit` and `cargo-deny` on stable through `.github/actions/setup-rust-security-tools`, which delegates version pinning to `.github/actions/setup-rust-maintenance-tools/action.yml`, so scanner installation can move independently of the product toolchain. Main CI reruns those scanners only when Rust dependency or Rust security-policy surfaces change; the scheduled Rust workflow covers advisory churn between repository changes.
 
-The docs dependency audit uses `npm audit --package-lock-only` and only reruns in main CI when the Node or docs-toolchain surface changes. The scheduled docs security workflow covers advisory churn for the VitePress toolchain between repository changes.
+The docs dependency audit uses `npm audit --package-lock-only` and only reruns in main CI when the Node or docs-toolchain surface changes. The scheduled docs security workflow covers advisory churn for the VitePress toolchain between repository changes. The docs sync and docs build jobs follow the same model: they are skipped unless docs content, docs generator inputs, generated reference outputs, or docs-toolchain files changed.
+
+When you add a new dependency manifest, lockfile, security-policy file, or workflow/composite action that owns scanner behavior, update the `change-scope` path gates in `.github/workflows/ci.yml`. Ordinary source or docs files under already covered directories do not usually require gate changes.
 
 The stale dependency workflow installs `cargo-outdated` separately from the product toolchain and checks only root workspace dependencies. This complements Dependabot and other policy checks: `cargo audit` catches published advisories, `cargo deny` enforces explicit bans plus license and source policy, `npm audit --package-lock-only` covers the docs lockfile, and `cargo outdated` surfaces ordinary version drift.
 

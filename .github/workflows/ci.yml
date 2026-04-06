@@ -97,8 +97,108 @@ jobs:
       - name: Cargo clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
+  change-scope:
+    name: Change scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    outputs:
+      rust_security_scan: ${{ steps.scope.outputs.rust_security_scan }}
+      docs_security_scan: ${{ steps.scope.outputs.docs_security_scan }}
+      docs_sync: ${{ steps.scope.outputs.docs_sync }}
+      docs_build: ${{ steps.scope.outputs.docs_build }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Determine change scope
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          event_name='${{ github.event_name }}'
+          zero_sha='0000000000000000000000000000000000000000'
+
+          if [[ "$event_name" == "workflow_dispatch" ]]; then
+            echo "rust_security_scan=true" >> "$GITHUB_OUTPUT"
+            echo "docs_security_scan=true" >> "$GITHUB_OUTPUT"
+            echo "docs_sync=true" >> "$GITHUB_OUTPUT"
+            echo "docs_build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$event_name" == "pull_request" ]]; then
+            base_sha='${{ github.event.pull_request.base.sha }}'
+            head_sha='${{ github.event.pull_request.head.sha }}'
+
+            merge_base="$(git merge-base "$base_sha" "$head_sha" || true)"
+            if [[ -z "$merge_base" ]]; then
+              echo "Could not determine pull request merge base; enabling all scoped jobs."
+              echo "rust_security_scan=true" >> "$GITHUB_OUTPUT"
+              echo "docs_security_scan=true" >> "$GITHUB_OUTPUT"
+              echo "docs_sync=true" >> "$GITHUB_OUTPUT"
+              echo "docs_build=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            base_sha="$merge_base"
+          elif [[ "$event_name" == "push" ]]; then
+            base_sha='${{ github.event.before }}'
+            head_sha='${{ github.sha }}'
+
+            if [[ "$base_sha" == "$zero_sha" ]]; then
+              echo "rust_security_scan=true" >> "$GITHUB_OUTPUT"
+              echo "docs_security_scan=true" >> "$GITHUB_OUTPUT"
+              echo "docs_sync=true" >> "$GITHUB_OUTPUT"
+              echo "docs_build=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          else
+            echo "rust_security_scan=true" >> "$GITHUB_OUTPUT"
+            echo "docs_security_scan=true" >> "$GITHUB_OUTPUT"
+            echo "docs_sync=true" >> "$GITHUB_OUTPUT"
+            echo "docs_build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed_files="$(git diff --name-only "$base_sha" "$head_sha")"
+          printf '%s\n' "$changed_files"
+
+          # Keep these patterns aligned with dependency manifests, policy files,
+          # and scan-owning workflows/actions. New source files under already
+          # covered directories usually do not require updates.
+
+          rust_security_scan=false
+          if printf '%s\n' "$changed_files" | grep -Eq '^(Cargo\.lock|Cargo\.toml|deny\.toml|crates/[^/]+/Cargo\.toml|\.github/workflows/(ci|rust-security-advisories)\.yml|\.github/actions/(setup-rust|setup-rust-security-tools|setup-rust-maintenance-tools)/action\.yml)$'; then
+            rust_security_scan=true
+          fi
+
+          docs_security_scan=false
+          if printf '%s\n' "$changed_files" | grep -Eq '^(package\.json|package-lock\.json|mise\.toml|\.github/workflows/(ci|docs-security|docs-pages)\.yml|\.github/actions/setup-mise-docs/action\.yml)$'; then
+            docs_security_scan=true
+          fi
+
+          docs_sync=false
+          if printf '%s\n' "$changed_files" | grep -Eq '^(crates/tq-docsgen/|crates/tq-cli/|docs/reference/cli/options-manifest\.json|docs/reference/config/examples-manifest\.json|docs/reference/rules/manifest\.json|docs/reference/cli\.md|docs/reference/configuration\.md|docs/guide/quickstart\.md|docs/\.vitepress/generated/rules-sidebar\.ts|docs/reference/rules/[^/]+\.md|\.github/workflows/ci\.yml)$'; then
+            docs_sync=true
+          fi
+
+          docs_build=false
+          if printf '%s\n' "$changed_files" | grep -Eq '^(docs/|crates/tq-docsgen/|crates/tq-cli/|package\.json|package-lock\.json|mise\.toml|\.github/workflows/(ci|docs-pages)\.yml|\.github/actions/setup-mise-docs/action\.yml)$'; then
+            docs_build=true
+          fi
+
+          echo "rust_security_scan=$rust_security_scan" >> "$GITHUB_OUTPUT"
+          echo "docs_security_scan=$docs_security_scan" >> "$GITHUB_OUTPUT"
+          echo "docs_sync=$docs_sync" >> "$GITHUB_OUTPUT"
+          echo "docs_build=$docs_build" >> "$GITHUB_OUTPUT"
+
   docs-sync:
     name: Docs sync contracts
+    needs: change-scope
+    if: ${{ needs.change-scope.outputs.docs_sync == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -123,6 +223,8 @@ jobs:
 
   docs-build:
     name: Docs build (VitePress)
+    needs: change-scope
+    if: ${{ needs.change-scope.outputs.docs_build == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
@@ -311,6 +413,7 @@ jobs:
 
   security:
     name: Security checks
+    needs: change-scope
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -322,64 +425,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Determine dependency security scope
-        id: scope
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          event_name='${{ github.event_name }}'
-          zero_sha='0000000000000000000000000000000000000000'
-
-          if [[ "$event_name" == "workflow_dispatch" ]]; then
-            echo "rust_scan=true" >> "$GITHUB_OUTPUT"
-            echo "docs_scan=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [[ "$event_name" == "pull_request" ]]; then
-            base_sha='${{ github.event.pull_request.base.sha }}'
-            head_sha='${{ github.event.pull_request.head.sha }}'
-          elif [[ "$event_name" == "push" ]]; then
-            base_sha='${{ github.event.before }}'
-            head_sha='${{ github.sha }}'
-
-            if [[ "$base_sha" == "$zero_sha" ]]; then
-              echo "rust_scan=true" >> "$GITHUB_OUTPUT"
-              echo "docs_scan=true" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-          else
-            echo "rust_scan=true" >> "$GITHUB_OUTPUT"
-            echo "docs_scan=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          changed_files="$(git diff --name-only "$base_sha" "$head_sha")"
-          printf '%s\n' "$changed_files"
-
-          rust_scan=false
-          if printf '%s\n' "$changed_files" | grep -Eq '^(Cargo\.lock|Cargo\.toml|deny\.toml|crates/[^/]+/Cargo\.toml|\.github/workflows/(ci|rust-security-advisories)\.yml|\.github/actions/(setup-rust|setup-rust-security-tools|setup-rust-maintenance-tools)/action\.yml)$'; then
-            rust_scan=true
-          fi
-
-          docs_scan=false
-          if printf '%s\n' "$changed_files" | grep -Eq '^(package\.json|package-lock\.json|mise\.toml|\.github/workflows/(ci|docs-security)\.yml|\.github/actions/setup-mise-docs/action\.yml)$'; then
-            docs_scan=true
-          fi
-
-          echo "rust_scan=$rust_scan" >> "$GITHUB_OUTPUT"
-          echo "docs_scan=$docs_scan" >> "$GITHUB_OUTPUT"
-
       - name: Setup Rust toolchain
-        if: ${{ steps.scope.outputs.rust_scan == 'true' }}
+        if: ${{ needs.change-scope.outputs.rust_security_scan == 'true' }}
         uses: ./.github/actions/setup-rust
 
       - name: Setup Python + uv + deps
         uses: ./.github/actions/setup-python-uv
 
       - name: Setup Rust security tools
-        if: ${{ steps.scope.outputs.rust_scan == 'true' }}
+        if: ${{ needs.change-scope.outputs.rust_security_scan == 'true' }}
         uses: ./.github/actions/setup-rust-security-tools
 
       - name: Gitleaks
@@ -392,21 +446,21 @@ jobs:
         run: uv run detect-secrets-hook --baseline .detect-secrets.baseline
 
       - name: Cargo audit
-        if: ${{ steps.scope.outputs.rust_scan == 'true' }}
+        if: ${{ needs.change-scope.outputs.rust_security_scan == 'true' }}
         run: cargo audit
 
       - name: Cargo deny
-        if: ${{ steps.scope.outputs.rust_scan == 'true' }}
+        if: ${{ needs.change-scope.outputs.rust_security_scan == 'true' }}
         run: cargo deny check
 
       - name: Setup docs toolchain
-        if: ${{ steps.scope.outputs.docs_scan == 'true' }}
+        if: ${{ needs.change-scope.outputs.docs_security_scan == 'true' }}
         uses: ./.github/actions/setup-mise-docs
         with:
           install-dependencies: "false"
 
       - name: npm audit (docs toolchain)
-        if: ${{ steps.scope.outputs.docs_scan == 'true' }}
+        if: ${{ needs.change-scope.outputs.docs_security_scan == 'true' }}
         run: mise exec -- npm audit --package-lock-only
 
       - name: Summarize gated dependency scans
@@ -417,8 +471,10 @@ jobs:
           {
             echo "## Dependency security scope"
             echo
-            echo "- Rust dependency security scans: ${{ steps.scope.outputs.rust_scan }}"
-            echo "- Docs dependency security scans: ${{ steps.scope.outputs.docs_scan }}"
+            echo "- Rust dependency security scans: ${{ needs.change-scope.outputs.rust_security_scan }}"
+            echo "- Docs dependency security scans: ${{ needs.change-scope.outputs.docs_security_scan }}"
+            echo "- Docs sync contracts: ${{ needs.change-scope.outputs.docs_sync }}"
+            echo "- Docs site build: ${{ needs.change-scope.outputs.docs_build }}"
             echo
             echo "Secret scanning remains unconditional in main CI."
           } >> "$GITHUB_STEP_SUMMARY"
