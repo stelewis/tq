@@ -59,10 +59,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
+      - name: Setup Python + uv + deps
+        uses: ./.github/actions/setup-python-uv
+
       - name: Hygiene hooks
-        uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
-        with:
-          extra_args: --all-files trailing-whitespace end-of-file-fixer check-yaml check-added-large-files
+        run: |
+          uv run prek run trailing-whitespace --all-files
+          uv run prek run end-of-file-fixer --all-files
+          uv run prek run check-yaml --all-files
+          uv run prek run check-added-large-files --all-files
 
   format:
     name: Format (cargo fmt)
