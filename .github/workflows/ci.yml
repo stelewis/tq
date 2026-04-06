@@ -322,13 +322,64 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Determine dependency security scope
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          event_name='${{ github.event_name }}'
+          zero_sha='0000000000000000000000000000000000000000'
+
+          if [[ "$event_name" == "workflow_dispatch" ]]; then
+            echo "rust_scan=true" >> "$GITHUB_OUTPUT"
+            echo "docs_scan=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$event_name" == "pull_request" ]]; then
+            base_sha='${{ github.event.pull_request.base.sha }}'
+            head_sha='${{ github.event.pull_request.head.sha }}'
+          elif [[ "$event_name" == "push" ]]; then
+            base_sha='${{ github.event.before }}'
+            head_sha='${{ github.sha }}'
+
+            if [[ "$base_sha" == "$zero_sha" ]]; then
+              echo "rust_scan=true" >> "$GITHUB_OUTPUT"
+              echo "docs_scan=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          else
+            echo "rust_scan=true" >> "$GITHUB_OUTPUT"
+            echo "docs_scan=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed_files="$(git diff --name-only "$base_sha" "$head_sha")"
+          printf '%s\n' "$changed_files"
+
+          rust_scan=false
+          if printf '%s\n' "$changed_files" | grep -Eq '^(Cargo\.lock|Cargo\.toml|deny\.toml|crates/[^/]+/Cargo\.toml|\.github/workflows/(ci|rust-security-advisories)\.yml|\.github/actions/(setup-rust|setup-rust-security-tools|setup-rust-maintenance-tools)/action\.yml)$'; then
+            rust_scan=true
+          fi
+
+          docs_scan=false
+          if printf '%s\n' "$changed_files" | grep -Eq '^(package\.json|package-lock\.json|mise\.toml|\.github/workflows/(ci|docs-security)\.yml|\.github/actions/setup-mise-docs/action\.yml)$'; then
+            docs_scan=true
+          fi
+
+          echo "rust_scan=$rust_scan" >> "$GITHUB_OUTPUT"
+          echo "docs_scan=$docs_scan" >> "$GITHUB_OUTPUT"
+
       - name: Setup Rust toolchain
+        if: ${{ steps.scope.outputs.rust_scan == 'true' }}
         uses: ./.github/actions/setup-rust
 
       - name: Setup Python + uv + deps
         uses: ./.github/actions/setup-python-uv
 
       - name: Setup Rust security tools
+        if: ${{ steps.scope.outputs.rust_scan == 'true' }}
         uses: ./.github/actions/setup-rust-security-tools
 
       - name: Gitleaks
@@ -341,13 +392,33 @@ jobs:
         run: uv run detect-secrets-hook --baseline .detect-secrets.baseline
 
       - name: Cargo audit
+        if: ${{ steps.scope.outputs.rust_scan == 'true' }}
         run: cargo audit
 
       - name: Cargo deny
+        if: ${{ steps.scope.outputs.rust_scan == 'true' }}
         run: cargo deny check
 
       - name: Setup docs toolchain
+        if: ${{ steps.scope.outputs.docs_scan == 'true' }}
         uses: ./.github/actions/setup-mise-docs
+        with:
+          install-dependencies: "false"
 
       - name: npm audit (docs toolchain)
-        run: mise exec -- npm audit
+        if: ${{ steps.scope.outputs.docs_scan == 'true' }}
+        run: mise exec -- npm audit --package-lock-only
+
+      - name: Summarize gated dependency scans
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          {
+            echo "## Dependency security scope"
+            echo
+            echo "- Rust dependency security scans: ${{ steps.scope.outputs.rust_scan }}"
+            echo "- Docs dependency security scans: ${{ steps.scope.outputs.docs_scan }}"
+            echo
+            echo "Secret scanning remains unconditional in main CI."
+          } >> "$GITHUB_STEP_SUMMARY"

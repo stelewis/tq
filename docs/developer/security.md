@@ -35,6 +35,7 @@ Repository automation must also preserve the security posture:
 - Dependabot must cover the full GitHub Actions surface,
 - frozen automation refs must remain reviewable and regularly rotated,
 - Rust dependency changes must remain compatible with `cargo audit` and `cargo deny`,
+- docs dependency changes must remain compatible with `npm audit --package-lock-only`,
 - lockfiles are part of code review,
 - release artifacts must pass provenance and content policy checks.
 

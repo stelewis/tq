@@ -78,17 +78,36 @@ Why this matters:
 
 Policy file: [Rust security advisories](https://github.com/stelewis/tq/blob/main/.github/workflows/rust-security-advisories.yml)
 
-Rust advisory and dependency-policy scans must run on a weekly schedule in addition to the main push and pull-request CI pipeline.
+Rust advisory and dependency-policy scans must run on a weekly schedule and on demand, with the main CI pipeline re-running them when Rust dependency or Rust security-policy surfaces change.
 
 Enforcement:
 
 - the scheduled workflow runs `cargo audit` and `cargo deny check` weekly and on demand.
+- the main CI workflow reruns `cargo audit` and `cargo deny check` when `Cargo.lock`, any `Cargo.toml`, `deny.toml`, or the Rust security workflow and action definitions change.
 
 Why this matters:
 
 - new RustSec advisories can be published without any repository changes,
+- path-gated PR and push checks preserve fast feedback on unrelated changes while still blocking risky dependency and policy edits,
 - Dependabot and stale-version checks help with version drift but do not replace repo-owned advisory scanning,
 - weekly review keeps lockfile risk visible between ordinary development activity.
+
+## Docs dependency advisory visibility
+
+Policy file: [Docs security workflow](https://github.com/stelewis/tq/blob/main/.github/workflows/docs-security.yml)
+
+Docs toolchain advisory scans must run on a weekly schedule and on demand, with the main CI pipeline re-running them only when Node or docs-toolchain dependency surfaces change.
+
+Enforcement:
+
+- the scheduled workflow runs `npm audit --package-lock-only` weekly and on demand.
+- the main CI workflow reruns `npm audit --package-lock-only` when `package.json`, `package-lock.json`, `mise.toml`, or the docs-toolchain workflow and action definitions change.
+
+Why this matters:
+
+- new npm advisories can be published without any repository changes,
+- path-gated checks keep unrelated Rust and content PRs from being blocked by docs-only ecosystem churn,
+- lockfile-only auditing keeps the docs dependency review surface explicit without paying for an unnecessary full install.
 
 ## Release provenance policy
 

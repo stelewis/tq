@@ -1,0 +1,33 @@
+name: Docs Security
+
+"on":
+  schedule:
+    - cron: "15 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs-security:
+    name: Docs dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup docs audit toolchain
+        uses: ./.github/actions/setup-mise-docs
+        with:
+          install-dependencies: "false"
+
+      - name: npm audit (package-lock only)
+        run: mise exec -- npm audit --package-lock-only

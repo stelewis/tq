@@ -15,7 +15,9 @@ The main CI workflow enforces:
 - tests via `cargo test --workspace --locked`
 - repository policy validation via `cargo run -p tq-release --locked -- verify-dependabot --repo-root .`
 - build validation via `cargo build`, `cargo package --workspace --locked`, `uv build`, artifact policy verification, and built wheel/sdist entrypoint smoke checks
-- security checks via `cargo audit`, `cargo deny`, `gitleaks`, and `detect-secrets`
+- secret scanning via `gitleaks` and `detect-secrets` on every push and pull request
+- Rust dependency security checks via `cargo audit` and `cargo deny` only when Rust dependency or Rust security-policy files change
+- docs dependency security checks via `npm audit --package-lock-only` only when docs dependency or docs-toolchain files change
 
 Separate policy workflows enforce frozen automation refs:
 
@@ -25,6 +27,7 @@ Separate policy workflows enforce frozen automation refs:
 Separate scheduled workflows handle dependency drift and security review outside the main PR and push pipeline:
 
 - weekly Rust advisory and policy scanning via `.github/workflows/rust-security-advisories.yml`, `cargo audit`, and `cargo deny check`
+- weekly docs dependency auditing via `.github/workflows/docs-security.yml` and `npm audit --package-lock-only`
 - direct workspace dependency drift via `cargo outdated --workspace --root-deps-only`
 - centralized Rust maintenance tool pin drift in `.github/actions/setup-rust-maintenance-tools/action.yml` for `cargo-outdated`, `cargo-audit`, and `cargo-deny`
 - frozen GitHub Action and pre-commit pin drift via `.github/workflows/pinned-external-dependency-drift.yml`
@@ -35,9 +38,11 @@ For manual rotation and drift response steps, see [Pin maintenance](./pin-mainte
 
 Security scanners are treated as CI tooling, not as part of the `tq` runtime contract.
 
-The workspace uses the pinned MSRV from `rust-toolchain.toml`. CI installs `cargo-audit` and `cargo-deny` on stable through `.github/actions/setup-rust-security-tools`, which delegates version pinning to `.github/actions/setup-rust-maintenance-tools/action.yml`, so scanner installation can move independently of the product toolchain.
+The workspace uses the pinned MSRV from `rust-toolchain.toml`. CI installs `cargo-audit` and `cargo-deny` on stable through `.github/actions/setup-rust-security-tools`, which delegates version pinning to `.github/actions/setup-rust-maintenance-tools/action.yml`, so scanner installation can move independently of the product toolchain. Main CI reruns those scanners only when Rust dependency or Rust security-policy surfaces change; the scheduled Rust workflow covers advisory churn between repository changes.
 
-The stale dependency workflow installs `cargo-outdated` separately from the product toolchain and checks only root workspace dependencies. This complements Dependabot and other policy checks: `cargo audit` catches published advisories, `cargo deny` enforces explicit bans plus license and source policy, and `cargo outdated` surfaces ordinary version drift.
+The docs dependency audit uses `npm audit --package-lock-only` and only reruns in main CI when the Node or docs-toolchain surface changes. The scheduled docs security workflow covers advisory churn for the VitePress toolchain between repository changes.
+
+The stale dependency workflow installs `cargo-outdated` separately from the product toolchain and checks only root workspace dependencies. This complements Dependabot and other policy checks: `cargo audit` catches published advisories, `cargo deny` enforces explicit bans plus license and source policy, `npm audit --package-lock-only` covers the docs lockfile, and `cargo outdated` surfaces ordinary version drift.
 
 The maintenance-tool pin workflow covers the embedded versions in `.github/actions/setup-rust-maintenance-tools/action.yml` because those values are not lockfile entries or Dependabot-managed manifests. When drift is detected, the workflow writes a summary, opens or refreshes a tracking issue on scheduled runs, and fails so the review stays visible.
 
