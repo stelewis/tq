@@ -7,6 +7,28 @@ use crate::ReleaseError;
 const ROOT_CARGO_TOML: &str = "Cargo.toml";
 const CHANGELOG_PATH: &str = "CHANGELOG.md";
 
+pub fn sync_workspace_dependency_versions(repo_root: &Path) -> Result<(), ReleaseError> {
+    let root_cargo_path = repo_root.join(ROOT_CARGO_TOML);
+    let root_manifest = read_toml_table(&root_cargo_path, "workspace Cargo.toml")?;
+    let workspace_version = workspace_version(&root_manifest, &root_cargo_path)?;
+    let members = workspace_members(&root_manifest, &root_cargo_path)?;
+    let internal_crate_names = internal_crate_names(repo_root, &members)?;
+    let updated = sync_dependency_versions_in_manifest(
+        &std::fs::read_to_string(&root_cargo_path).map_err(|source| ReleaseError::Io {
+            path: root_cargo_path.clone(),
+            source,
+        })?,
+        &internal_crate_names,
+        workspace_version,
+        &root_cargo_path,
+    )?;
+
+    std::fs::write(&root_cargo_path, updated).map_err(|source| ReleaseError::Io {
+        path: root_cargo_path,
+        source,
+    })
+}
+
 pub fn verify_workspace_version(repo_root: &Path) -> Result<(), ReleaseError> {
     let root_cargo_path = repo_root.join(ROOT_CARGO_TOML);
     let root_manifest = read_toml_table(&root_cargo_path, "workspace Cargo.toml")?;
@@ -35,6 +57,70 @@ pub fn verify_workspace_version(repo_root: &Path) -> Result<(), ReleaseError> {
     Err(ReleaseError::RepositoryPolicyViolation {
         details: violations.join("\n"),
     })
+}
+
+fn sync_dependency_versions_in_manifest(
+    cargo_toml: &str,
+    internal_crate_names: &[String],
+    workspace_version: &str,
+    path: &Path,
+) -> Result<String, ReleaseError> {
+    let mut updated_lines = Vec::new();
+    let mut in_workspace_dependencies = false;
+    let mut seen_crate_names = Vec::new();
+
+    for line in cargo_toml.split_inclusive('\n') {
+        let mut updated_line = line.to_owned();
+        let trimmed = line.trim();
+
+        if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            in_workspace_dependencies = trimmed == "[workspace.dependencies]";
+        } else if in_workspace_dependencies {
+            for crate_name in internal_crate_names {
+                if line.starts_with(&format!("{crate_name} = {{")) {
+                    let replacement = format!("version = \"{workspace_version}\"");
+                    if let Some((prefix, suffix)) = updated_line.split_once("version = \"") {
+                        let Some((_, tail)) = suffix.split_once('"') else {
+                            return Err(workspace_version_error(
+                                path,
+                                &format!(
+                                    "workspace.dependencies.{crate_name} is missing a quoted version"
+                                ),
+                            ));
+                        };
+                        updated_line = format!("{prefix}{replacement}{tail}");
+                    } else {
+                        return Err(workspace_version_error(
+                            path,
+                            &format!("workspace.dependencies.{crate_name} is missing version"),
+                        ));
+                    }
+                    seen_crate_names.push(crate_name.clone());
+                    break;
+                }
+            }
+        }
+
+        updated_lines.push(updated_line);
+    }
+
+    let missing_crate_names: Vec<_> = internal_crate_names
+        .iter()
+        .filter(|crate_name| !seen_crate_names.contains(crate_name))
+        .cloned()
+        .collect();
+
+    if !missing_crate_names.is_empty() {
+        return Err(workspace_version_error(
+            path,
+            &format!(
+                "workspace.dependencies is missing internal crate entries: {}",
+                missing_crate_names.join(", ")
+            ),
+        ));
+    }
+
+    Ok(updated_lines.concat())
 }
 
 fn verify_member(
@@ -97,6 +183,27 @@ fn verify_member(
     }
 
     Ok(violations)
+}
+
+fn internal_crate_names(
+    repo_root: &Path,
+    members: &[PathBuf],
+) -> Result<Vec<String>, ReleaseError> {
+    members
+        .iter()
+        .map(|member| {
+            let member_manifest_path = repo_root.join(member).join(ROOT_CARGO_TOML);
+            let member_manifest = read_toml_table(&member_manifest_path, "member Cargo.toml")?;
+            let package = package_table(&member_manifest, &member_manifest_path)?;
+            package
+                .get("name")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+                .ok_or_else(|| {
+                    workspace_version_error(&member_manifest_path, "missing package.name")
+                })
+        })
+        .collect()
 }
 
 fn verify_changelog(

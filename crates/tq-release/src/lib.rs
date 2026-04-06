@@ -23,6 +23,10 @@ pub fn verify_workspace_version(repo_root: &Path) -> Result<(), ReleaseError> {
     workspace_version::verify_workspace_version(repo_root)
 }
 
+pub fn sync_workspace_dependency_versions(repo_root: &Path) -> Result<(), ReleaseError> {
+    workspace_version::sync_workspace_dependency_versions(repo_root)
+}
+
 pub fn verify_release_policy(repo_root: &Path) -> Result<(), ReleaseError> {
     verify_workspace_version(repo_root)?;
     verify_dependabot(repo_root)

@@ -17,6 +17,8 @@ enum Command {
     Dependabot(VerifyDependabotArgs),
     #[command(name = "verify-release-policy")]
     ReleasePolicy(VerifyReleasePolicyArgs),
+    #[command(name = "sync-workspace-dependency-versions")]
+    SyncWorkspaceDependencyVersions(SyncWorkspaceDependencyVersionsArgs),
     #[command(name = "verify-workspace-version")]
     WorkspaceVersion(VerifyWorkspaceVersionArgs),
 }
@@ -47,6 +49,12 @@ struct VerifyWorkspaceVersionArgs {
     repo_root: PathBuf,
 }
 
+#[derive(Debug, clap::Args)]
+struct SyncWorkspaceDependencyVersionsArgs {
+    #[arg(long, default_value = ".")]
+    repo_root: PathBuf,
+}
+
 fn main() {
     let cli = Cli::parse();
     let result = match cli.command {
@@ -60,6 +68,9 @@ fn main() {
         ),
         Command::Dependabot(args) => tq_release::verify_dependabot(&args.repo_root),
         Command::ReleasePolicy(args) => tq_release::verify_release_policy(&args.repo_root),
+        Command::SyncWorkspaceDependencyVersions(args) => {
+            tq_release::sync_workspace_dependency_versions(&args.repo_root)
+        }
         Command::WorkspaceVersion(args) => tq_release::verify_workspace_version(&args.repo_root),
     };
 
