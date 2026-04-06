@@ -4,11 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-04-06
+
+### Fixed
+
+- Fixed a stale config key in the release smoke fixture.
+
 ## [0.7.0] - 2026-04-06
 
 ### Added
 
-- Added a Rust workspace that now implements the `tq` runtime.
+- Added a Rust workspace that implements the `tq` runtime.
 - Added a Rust-backed PyPI distribution for `tqlint`, preserving the `tq` CLI entrypoint.
 - Added stricter Rust-side contract and conformance coverage.
 
@@ -16,7 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Rewrote the shipped implementation from the original Python release to a Rust-first architecture.
 - Moved documentation, packaging, and publish automation to Rust-first workflows.
-- Expanded CI and maintenance automation for the Rust toolchain, pinned maintenance tools, dependency drift checks, and security scanning.
+- Expanded CI and maintenance automation for the Rust toolchain, pinned maintenance, dependency drift, and security.
 
 ### Fixed
 
@@ -25,7 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Security
 
-- Removed the generic YAML parser surface and tightened dependency and release-policy validation around the Rust rewrite.
+- Removed the generic YAML parser surface and tightened dependency and release-policy validation.
 
 ## [0.6.3] - 2026-03-04
 
