@@ -196,7 +196,7 @@ fn sync_workspace_dependency_versions_updates_internal_crate_entries() {
         &temp.path().join("Cargo.toml"),
         concat!(
             "[workspace]\n",
-            "members = [\"crates/tq-core\", \"crates/tq-engine\"]\n",
+            "members = [\"crates/tq-core\", \"crates/version-engine\"]\n",
             "\n",
             "[workspace.package]\n",
             "version = \"0.7.1\"\n",
@@ -204,7 +204,66 @@ fn sync_workspace_dependency_versions_updates_internal_crate_entries() {
             "[workspace.dependencies]\n",
             "serde = \"1.0.228\"\n",
             "tq-core = { version = \"0.7.0\", path = \"crates/tq-core\" }\n",
-            "tq-engine = { version = \"0.7.0\", path = \"crates/tq-engine\" }\n",
+            "tq-engine = { path = \"crates/version-engine\", version = \"0.7.0\" }\n",
+        ),
+    );
+    write(
+        &temp.path().join("CHANGELOG.md"),
+        "# Changelog\n\n## [0.7.1] - 2026-04-06\n",
+    );
+    write(
+        &temp.path().join("crates/tq-core/Cargo.toml"),
+        concat!(
+            "[package]\n",
+            "name = \"tq-core\"\n",
+            "version.workspace = true\n",
+        ),
+    );
+    write(
+        &temp.path().join("crates/version-engine/Cargo.toml"),
+        concat!(
+            "[package]\n",
+            "name = \"tq-engine\"\n",
+            "version.workspace = true\n",
+        ),
+    );
+
+    tq_release::sync_workspace_dependency_versions(temp.path())
+        .expect("workspace dependency sync should succeed");
+
+    let cargo_toml = fs::read_to_string(temp.path().join("Cargo.toml")).expect("read Cargo.toml");
+
+    assert!(cargo_toml.contains("tq-core = { version = \"0.7.1\", path = \"crates/tq-core\" }"));
+    assert!(
+        cargo_toml
+            .contains("tq-engine = { path = \"crates/version-engine\", version = \"0.7.1\" }")
+    );
+    assert!(cargo_toml.contains("serde = \"1.0.228\""));
+}
+
+#[test]
+fn sync_workspace_dependency_versions_updates_internal_crate_subtables() {
+    let temp = tempfile::tempdir().expect("tempdir");
+
+    write(
+        &temp.path().join("Cargo.toml"),
+        concat!(
+            "[workspace]\n",
+            "members = [\"crates/tq-core\", \"crates/tq-engine\"]\n",
+            "\n",
+            "[workspace.package]\n",
+            "version = \"0.7.1\"\n",
+            "\n",
+            "[workspace.dependencies]\n",
+            "serde = \"1.0.228\"\n",
+            "\n",
+            "[workspace.dependencies.tq-core]\n",
+            "path = \"crates/tq-core\"\n",
+            "version = \"0.7.0\"\n",
+            "\n",
+            "[workspace.dependencies.tq-engine]\n",
+            "version=\"0.7.0\"\n",
+            "path = \"crates/tq-engine\"\n",
         ),
     );
     write(
@@ -229,14 +288,13 @@ fn sync_workspace_dependency_versions_updates_internal_crate_entries() {
     );
 
     tq_release::sync_workspace_dependency_versions(temp.path())
-        .expect("workspace dependency sync should succeed");
+        .expect("workspace dependency sync should support dependency subtables");
 
     let cargo_toml = fs::read_to_string(temp.path().join("Cargo.toml")).expect("read Cargo.toml");
 
-    assert!(cargo_toml.contains("tq-core = { version = \"0.7.1\", path = \"crates/tq-core\" }"));
-    assert!(
-        cargo_toml.contains("tq-engine = { version = \"0.7.1\", path = \"crates/tq-engine\" }")
-    );
+    assert!(cargo_toml.contains("[workspace.dependencies.tq-core]"));
+    assert!(cargo_toml.contains("version = \"0.7.1\""));
+    assert!(cargo_toml.contains("version=\"0.7.1\""));
     assert!(cargo_toml.contains("serde = \"1.0.228\""));
 }
 

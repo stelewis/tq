@@ -12,7 +12,13 @@ pub fn sync_workspace_dependency_versions(repo_root: &Path) -> Result<(), Releas
     let root_manifest = read_toml_table(&root_cargo_path, "workspace Cargo.toml")?;
     let workspace_version = workspace_version(&root_manifest, &root_cargo_path)?;
     let members = workspace_members(&root_manifest, &root_cargo_path)?;
+    let workspace_dependencies = workspace_dependencies(&root_manifest, &root_cargo_path)?;
     let internal_crate_names = internal_crate_names(repo_root, &members)?;
+    validate_internal_workspace_dependency_entries(
+        workspace_dependencies,
+        &internal_crate_names,
+        &root_cargo_path,
+    )?;
     let updated = sync_dependency_versions_in_manifest(
         &std::fs::read_to_string(&root_cargo_path).map_err(|source| ReleaseError::Io {
             path: root_cargo_path.clone(),
@@ -67,6 +73,7 @@ fn sync_dependency_versions_in_manifest(
 ) -> Result<String, ReleaseError> {
     let mut updated_lines = Vec::new();
     let mut in_workspace_dependencies = false;
+    let mut dependency_table_crate_name: Option<String> = None;
     let mut seen_crate_names = Vec::new();
 
     for line in cargo_toml.split_inclusive('\n') {
@@ -75,26 +82,30 @@ fn sync_dependency_versions_in_manifest(
 
         if trimmed.starts_with('[') && trimmed.ends_with(']') {
             in_workspace_dependencies = trimmed == "[workspace.dependencies]";
+            dependency_table_crate_name = trimmed
+                .strip_prefix("[workspace.dependencies.")
+                .and_then(|value| value.strip_suffix(']'))
+                .filter(|crate_name| internal_crate_names.iter().any(|name| name == crate_name))
+                .map(str::to_owned);
+        } else if let Some(crate_name) = dependency_table_crate_name.as_deref() {
+            if trimmed.starts_with("version") {
+                updated_line = replace_table_dependency_version(
+                    &updated_line,
+                    crate_name,
+                    workspace_version,
+                    path,
+                )?;
+                seen_crate_names.push(crate_name.to_owned());
+            }
         } else if in_workspace_dependencies {
             for crate_name in internal_crate_names {
-                if line.starts_with(&format!("{crate_name} = {{")) {
-                    let replacement = format!("version = \"{workspace_version}\"");
-                    if let Some((prefix, suffix)) = updated_line.split_once("version = \"") {
-                        let Some((_, tail)) = suffix.split_once('"') else {
-                            return Err(workspace_version_error(
-                                path,
-                                &format!(
-                                    "workspace.dependencies.{crate_name} is missing a quoted version"
-                                ),
-                            ));
-                        };
-                        updated_line = format!("{prefix}{replacement}{tail}");
-                    } else {
-                        return Err(workspace_version_error(
-                            path,
-                            &format!("workspace.dependencies.{crate_name} is missing version"),
-                        ));
-                    }
+                if line.trim_start().starts_with(&format!("{crate_name} = {{")) {
+                    updated_line = replace_inline_dependency_version(
+                        &updated_line,
+                        crate_name,
+                        workspace_version,
+                        path,
+                    )?;
                     seen_crate_names.push(crate_name.clone());
                     break;
                 }
@@ -114,13 +125,136 @@ fn sync_dependency_versions_in_manifest(
         return Err(workspace_version_error(
             path,
             &format!(
-                "workspace.dependencies is missing internal crate entries: {}",
+                "workspace.dependencies internal crate entries use unsupported manifest formatting: {}",
                 missing_crate_names.join(", ")
             ),
         ));
     }
 
     Ok(updated_lines.concat())
+}
+
+fn validate_internal_workspace_dependency_entries(
+    workspace_dependencies: &Table,
+    internal_crate_names: &[String],
+    path: &Path,
+) -> Result<(), ReleaseError> {
+    let missing_crate_names: Vec<_> = internal_crate_names
+        .iter()
+        .filter(|crate_name| !workspace_dependencies.contains_key(crate_name.as_str()))
+        .cloned()
+        .collect();
+
+    if !missing_crate_names.is_empty() {
+        return Err(workspace_version_error(
+            path,
+            &format!(
+                "workspace.dependencies is missing internal crate entries: {}",
+                missing_crate_names.join(", ")
+            ),
+        ));
+    }
+
+    for crate_name in internal_crate_names {
+        let dependency = workspace_dependencies
+            .get(crate_name)
+            .expect("validated internal crate entry must exist");
+        let dependency_table = dependency.as_table().ok_or_else(|| {
+            workspace_version_error(
+                path,
+                &format!(
+                    "workspace.dependencies.{crate_name} must be a table with path and version"
+                ),
+            )
+        })?;
+
+        if dependency_table
+            .get("version")
+            .and_then(Value::as_str)
+            .is_none()
+        {
+            return Err(workspace_version_error(
+                path,
+                &format!("workspace.dependencies.{crate_name} is missing version"),
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+fn replace_inline_dependency_version(
+    line: &str,
+    crate_name: &str,
+    workspace_version: &str,
+    path: &Path,
+) -> Result<String, ReleaseError> {
+    replace_dependency_version_value(line, crate_name, workspace_version, path, "version")
+}
+
+fn replace_table_dependency_version(
+    line: &str,
+    crate_name: &str,
+    workspace_version: &str,
+    path: &Path,
+) -> Result<String, ReleaseError> {
+    replace_dependency_version_value(line, crate_name, workspace_version, path, "version")
+}
+
+fn replace_dependency_version_value(
+    line: &str,
+    crate_name: &str,
+    workspace_version: &str,
+    path: &Path,
+    key: &str,
+) -> Result<String, ReleaseError> {
+    let Some(key_index) = find_key_assignment(line, key) else {
+        return Err(workspace_version_error(
+            path,
+            &format!("workspace.dependencies.{crate_name} is missing version"),
+        ));
+    };
+    let value_start = key_index + key.len();
+    let Some(equals_index_offset) = line[value_start..].find('=') else {
+        return Err(workspace_version_error(
+            path,
+            &format!("workspace.dependencies.{crate_name} is missing version"),
+        ));
+    };
+    let value_search_start = value_start + equals_index_offset + 1;
+    let Some(open_quote_offset) = line[value_search_start..].find('"') else {
+        return Err(workspace_version_error(
+            path,
+            &format!("workspace.dependencies.{crate_name} is missing a quoted version"),
+        ));
+    };
+    let open_quote_index = value_search_start + open_quote_offset;
+    let Some(close_quote_offset) = line[open_quote_index + 1..].find('"') else {
+        return Err(workspace_version_error(
+            path,
+            &format!("workspace.dependencies.{crate_name} is missing a quoted version"),
+        ));
+    };
+    let close_quote_index = open_quote_index + 1 + close_quote_offset;
+
+    Ok(format!(
+        "{}\"{}\"{}",
+        &line[..open_quote_index],
+        workspace_version,
+        &line[close_quote_index + 1..]
+    ))
+}
+
+fn find_key_assignment(line: &str, key: &str) -> Option<usize> {
+    line.match_indices(key).find_map(|(index, _)| {
+        let before = line[..index].chars().next_back();
+        let after = line[index + key.len()..].chars().next();
+        let before_ok = before.is_none_or(|character| matches!(character, ' ' | '\t' | '{' | ','));
+        let after_ok = after.is_none_or(|character| matches!(character, ' ' | '\t' | '='));
+
+        before_ok.then_some(())?;
+        after_ok.then_some(index)
+    })
 }
 
 fn verify_member(
