@@ -42,18 +42,64 @@ runs:
 
         rustup toolchain install stable --profile minimal
 
+    - name: Determine maintenance tool cache key
+      if: ${{ inputs.install-cargo-outdated == 'true' || inputs.install-cargo-audit == 'true' || inputs.install-cargo-deny == 'true' }}
+      id: toolchain
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        if [[ "${{ inputs.install-stable-toolchain }}" == "true" ]]; then
+          release="$(rustc +stable -Vv | sed -n 's/^release: //p' | head -n 1)"
+          if [[ -z "$release" ]]; then
+            echo "Could not determine the stable Rust release"
+            exit 1
+          fi
+
+          echo "cache-suffix=stable-${release}" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        release="$(rustc -Vv | sed -n 's/^release: //p' | head -n 1)"
+        if [[ -z "$release" ]]; then
+          echo "Could not determine the active Rust release"
+          exit 1
+        fi
+
+        echo "cache-suffix=active-${release}" >> "$GITHUB_OUTPUT"
+
+    - name: Restore cached maintenance tool binaries
+      if: ${{ inputs.install-cargo-outdated == 'true' || inputs.install-cargo-audit == 'true' || inputs.install-cargo-deny == 'true' }}
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      with:
+        path: ~/.cargo-maintenance-tools
+        key: rust-maintenance-tools-${{ runner.os }}-${{ steps.toolchain.outputs.cache-suffix }}-outdated-${{ inputs.install-cargo-outdated }}-${{ inputs.cargo-outdated-version }}-audit-${{ inputs.install-cargo-audit }}-${{ inputs.cargo-audit-rev }}-deny-${{ inputs.install-cargo-deny }}-${{ inputs.cargo-deny-version }}-${{ hashFiles('.github/actions/setup-rust-maintenance-tools/action.yml') }}
+
+    - name: Add maintenance tools to PATH
+      if: ${{ inputs.install-cargo-outdated == 'true' || inputs.install-cargo-audit == 'true' || inputs.install-cargo-deny == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        echo "$HOME/.cargo-maintenance-tools/bin" >> "$GITHUB_PATH"
+
     - name: Install cargo-outdated
       if: ${{ inputs.install-cargo-outdated == 'true' }}
       shell: bash
       run: |
         set -euo pipefail
 
-        if [[ "${{ inputs.install-stable-toolchain }}" == "true" ]]; then
-          cargo +stable install --force --locked "cargo-outdated@${{ inputs.cargo-outdated-version }}"
+        tool_root="$HOME/.cargo-maintenance-tools"
+        if [[ -x "$tool_root/bin/cargo-outdated" ]]; then
           exit 0
         fi
 
-        cargo install --force --locked "cargo-outdated@${{ inputs.cargo-outdated-version }}"
+        if [[ "${{ inputs.install-stable-toolchain }}" == "true" ]]; then
+          cargo +stable install --root "$tool_root" --locked "cargo-outdated@${{ inputs.cargo-outdated-version }}"
+          exit 0
+        fi
+
+        cargo install --root "$tool_root" --locked "cargo-outdated@${{ inputs.cargo-outdated-version }}"
 
     - name: Install cargo-audit
       if: ${{ inputs.install-cargo-audit == 'true' }}
@@ -61,8 +107,13 @@ runs:
       run: |
         set -euo pipefail
 
+        tool_root="$HOME/.cargo-maintenance-tools"
+        if [[ -x "$tool_root/bin/cargo-audit" ]]; then
+          exit 0
+        fi
+
         cargo +stable install \
-          --force \
+          --root "$tool_root" \
           --git https://github.com/RustSec/rustsec.git \
           --rev "${{ inputs.cargo-audit-rev }}" \
           --locked \
@@ -74,4 +125,9 @@ runs:
       run: |
         set -euo pipefail
 
-        cargo +stable install --force --locked "cargo-deny@${{ inputs.cargo-deny-version }}"
+        tool_root="$HOME/.cargo-maintenance-tools"
+        if [[ -x "$tool_root/bin/cargo-deny" ]]; then
+          exit 0
+        fi
+
+        cargo +stable install --root "$tool_root" --locked "cargo-deny@${{ inputs.cargo-deny-version }}"
