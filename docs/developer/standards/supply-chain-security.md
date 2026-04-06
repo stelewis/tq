@@ -1,6 +1,6 @@
 # Supply-Chain Security Standards
 
-Use this page for dependency-admission policy. For the broader repository security model, see [Security](../security.md).
+Use this page for dependency-admission policy. For the broader repository security model, see [Security standards](./security.md).
 
 Dependencies are part of the trusted computing base. Adding or upgrading one is a security decision, not a convenience refactor.
 

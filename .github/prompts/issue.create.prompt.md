@@ -1,8 +1,9 @@
 ---
+name: issue-create
+description: Create a high-quality GitHub issue for this repository
+argument-hint: Describe the problem, goal, and any known acceptance criteria
 agent: agent
 ---
-
-# Issue Creation Prompt
 
 Create high-quality GitHub issues for this repository using the GitHub MCP server tools.
 

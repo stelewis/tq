@@ -36,17 +36,18 @@ const developerSidebar = [
     items: [
       { text: "Overview", link: "/developer/" },
       { text: "Context", link: "/developer/context" },
-      { text: "Architecture", link: "/developer/architecture" },
-      { text: "Security", link: "/developer/security" }
+      { text: "Architecture", link: "/developer/architecture" }
     ]
   },
   {
     text: "Standards",
     collapsed: false,
     items: [
+      { text: "Overview", link: "/developer/standards/" },
       { text: "Code", link: "/developer/standards/code" },
       { text: "Docs", link: "/developer/standards/docs" },
       { text: "Git", link: "/developer/standards/git" },
+      { text: "Security", link: "/developer/standards/security" },
       { text: "Policies", link: "/developer/standards/policies" },
       {
         text: "Supply-Chain Security",

@@ -31,7 +31,7 @@ Use `cargo check` as the fast compile, type, trait, and borrow-check loop before
 
 Secret scanning and commit policy remain part of the standard workflow through `gitleaks`, `detect-secrets`, and `commitizen`.
 
-These checks are only the baseline. Before adding or upgrading external dependencies, follow the broader [Security](../security.md) guidance and the dependency review bar in [Supply-chain security standards](../standards/supply-chain-security.md).
+These checks are only the baseline. Before adding or upgrading external dependencies, follow the broader [Security standards](../standards/security.md) guidance and the dependency review bar in [Supply-chain security standards](../standards/supply-chain-security.md).
 
 ## Pre-commit hooks
 

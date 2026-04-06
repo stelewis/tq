@@ -1,6 +1,6 @@
 # Contributing to tq
 
-Thanks for taking the time to help improve this project! Whether you're fixing a bug, improving documentation, adding a feature, or suggesting an idea, all contributions are welcome.
+Thanks for taking the time to help improve this project! Whether you're fixing a bug, improving documentation, adding a feature, or suggesting an idea, all contributions are welcome and appreciated.
 
 The product code is a Rust workspace. Python tooling exists for packaging, repository automation, and docs-site support. Use this guide as a short entrypoint, then follow the canonical developer docs under [docs/developer/index.md](docs/developer/index.md).
 
@@ -35,11 +35,15 @@ Because `tq` is a developer tool used by multiple teams, we strive for consisten
    cargo test --workspace --locked
    ```
 
+6. If you plan to rebase onto main instead of squash merging, clean up your commit history before opening a PR. See the [Git workflow docs](docs/developer/standards/git.md) for the merge policy.
+
+7. Open a pull request targeting `main` and request a review.
+
 For docs, packaging, or release-surface changes, use the commands in [docs/developer/tools/index.md](docs/developer/tools/index.md), [docs/developer/tools/local-workflows.md](docs/developer/tools/local-workflows.md), and [docs/developer/tools/ci.md](docs/developer/tools/ci.md).
 
 ## Development documentation
 
-Longer explanations of the repository conventions are kept in `docs/developer`:
+Repository conventions are kept in `docs/developer`:
 
 - **Code standards** - formatting, typing, packaging, and import rules.
 - **Git workflow** - branch naming, commit message conventions, and PR guidelines.
@@ -66,4 +70,5 @@ Documentation is part of the product surface.
 ## Support
 
 If you need help, open an issue with the Question template. For suspected vulnerabilities, follow [SECURITY.md](SECURITY.md) instead of opening a public issue.
+
 Thanks again for contributing to `tq`! We appreciate your effort in making the project better for everyone.

@@ -6,13 +6,14 @@ This section contains documentation for contributors and maintainers.
 
 - [Project context](./context.md)
 - [Architecture](./architecture.md)
-- [Security](./security.md)
 
 ## Standards
 
+- [Standards overview](./standards/index.md)
 - [Code standards](./standards/code.md)
 - [Documentation standards](./standards/docs.md)
 - [Git workflow standards](./standards/git.md)
+- [Security standards](./standards/security.md)
 - [Project policies](./standards/policies.md)
 - [Supply-chain security standards](./standards/supply-chain-security.md)
 - [Testing standards](./standards/tests.md)

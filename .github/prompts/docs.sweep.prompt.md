@@ -1,4 +1,7 @@
 ---
+name: docs-sweep
+description: Audit a docs subtree and remove or refactor stale documents
+argument-hint: Folder path to sweep and any scope constraints
 agent: agent
 ---
 

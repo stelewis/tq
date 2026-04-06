@@ -59,11 +59,12 @@ Avoid:
 
 ## Doc Quality Standards
 
-### Avoid these anti-patterns
+### Avoid documentation anti-patterns
 
-- **Duplicate explanations**: same topic described in multiple places.
+- **Duplication**: same topic described in multiple places or the same information repeated in multiple ways.
+- **Gratuitous cross-linking**: links that repeat obvious navigation instead of adding signal.
 - **Leaky layering**: docs exposing internal implementation details.
 - **Brittle examples**: examples tied to unstable internal structures.
-- **Generated-file edits**: fixing generated output by hand instead of updating its source.
-- **Navigation drift**: adding pages without wiring them into the section that owns them.
-- **Over-documentation**: documenting obvious code-level details.
+- **Over-documentation**: documenting context that can be inferred from the code or that can be discovered elsewhere.
+
+Minimalism is an asset. It reduces cognitive load, maintenance cost, and decision fatigue. It also creates a stronger signal when something is important enough to include.

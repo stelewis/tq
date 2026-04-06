@@ -38,10 +38,12 @@ Goals:
 
 ## Security
 
-- **Validate untrusted input at boundaries**: parse, normalize, and reject invalid CLI, config, filesystem, archive, and environment inputs before they reach core logic.
-- **Fail closed**: on ambiguous, missing, or invalid security-relevant state, return an actionable error instead of guessing or silently defaulting.
-- **Constrain filesystem and process boundaries**: defend against traversal, symlink escape, absolute-path escape, unsafe extraction, and unvalidated subprocess execution.
-- **Protect secrets and diagnostics**: never hardcode or expose sensitive material, and redact diagnostics by default.
+- **Validate and fail closed**: reject invalid CLI, config, filesystem, archive, and environment input at the boundary.
+- **Constrain side effects**: validate paths, keep filesystem and subprocess use at the edges, and pass explicit argv to child processes.
+- **Defend against traversal and boundary escape**: explicitly consider `..`, symlink, absolute-path, and root-escape cases.
+- **Protect secrets**: never hardcode, commit, log, or snapshot live credentials.
+- **Keep diagnostics safe**: logs and errors should be actionable without leaking sensitive data.
+- **Structured process execution**: pass explicit argument arrays and validated inputs to subprocesses.
 
 ## Antipatterns to Avoid
 

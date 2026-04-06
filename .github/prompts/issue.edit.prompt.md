@@ -1,8 +1,9 @@
 ---
+name: issue-edit
+description: Edit an existing GitHub issue with the minimum necessary change
+argument-hint: Issue number and the specific update to make
 agent: agent
 ---
-
-# Issue Edit Prompt (Agent)
 
 Edit GitHub issues for this repository using the GitHub MCP server tools.
 

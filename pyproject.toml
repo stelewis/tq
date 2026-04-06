@@ -90,9 +90,6 @@ ban-relative-imports = "all"
     "S101",  # Assert statements are fine in tests
     "PLR2004",  # Magic value comparisons are fine in tests
 ]
-".github/skills/skill-creator/scripts/*.py" = [
-    "INP001",  # Skill creator scripts are standalone CLIs under .github/, not importable packages
-]
 
 [tool.ruff.lint.pylint]
 max-returns = 10

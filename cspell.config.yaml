@@ -34,6 +34,8 @@ words:
   - invokable
   - isinstance
   - kwargs
+  - lifecycles
+  - Lockfiles
   - mapfile
   - mnda
   - monkeypatch
@@ -68,6 +70,8 @@ words:
   - theo
   - thiserror
   - tqlint
+  - unrepresentable
+  - unvalidated
   - venv
   - Vite
   - vitepress

@@ -1,4 +1,7 @@
 ---
+name: fetch-web
+description: Fetch a URL or web search result and return only the relevant material
+argument-hint: Provide a URL or search query and what you need from it
 agent: agent
 ---
 

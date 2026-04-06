@@ -1,4 +1,7 @@
 ---
+name: refactor
+description: Drive a ground-up refactor toward the target design described by the user
+argument-hint: Describe the target design, constraints, and affected areas
 agent: agent
 ---
 
@@ -28,6 +31,8 @@ For each test module implicated in a refactor:
 - **Fix** when a suite is logically right and only needs mechanical updates.
 - **Delete** when it encodes old layering or stale semantics.
 - **Replace** when it is large, fragile, or asserts legacy constructs.
+
+I recognize this is a big refactor, but it is absolutely critical that we do it right to ensure we have clean, maintainable, and elegant code that aligns with our vision of the future.
 
 ## Quality Gates
 

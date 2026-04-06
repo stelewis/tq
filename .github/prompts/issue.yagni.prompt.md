@@ -1,4 +1,7 @@
 ---
+name: issue-yagni
+description: Audit a proposed issue for necessity, scope, and overengineering risk
+argument-hint: Issue link or problem statement to audit
 agent: agent
 ---
 

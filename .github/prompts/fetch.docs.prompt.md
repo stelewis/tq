@@ -1,6 +1,7 @@
 ---
 name: fetch-docs
-description: Fetch up-to-date documentation using the Context7 MCP tool
+description: Fetch up-to-date external documentation with the Context7 MCP tool
+argument-hint: Library, version, and the API or topic to look up
 agent: agent
 ---
 

@@ -1,9 +1,9 @@
 ---
-description: 'Generate tests'
-agent: 'agent'
+name: write-tests
+description: Generate and refine tests for the current task or module
+argument-hint: Module, behavior, or issue to cover with tests
+agent: agent
 ---
-
-# Test Generation Prompt
 
 ## Context
 

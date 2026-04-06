@@ -164,4 +164,4 @@ Dependency admission is treated as a supply-chain security decision, not a conve
 
 Contributors must prefer mainstream, widely adopted, actively maintained packages with clear ownership and strong engineering discipline. New, obscure, weakly maintained, or otherwise low-trust packages require a documented exception and should normally be rejected.
 
-Policy files: [Security](../security.md), [Supply-chain security standards](./supply-chain-security.md)
+Policy files: [Security standards](./security.md), [Supply-chain security standards](./supply-chain-security.md)

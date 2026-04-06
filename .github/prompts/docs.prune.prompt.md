@@ -1,4 +1,7 @@
 ---
+name: docs-prune
+description: Audit a single document and decide whether to keep, refactor, or remove it
+argument-hint: Path to the document and any audience or scope constraints
 agent: agent
 ---
 
