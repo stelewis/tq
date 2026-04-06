@@ -18,17 +18,17 @@ fn verify_release_policy_passes_when_workspace_and_dependabot_policies_pass() {
             "members = [\"crates/tq-core\"]\n",
             "\n",
             "[workspace.package]\n",
-            "version = \"0.9.0\"\n",
+            "version = \"0.7.0\"\n",
             "\n",
             "[workspace.dependencies]\n",
-            "tq-core = { version = \"0.9.0\", path = \"crates/tq-core\" }\n",
+            "tq-core = { version = \"0.7.0\", path = \"crates/tq-core\" }\n",
         ),
     );
     write(
         &temp.path().join("CHANGELOG.md"),
         concat!(
             "# Changelog\n\n",
-            "## [0.9.0] - 2026-04-05\n\n",
+            "## [0.7.0] - 2026-04-06\n\n",
             "### Changed\n\n",
             "- Example\n",
         ),
@@ -74,15 +74,15 @@ fn verify_release_policy_fails_when_either_policy_fails() {
             "members = [\"crates/tq-core\"]\n",
             "\n",
             "[workspace.package]\n",
-            "version = \"0.9.0\"\n",
+            "version = \"0.7.0\"\n",
             "\n",
             "[workspace.dependencies]\n",
-            "tq-core = { version = \"0.8.0\", path = \"crates/tq-core\" }\n",
+            "tq-core = { version = \"0.6.3\", path = \"crates/tq-core\" }\n",
         ),
     );
     write(
         &temp.path().join("CHANGELOG.md"),
-        "# Changelog\n\n## [0.8.0] - 2026-04-04\n",
+        "# Changelog\n\n## [0.6.3] - 2026-03-04\n",
     );
     write(
         &temp.path().join("crates/tq-core/Cargo.toml"),

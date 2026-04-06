@@ -18,18 +18,18 @@ fn verify_workspace_version_passes_for_consistent_repo_shape() {
             "members = [\"crates/tq-core\", \"crates/tq-engine\"]\n",
             "\n",
             "[workspace.package]\n",
-            "version = \"0.9.0\"\n",
+            "version = \"0.7.0\"\n",
             "\n",
             "[workspace.dependencies]\n",
-            "tq-core = { version = \"0.9.0\", path = \"crates/tq-core\" }\n",
-            "tq-engine = { version = \"0.9.0\", path = \"crates/tq-engine\" }\n",
+            "tq-core = { version = \"0.7.0\", path = \"crates/tq-core\" }\n",
+            "tq-engine = { version = \"0.7.0\", path = \"crates/tq-engine\" }\n",
         ),
     );
     write(
         &temp.path().join("CHANGELOG.md"),
         concat!(
             "# Changelog\n\n",
-            "## [0.9.0] - 2026-04-05\n\n",
+            "## [0.7.0] - 2026-04-06\n\n",
             "### Changed\n\n",
             "- Example\n",
         ),
@@ -65,15 +65,15 @@ fn verify_workspace_version_rejects_mismatched_internal_dependency_version() {
             "members = [\"crates/tq-core\"]\n",
             "\n",
             "[workspace.package]\n",
-            "version = \"0.9.0\"\n",
+            "version = \"0.7.0\"\n",
             "\n",
             "[workspace.dependencies]\n",
-            "tq-core = { version = \"0.8.0\", path = \"crates/tq-core\" }\n",
+            "tq-core = { version = \"0.6.3\", path = \"crates/tq-core\" }\n",
         ),
     );
     write(
         &temp.path().join("CHANGELOG.md"),
-        "# Changelog\n\n## [0.9.0] - 2026-04-05\n",
+        "# Changelog\n\n## [0.7.0] - 2026-04-06\n",
     );
     write(
         &temp.path().join("crates/tq-core/Cargo.toml"),
@@ -105,15 +105,15 @@ fn verify_workspace_version_rejects_missing_current_changelog_heading() {
             "members = [\"crates/tq-core\"]\n",
             "\n",
             "[workspace.package]\n",
-            "version = \"0.9.0\"\n",
+            "version = \"0.7.0\"\n",
             "\n",
             "[workspace.dependencies]\n",
-            "tq-core = { version = \"0.9.0\", path = \"crates/tq-core\" }\n",
+            "tq-core = { version = \"0.7.0\", path = \"crates/tq-core\" }\n",
         ),
     );
     write(
         &temp.path().join("CHANGELOG.md"),
-        "# Changelog\n\n## [0.8.0] - 2026-04-04\n",
+        "# Changelog\n\n## [0.6.3] - 2026-03-04\n",
     );
     write(
         &temp.path().join("crates/tq-core/Cargo.toml"),
@@ -145,22 +145,22 @@ fn verify_workspace_version_rejects_member_without_workspace_version_inheritance
             "members = [\"crates/tq-core\"]\n",
             "\n",
             "[workspace.package]\n",
-            "version = \"0.9.0\"\n",
+            "version = \"0.7.0\"\n",
             "\n",
             "[workspace.dependencies]\n",
-            "tq-core = { version = \"0.9.0\", path = \"crates/tq-core\" }\n",
+            "tq-core = { version = \"0.7.0\", path = \"crates/tq-core\" }\n",
         ),
     );
     write(
         &temp.path().join("CHANGELOG.md"),
-        "# Changelog\n\n## [0.9.0] - 2026-04-05\n",
+        "# Changelog\n\n## [0.7.0] - 2026-04-06\n",
     );
     write(
         &temp.path().join("crates/tq-core/Cargo.toml"),
         concat!(
             "[package]\n",
             "name = \"tq-core\"\n",
-            "version = \"0.9.0\"\n",
+            "version = \"0.7.0\"\n",
         ),
     );
 
