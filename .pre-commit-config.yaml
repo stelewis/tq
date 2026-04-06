@@ -12,12 +12,12 @@ repos:
       - id: check-added-large-files
 
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: a1a56a60ddf7e9ba639fdd9f00f852d63ede4c04  # frozen: 0.10.10  # pragma: allowlist secret
+    rev: 0397b68f6f88c024f1d2b355a9818779f6336d16  # frozen: 0.11.3  # pragma: allowlist secret
     hooks:
       - id: uv-lock
 
   - repo: https://github.com/gitleaks/gitleaks
-    rev: 8d1f98c7967eb1e79cb44ac6241a124e145d2165  # frozen: v8.30.1  # pragma: allowlist secret
+    rev: 83d9cd684c87d95d656c1458ef04895a7f1cbd8e  # frozen: v8.30.1  # pragma: allowlist secret
     hooks:
       - id: gitleaks
 
