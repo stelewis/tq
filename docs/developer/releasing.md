@@ -44,7 +44,7 @@ Publishing runs in the `pypi` GitHub Actions environment. This environment must 
    - `cargo clippy --workspace --all-targets --locked -- -D warnings`
    - `cargo test --workspace --locked`
    - `cargo run -p tq-docsgen --locked -- generate all`
-   - `cargo run -p tq-release --locked -- verify-dependabot --repo-root .`
+   - `cargo run -p tq-release --locked -- verify-release-policy --repo-root .`
    - `cargo package --workspace --locked`
    - `uv build`
 3. Create and push a signed release tag.

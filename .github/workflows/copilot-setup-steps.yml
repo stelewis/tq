@@ -5,21 +5,29 @@ on:
   push:
     paths:
       - .github/workflows/copilot-setup-steps.yml
+      - .github/actions/**
       - Cargo.toml
       - Cargo.lock
       - crates/**/Cargo.toml
       - rust-toolchain.toml
       - pyproject.toml
       - uv.lock
+      - package.json
+      - package-lock.json
+      - mise.toml
   pull_request:
     paths:
       - .github/workflows/copilot-setup-steps.yml
+      - .github/actions/**
       - Cargo.toml
       - Cargo.lock
       - crates/**/Cargo.toml
       - rust-toolchain.toml
       - pyproject.toml
       - uv.lock
+      - package.json
+      - package-lock.json
+      - mise.toml
 
 permissions:
   contents: read
@@ -38,3 +46,6 @@ jobs:
 
       - name: Setup Python + uv + deps
         uses: ./.github/actions/setup-python-uv
+
+      - name: Setup docs toolchain
+        uses: ./.github/actions/setup-mise-docs

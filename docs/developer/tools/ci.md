@@ -13,7 +13,7 @@ The main CI workflow enforces:
 - docs sync via `cargo run -p tq-docsgen --locked -- generate all` only when docs contract inputs, generated reference outputs, `crates/tq-docsgen/**`, or `crates/tq-cli/**` change
 - docs site build via `mise run docs-build` only when docs content, docs toolchain files, or docs generator inputs change
 - tests via `cargo test --workspace --locked`
-- repository policy validation via `cargo run -p tq-release --locked -- verify-dependabot --repo-root .`
+- release-policy validation via `cargo run -p tq-release --locked -- verify-release-policy --repo-root .`
 - build validation via `cargo build`, `cargo package --workspace --locked`, `uv build`, artifact policy verification, and built wheel/sdist entrypoint smoke checks
 - secret scanning via `gitleaks` and `detect-secrets` on every push and pull request
 - Rust dependency security checks via `cargo audit` and `cargo deny` only when Rust dependency or Rust security-policy files change
