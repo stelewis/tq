@@ -73,7 +73,7 @@ runs:
       uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
       with:
         path: ~/.cargo-maintenance-tools
-        key: rust-maintenance-tools-${{ runner.os }}-${{ steps.toolchain.outputs.cache-suffix }}-outdated-${{ inputs.install-cargo-outdated }}-${{ inputs.cargo-outdated-version }}-audit-${{ inputs.install-cargo-audit }}-${{ inputs.cargo-audit-rev }}-deny-${{ inputs.install-cargo-deny }}-${{ inputs.cargo-deny-version }}-${{ hashFiles('.github/actions/setup-rust-maintenance-tools/action.yml') }}
+        key: rust-maintenance-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.cache-suffix }}-outdated-${{ inputs.install-cargo-outdated }}-${{ inputs.cargo-outdated-version }}-audit-${{ inputs.install-cargo-audit }}-${{ inputs.cargo-audit-rev }}-deny-${{ inputs.install-cargo-deny }}-${{ inputs.cargo-deny-version }}-${{ hashFiles('.github/actions/setup-rust-maintenance-tools/action.yml') }}
 
     - name: Add maintenance tools to PATH
       if: ${{ inputs.install-cargo-outdated == 'true' || inputs.install-cargo-audit == 'true' || inputs.install-cargo-deny == 'true' }}

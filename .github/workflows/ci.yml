@@ -171,7 +171,7 @@ jobs:
           # covered directories usually do not require updates.
 
           rust_security_scan=false
-          if printf '%s\n' "$changed_files" | grep -Eq '^(Cargo\.lock|Cargo\.toml|deny\.toml|crates/[^/]+/Cargo\.toml|\.github/workflows/(ci|rust-security-advisories)\.yml|\.github/actions/(setup-rust|setup-rust-security-tools|setup-rust-maintenance-tools)/action\.yml)$'; then
+          if printf '%s\n' "$changed_files" | grep -Eq '^(Cargo\.lock|Cargo\.toml|deny\.toml|crates/[^/]+/Cargo\.toml|\.github/workflows/(ci|rust-security-advisories)\.yml|\.github/actions/(setup-rust|setup-rust-security-tools|setup-rust-maintenance-tools)/)'; then
             rust_security_scan=true
           fi
 
