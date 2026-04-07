@@ -28,6 +28,7 @@ enum DocsTarget {
     All,
     Cli,
     Config,
+    PreCommit,
     Rules,
 }
 
@@ -38,6 +39,7 @@ fn main() {
             DocsTarget::All => tq_docsgen::generate_all(&args.workspace_root),
             DocsTarget::Cli => tq_docsgen::generate_cli_docs(&args.workspace_root),
             DocsTarget::Config => tq_docsgen::generate_config_examples(&args.workspace_root),
+            DocsTarget::PreCommit => tq_docsgen::generate_pre_commit_docs(&args.workspace_root),
             DocsTarget::Rules => tq_docsgen::generate_rules_docs(&args.workspace_root),
         },
     };

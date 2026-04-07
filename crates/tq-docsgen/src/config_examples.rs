@@ -5,9 +5,12 @@ use serde::Deserialize;
 use crate::{DocsgenError, markers::replace_between_markers};
 
 const MANIFEST_PATH: &str = "docs/reference/config/examples-manifest.json";
+const README_PATH: &str = "README.md";
 const QUICKSTART_PATH: &str = "docs/guide/quickstart.md";
 const CONFIGURATION_PATH: &str = "docs/reference/configuration.md";
 
+const README_CONFIGURATION_START: &str = "<!-- BEGIN GENERATED:readme-configuration-example -->";
+const README_CONFIGURATION_END: &str = "<!-- END GENERATED:readme-configuration-example -->";
 const QUICKSTART_MINIMAL_START: &str = "<!-- BEGIN GENERATED:quickstart-minimal-config -->";
 const QUICKSTART_MINIMAL_END: &str = "<!-- END GENERATED:quickstart-minimal-config -->";
 const CONFIGURATION_MINIMAL_START: &str = "<!-- BEGIN GENERATED:configuration-minimal-config -->";
@@ -25,6 +28,7 @@ struct ConfigExamplesManifest {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ConfigExamples {
+    readme_configuration: String,
     quickstart_minimal: String,
     configuration_minimal: String,
     configuration_typical: String,
@@ -32,10 +36,17 @@ struct ConfigExamples {
 
 pub fn generate(workspace_root: &Path) -> Result<(), DocsgenError> {
     let manifest_path = workspace_root.join(MANIFEST_PATH);
+    let readme_path = workspace_root.join(README_PATH);
     let quickstart_path = workspace_root.join(QUICKSTART_PATH);
     let configuration_path = workspace_root.join(CONFIGURATION_PATH);
     let manifest = load_manifest(&manifest_path)?;
 
+    replace_between_markers(
+        &readme_path,
+        README_CONFIGURATION_START,
+        README_CONFIGURATION_END,
+        &render_toml_block(&manifest.readme_configuration),
+    )?;
     replace_between_markers(
         &quickstart_path,
         QUICKSTART_MINIMAL_START,
@@ -74,6 +85,11 @@ fn load_manifest(path: &Path) -> Result<ConfigExamples, DocsgenError> {
         ));
     }
 
+    validate_non_empty(
+        path,
+        "examples.readme_configuration",
+        &manifest.examples.readme_configuration,
+    )?;
     validate_non_empty(
         path,
         "examples.quickstart_minimal",

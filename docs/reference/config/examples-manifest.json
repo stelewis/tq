@@ -1,6 +1,7 @@
 {
   "version": 1,
   "examples": {
+    "readme_configuration": "[tool.tq]\ninit_modules = \"ignore\"\nmax_test_file_non_blank_lines = 600\nqualifier_strategy = \"allowlist\"\nallowed_qualifiers = [\"regression\"]\n\n[[tool.tq.targets]]\nname = \"tq\"\npackage = \"tq\"\nsource_root = \"src\"\ntest_root = \"tests\"",
     "quickstart_minimal": "[tool.tq]\n\n[[tool.tq.targets]]\nname = \"app\"\npackage = \"your_package\"\nsource_root = \"src\"\ntest_root = \"tests\"",
     "configuration_minimal": "[tool.tq]\n\n[[tool.tq.targets]]\nname = \"app\"\npackage = \"your_package\"\nsource_root = \"src\"\ntest_root = \"tests\"",
     "configuration_typical": "[tool.tq]\ninit_modules = \"ignore\"\nmax_test_file_non_blank_lines = 600\nqualifier_strategy = \"allowlist\"\nallowed_qualifiers = [\"regression\", \"config\", \"fixtures_golden\"]\n\n[[tool.tq.targets]]\nname = \"app\"\npackage = \"your_package\"\nsource_root = \"src\"\ntest_root = \"tests\"\n\n[[tool.tq.targets]]\nname = \"scripts\"\npackage = \"scripts\"\nsource_root = \".\"\ntest_root = \"tests\""

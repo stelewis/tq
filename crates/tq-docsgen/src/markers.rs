@@ -30,7 +30,7 @@ pub fn replace_between_markers(
 
     let start_content_index = start_index + start_marker.len();
     let updated = format!(
-        "{}\n\n{}\n{}",
+        "{}\n{}\n{}",
         &content[..start_content_index],
         replacement,
         &content[end_index..],

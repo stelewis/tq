@@ -186,7 +186,7 @@ jobs:
           fi
 
           docs_sync=false
-          if printf '%s\n' "$changed_files" | grep -Eq '^(crates/tq-docsgen/|crates/tq-cli/|docs/reference/cli/options-manifest\.json|docs/reference/config/examples-manifest\.json|docs/reference/rules/manifest\.json|docs/reference/cli\.md|docs/reference/configuration\.md|docs/guide/quickstart\.md|docs/\.vitepress/generated/rules-sidebar\.ts|docs/reference/rules/[^/]+\.md|\.github/workflows/ci\.yml)$'; then
+          if printf '%s\n' "$changed_files" | grep -Eq '^(Cargo\.toml|pyproject\.toml|README\.md|crates/tq-docsgen/|crates/tq-cli/|docs/reference/cli/options-manifest\.json|docs/reference/config/examples-manifest\.json|docs/reference/rules/manifest\.json|docs/reference/cli\.md|docs/reference/configuration\.md|docs/guide/quickstart\.md|docs/\.vitepress/generated/rules-sidebar\.ts|docs/reference/rules/[^/]+\.md|\.github/workflows/ci\.yml)$'; then
             docs_sync=true
           fi
 
@@ -221,6 +221,7 @@ jobs:
       - name: Ensure generated docs are committed
         run: |
           git diff --exit-code \
+            README.md \
             docs/reference/cli.md \
             docs/reference/configuration.md \
             docs/guide/quickstart.md \

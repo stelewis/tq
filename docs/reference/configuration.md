@@ -13,7 +13,6 @@ Start from one of these generated examples, then use the sections below to under
 ### Minimal required configuration
 
 <!-- BEGIN GENERATED:configuration-minimal-config -->
-
 ```toml
 [tool.tq]
 
@@ -28,7 +27,6 @@ test_root = "tests"
 ### Typical project configuration
 
 <!-- BEGIN GENERATED:configuration-typical-config -->
-
 ```toml
 [tool.tq]
 init_modules = "ignore"

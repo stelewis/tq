@@ -23,7 +23,6 @@ This command surface is designed for:
 - machine-readable reporting for CI tooling
 
 <!-- BEGIN GENERATED:check-options -->
-
 ## `tq check` options
 
 The table below documents command options.
