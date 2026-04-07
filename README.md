@@ -1,6 +1,8 @@
 <!-- markdownlint-disable MD033 MD041 -->
 <p align="center">
-  <img src="docs/public/tq-logo-large.svg" alt="tq logo" width="144">
+  <a href="https://stelewis.github.io/tq/">
+    <img src="docs/public/tq-logo-large.svg" alt="tq logo" width="144">
+  </a>
 </p>
 <!-- markdownlint-enable MD033 MD041 -->
 
@@ -53,7 +55,7 @@ uv run tq check
 
 ## Configuration
 
-Configure `tq` in `pyproject.toml` under `[tool.tq]`:
+[Configure](https://stelewis.github.io/tq/reference/configuration.html) `tq` in `pyproject.toml` under `[tool.tq]`:
 
 <!-- BEGIN GENERATED:readme-configuration-example -->
 ```toml
