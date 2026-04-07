@@ -8,9 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Added `--fail-on <SEVERITY>` CLI flag and `fail_on` config key to configure the minimum severity that triggers a nonzero exit code. Allowed values are `error` (default, preserves current behavior), `warning`, and `info`.
-- Added `--severity <RULE_ID=SEVERITY>` CLI flag and `severity_overrides` config key to override the severity of specific built-in rules. Applies at both the global `[tool.tq]` level and per `[[tool.tq.targets]]` entry. Severity overrides are applied after rule execution and before exit-code evaluation.
-- Moved `Severity` type to `tq-core` so it is shared across the workspace.
+- Added `--fail-on <SEVERITY>` CLI flag and `fail_on` config key to configure the minimum severity that triggers a nonzero exit code.
+- Added `--severity <RULE_ID=SEVERITY>` CLI flag and `severity_overrides` config key to override the severity of specific built-in rules. Applies at both the global `[tool.tq]` level and per `[[tool.tq.targets]]` entry.
 
 ## [0.9.1] - 2026-04-07
 
