@@ -410,12 +410,7 @@ fn expect_optional_fail_on(
         .map(Some)
         .ok_or_else(|| ConfigError::InvalidEnumValue {
             location: format!("{location}.{key}"),
-            expected: format!(
-                "{}, {}, {}",
-                Severity::Error.as_str(),
-                Severity::Warning.as_str(),
-                Severity::Info.as_str()
-            ),
+            expected: severity_expected_values(),
         })
 }
 
@@ -451,16 +446,20 @@ fn expect_optional_severity_overrides(
         let severity =
             Severity::parse(severity_str).ok_or_else(|| ConfigError::InvalidEnumValue {
                 location: format!("{location}.{key}.{rule_id_str}"),
-                expected: format!(
-                    "{}, {}, {}",
-                    Severity::Error.as_str(),
-                    Severity::Warning.as_str(),
-                    Severity::Info.as_str()
-                ),
+                expected: severity_expected_values(),
             })?;
 
         overrides.insert(rule_id, severity);
     }
 
     Ok(Some(overrides))
+}
+
+fn severity_expected_values() -> String {
+    format!(
+        "{}, {}, {}",
+        Severity::Error.as_str(),
+        Severity::Warning.as_str(),
+        Severity::Info.as_str()
+    )
 }
