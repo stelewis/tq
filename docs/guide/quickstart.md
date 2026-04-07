@@ -47,31 +47,7 @@ For CI or editor integrations, emit JSON output:
 uv run tq check --output-format json
 ```
 
-## 4. Use as a pre-commit hook
-
-Optional: if you want to use `tq` as a pre-commit hook, add it to `.pre-commit-config.yaml`:
-
-<!-- BEGIN GENERATED:pre-commit-config -->
-```yaml
-repos:
-  - repo: https://github.com/stelewis/tq
-    rev: 0.8.1
-    hooks:
-      - id: tq-check
-```
-<!-- END GENERATED:pre-commit-config -->
-
-Then run:
-
-```sh
-pre-commit run tq-check --all-files
-```
-
-Use the latest release tag for `rev`, update with `pre-commit autoupdate`, and use `pre-commit autoupdate --freeze` if your team prefers full commit-SHA pinning.
-
-`pre-commit` installs the hook in an isolated environment, but because `tq` is built from this repository's Rust-backed Python source distribution, the machine building the hook environment must have Python 3.11+ and a working Rust toolchain.
-
-## 5. Tune behavior
+## 4. Tune behavior
 
 Use these common flags:
 

@@ -51,24 +51,6 @@ Run checks:
 uv run tq check
 ```
 
-## Pre-commit
-
-Use `tq` as a shared `pre-commit` hook target:
-
-<!-- BEGIN GENERATED:pre-commit-config -->
-```yaml
-repos:
-  - repo: https://github.com/stelewis/tq
-    rev: 0.8.1
-    hooks:
-      - id: tq-check
-```
-<!-- END GENERATED:pre-commit-config -->
-
-`pre-commit` installs the hook in an isolated environment and runs `tq check` for you. Use the latest release tag for `rev`, update with `pre-commit autoupdate`, and use `pre-commit autoupdate --freeze` if your team prefers full commit-SHA pinning.
-
-Because `tq` is packaged from this repository's Rust-backed Python source distribution, the machine running `pre-commit` must have Python 3.11+ and a working Rust toolchain available when the hook environment is built.
-
 ## Configuration
 
 Configure `tq` in `pyproject.toml` under `[tool.tq]`:

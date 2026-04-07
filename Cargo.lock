@@ -658,7 +658,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror",
- "toml",
  "tq-cli",
 ]
 

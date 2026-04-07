@@ -1,8 +1,0 @@
-- id: tq-check
-  name: tq check
-  description: Run tq check against the repository's configured Python source and tests.
-  entry: tq check
-  language: python
-  always_run: true
-  pass_filenames: false
-  require_serial: true
