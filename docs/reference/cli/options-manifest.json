@@ -10,8 +10,10 @@
     { "arg_ids": ["allowed_qualifiers"], "config_key": "allowed_qualifiers" },
     { "arg_ids": ["select_rules"], "config_key": "select" },
     { "arg_ids": ["ignore_rules"], "config_key": "ignore" },
+    { "arg_ids": ["severity_overrides"], "config_key": "severity_overrides" },
     { "arg_ids": ["output_format"] },
     { "arg_ids": ["show_suggestions"] },
-    { "arg_ids": ["exit_zero"] }
+    { "arg_ids": ["exit_zero"] },
+    { "arg_ids": ["fail_on"], "config_key": "fail_on" }
   ]
 }

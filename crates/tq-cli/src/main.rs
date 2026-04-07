@@ -1,16 +1,21 @@
 mod error;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io;
 
 use clap::Parser;
-use tq_cli::{CheckArgs, Cli, Command, InitModuleModeArg, OutputFormat, QualifierStrategyArg};
+use tq_cli::{
+    CheckArgs, Cli, Command, FailOnArg, InitModuleModeArg, OutputFormat, QualifierStrategyArg,
+};
 use tq_config::{
-    CliOverrides, InitModulesMode, QualifierStrategy, RuleId, TqTargetConfig, resolve_tq_config,
+    CliOverrides, InitModulesMode, QualifierStrategy, RuleId, Severity, TqTargetConfig,
+    resolve_tq_config,
 };
 use tq_engine::{RuleEngine, TargetPlanInput, aggregate_results, plan_target_runs};
 use tq_reporting::{JsonReporter, TextReporter};
-use tq_rules::{BuiltinRuleOptions, BuiltinRuleRegistry, RuleSelection};
+use tq_rules::{
+    BuiltinRuleOptions, BuiltinRuleRegistry, RuleSelection, validate_severity_override_rule_ids,
+};
 
 use crate::error::{CliError, Result};
 
@@ -65,6 +70,9 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
 
     let mut target_results = Vec::with_capacity(planned_runs.len());
     for (target_config, planned_run) in active_targets.iter().zip(planned_runs) {
+        validate_severity_override_rule_ids(target_config.severity_overrides())
+            .map_err(|error| CliError::validation(error.to_string()))?;
+
         let options = BuiltinRuleOptions::new(
             target_config.init_modules(),
             target_config.max_test_file_non_blank_lines(),
@@ -77,7 +85,10 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
         );
         let rules = BuiltinRuleRegistry::build_rules(&selection, &options)?;
         let engine = RuleEngine::new(rules)?;
-        target_results.push(engine.run(planned_run.context()));
+        let result = engine
+            .run(planned_run.context())
+            .with_severity_overrides(target_config.severity_overrides());
+        target_results.push(result);
     }
 
     let result = aggregate_results(&target_results);
@@ -95,7 +106,8 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
         }
     }
 
-    Ok(i32::from(result.has_errors() && !args.exit_zero))
+    let breach = result.has_findings_at_or_above(config.fail_on());
+    Ok(i32::from(breach && !args.exit_zero))
 }
 
 fn build_cli_overrides(args: &CheckArgs) -> Result<CliOverrides> {
@@ -107,7 +119,9 @@ fn build_cli_overrides(args: &CheckArgs) -> Result<CliOverrides> {
             (!args.allowed_qualifiers.is_empty()).then(|| args.allowed_qualifiers.clone()),
         )
         .with_select(parse_cli_rule_ids(&args.select_rules)?)
-        .with_ignore(parse_cli_rule_ids(&args.ignore_rules)?))
+        .with_ignore(parse_cli_rule_ids(&args.ignore_rules)?)
+        .with_fail_on(args.fail_on.map(map_fail_on_arg))
+        .with_severity_overrides(parse_cli_severity_overrides(&args.severity_overrides)?))
 }
 
 fn parse_cli_rule_ids(values: &[String]) -> Result<Option<Vec<RuleId>>> {
@@ -223,4 +237,40 @@ const fn map_init_module_mode(mode: InitModuleModeArg) -> InitModulesMode {
         InitModuleModeArg::Include => InitModulesMode::Include,
         InitModuleModeArg::Ignore => InitModulesMode::Ignore,
     }
+}
+
+const fn map_fail_on_arg(arg: FailOnArg) -> Severity {
+    match arg {
+        FailOnArg::Error => Severity::Error,
+        FailOnArg::Warning => Severity::Warning,
+        FailOnArg::Info => Severity::Info,
+    }
+}
+
+fn parse_cli_severity_overrides(values: &[String]) -> Result<Option<BTreeMap<RuleId, Severity>>> {
+    if values.is_empty() {
+        return Ok(None);
+    }
+
+    let mut overrides = BTreeMap::new();
+    for value in values {
+        let Some((rule_id_str, severity_str)) = value.split_once('=') else {
+            return Err(CliError::validation(format!(
+                "Invalid --severity value '{value}': expected RULE_ID=SEVERITY"
+            )));
+        };
+
+        let rule_id =
+            RuleId::parse(rule_id_str).map_err(|error| CliError::validation(error.to_string()))?;
+
+        let severity = Severity::parse(severity_str).ok_or_else(|| {
+            CliError::validation(format!(
+                "Invalid severity '{severity_str}' in --severity {value}: expected error, warning, or info"
+            ))
+        })?;
+
+        overrides.insert(rule_id, severity);
+    }
+
+    Ok(Some(overrides))
 }

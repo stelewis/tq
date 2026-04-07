@@ -1,3 +1,5 @@
 pub mod cli;
 
-pub use cli::{CheckArgs, Cli, Command, InitModuleModeArg, OutputFormat, QualifierStrategyArg};
+pub use cli::{
+    CheckArgs, Cli, Command, FailOnArg, InitModuleModeArg, OutputFormat, QualifierStrategyArg,
+};

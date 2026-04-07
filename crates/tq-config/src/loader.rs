@@ -57,12 +57,7 @@ pub fn resolve_tq_config_with_user_config(
     }
 
     let cli_partial = partial_from_cli(cli_overrides)?;
-    materialize_config(
-        &cwd,
-        &discovered,
-        &cli_partial.defaults,
-        targets_base_dir.as_deref(),
-    )
+    materialize_config(&cwd, &discovered, &cli_partial, targets_base_dir.as_deref())
 }
 
 fn home_dir() -> Option<PathBuf> {
@@ -114,7 +109,9 @@ fn partial_from_cli(overrides: &CliOverrides) -> Result<PartialTqConfig, ConfigE
             allowed_qualifiers: overrides.clone_allowed_qualifiers(),
             select: overrides.clone_select(),
             ignore: overrides.clone_ignore(),
+            severity_overrides: overrides.clone_severity_overrides(),
         },
         targets: None,
+        fail_on: overrides.fail_on(),
     })
 }

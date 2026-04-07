@@ -177,6 +177,20 @@ impl BuiltinRuleRegistry {
     }
 }
 
+pub fn validate_severity_override_rule_ids(
+    overrides: &std::collections::BTreeMap<tq_core::RuleId, tq_core::Severity>,
+) -> Result<(), RulesError> {
+    let unknown: Vec<tq_core::RuleId> = overrides
+        .keys()
+        .filter(|rule_id| BuiltinRule::from_rule_id(rule_id).is_none())
+        .cloned()
+        .collect();
+    if !unknown.is_empty() {
+        return Err(RulesError::unknown_builtin_rule_ids(&unknown));
+    }
+    Ok(())
+}
+
 pub fn builtin_rule_ids() -> Result<Vec<RuleId>, RulesError> {
     BuiltinRule::ALL
         .into_iter()
