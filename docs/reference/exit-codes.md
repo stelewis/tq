@@ -6,7 +6,7 @@
 - `1`: one or more findings at or above the configured fail threshold
 - `2`: invalid CLI options, invalid configuration, or IO/runtime setup errors
 
-The default fail threshold is `error` severity, which preserves the original behavior.
+The default fail threshold is `error` severity.
 
 ## Exit behavior toggles
 

@@ -364,7 +364,7 @@ fn check_command_fail_on_warning_exits_one_for_warnings() {
     );
 
     // With --fail-on error (default), warnings only don't trigger exit 1
-    // Let's override structure-mismatch to info and test that --fail-on warning picks up on warnings
+    // Override structure-mismatch to info and test that --fail-on warning picks up on warnings
     let assert = Command::new(env!("CARGO_BIN_EXE_tq"))
         .current_dir(project.path())
         .arg("check")
