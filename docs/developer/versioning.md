@@ -29,7 +29,7 @@ The Rust workspace uses one shared version for all internal crates.
 - When a workspace crate changes a public API consumed by another workspace crate, update all internal callers in the same change.
 - Do not preserve old internal APIs with shims, aliases, deprecated wrappers, or dual-path call sites.
 - If an internal public API changes, bump the shared workspace version as a minor pre-`1.0` release before packaging or release validation.
-- Version bumps must keep `workspace.package.version` and internal `workspace.dependencies.tq-*` version fields aligned. The repository automates that alignment through `cargo run -p tq-release --locked -- sync-workspace-dependency-versions --repo-root .`, which is invoked from the Commitizen pre-bump hook.
+- Version bumps must keep `workspace.package.version` and internal `workspace.dependencies.tq-*` version fields aligned. Commitizen updates the inline `workspace.dependencies.tq-*` entries in `Cargo.toml` during `cz bump`.
 - `cargo run -p tq-release --locked -- verify-release-policy --repo-root .` is the release-policy gate for this policy. It must pass before packaging.
 - `cargo package --workspace --locked` is the packaging gate for this policy. If it fails because a published crate with the same version no longer matches the current internal API, the correct fix is a version bump, not compatibility code.
 

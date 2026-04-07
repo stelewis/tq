@@ -8,7 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- Added a release-prep hook that synchronizes internal workspace dependency versions.
+- Hardened read-only workflows by disabling checkout credential persistence.
+- Added CodeQL JavaScript/TypeScript analysis for `docs/.vitepress`.
 
 ### Security
 

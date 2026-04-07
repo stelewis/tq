@@ -106,7 +106,9 @@ update_changelog_on_bump = false
 changelog_file = "CHANGELOG.md"
 template = "CHANGELOG.md.j2"
 change_type_order = ["Added", "Changed", "Deprecated", "Removed", "Fixed", "Security"]
-pre_bump_hooks = ["cargo run -p tq-release --locked -- sync-workspace-dependency-versions --repo-root ."]
+version_files = [
+    'Cargo.toml:^tq-(cli|core|config|discovery|docsgen|engine|release|reporting|rules) = \{',
+]
 gpg_sign = true
 major_version_zero = true
 
