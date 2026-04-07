@@ -15,7 +15,7 @@ Use the Rust workspace for product code and `uv` for packaging and repository au
 - Tests: `cargo test --workspace --locked`
 - Docs sync: `cargo run -p tq-docsgen --locked -- generate all`
 - Release policy: `cargo run -p tq-release --locked -- verify-release-policy --repo-root .`
-- Packaging check: `cargo package --workspace --locked && uv build`
+- Packaging check: `cargo package --workspace --locked && mise run release-build`
 
 ### Commands
 
@@ -31,7 +31,7 @@ Use the Rust workspace for product code and `uv` for packaging and repository au
 Run the relevant subset for the task. When full validation is required:
 
 ```bash
-cargo fmt --all --check && cargo clippy --workspace --all-targets --locked -- -D warnings && cargo test --workspace --locked && cargo run -p tq-docsgen --locked -- generate all && cargo run -p tq-release --locked -- verify-release-policy --repo-root . && cargo package --workspace --locked && uv build
+cargo fmt --all --check && cargo clippy --workspace --all-targets --locked -- -D warnings && cargo test --workspace --locked && cargo run -p tq-docsgen --locked -- generate all && cargo run -p tq-release --locked -- verify-release-policy --repo-root . && cargo package --workspace --locked && mise run release-build
 ```
 
 ## Guidelines

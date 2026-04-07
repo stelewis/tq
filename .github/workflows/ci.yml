@@ -293,10 +293,16 @@ jobs:
       - name: Validate cargo package dry-run
         run: cargo package --workspace --locked
 
-      - name: Build Python package artifacts
+      - name: Build Python source distribution
         run: |
           rm -rf dist
-          uv build
+          uv build --sdist
+
+      - name: Build publishable Linux wheel
+        run: >-
+          uv run --isolated --with 'maturin[zig]>=1.11,<2.0' --
+          maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml
+          --bindings bin --out dist -i python --compatibility pypi --zig
 
       - name: Verify artifact contents policy
         run: cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist
@@ -315,6 +321,13 @@ jobs:
           sdist_count="$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l | tr -d ' ')"
           if [ "$sdist_count" -ne 1 ]; then
             echo "Expected exactly one source distribution artifact in dist/, found $sdist_count"
+            exit 1
+          fi
+
+          wheel_path="$(find dist -maxdepth 1 -type f -name '*.whl' | head -n 1)"
+          wheel_name="$(basename "$wheel_path")"
+          if [[ "$wheel_name" == *linux_* && "$wheel_name" != *manylinux* && "$wheel_name" != *musllinux* ]]; then
+            echo "Wheel '$wheel_name' uses a native linux platform tag that PyPI will reject"
             exit 1
           fi
 
@@ -425,10 +438,16 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Build Python package artifacts
+      - name: Build Python source distribution
         run: |
           rm -rf dist
-          uv build
+          uv build --sdist
+
+      - name: Build publishable Linux wheel
+        run: >-
+          uv run --isolated --with 'maturin[zig]>=1.11,<2.0' --
+          maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml
+          --bindings bin --out dist -i python --compatibility pypi --zig
 
       - name: Verify built release artifact set
         shell: bash
@@ -444,6 +463,13 @@ jobs:
           sdist_count="$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l | tr -d ' ')"
           if [ "$sdist_count" -ne 1 ]; then
             echo "Expected exactly one source distribution artifact in dist/, found $sdist_count"
+            exit 1
+          fi
+
+          wheel_path="$(find dist -maxdepth 1 -type f -name '*.whl' | head -n 1)"
+          wheel_name="$(basename "$wheel_path")"
+          if [[ "$wheel_name" == *linux_* && "$wheel_name" != *manylinux* && "$wheel_name" != *musllinux* ]]; then
+            echo "Wheel '$wheel_name' uses a native linux platform tag that PyPI will reject"
             exit 1
           fi
 

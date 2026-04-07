@@ -42,6 +42,7 @@ Repository-policy and release artifact checks are enforced by `tq-release`.
 
 - `cargo run -p tq-release --locked -- verify-release-policy --repo-root .`
 - `cargo package --workspace --locked`
+- `mise run release-build`
 - `cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist`
 
 The release-policy verifier checks workspace versioning policy and the GitHub Actions Dependabot coverage policy together.
@@ -50,7 +51,7 @@ The artifact verifier inspects built wheels and sdists for repository-only paths
 
 ## Release artifact shape
 
-The CI build job builds PyPI artifacts through `uv build`, backed by the root `pyproject.toml` and the Rust CLI crate via `maturin`. On SemVer tags, a separate CI attestation job promotes those validated build artifacts into the final `validated-dist` artifact that the publish workflow consumes without rebuilding.
+The CI build job builds the source distribution through `uv build --sdist`, then builds the Linux wheel explicitly through `maturin build --release --locked --compatibility pypi --zig`. The explicit CI flags keep the release artifact path unambiguous because plain `uv build` currently drives maturin's PEP 517 wheel build with native compatibility defaults on Linux. On SemVer tags, a separate CI attestation job promotes those validated build artifacts into the final `validated-dist` artifact that the publish workflow consumes without rebuilding.
 
 Current artifacts are:
 

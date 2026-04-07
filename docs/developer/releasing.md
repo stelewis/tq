@@ -46,7 +46,7 @@ Publishing runs in the `pypi` GitHub Actions environment. This environment must 
    - `cargo run -p tq-docsgen --locked -- generate all`
    - `cargo run -p tq-release --locked -- verify-release-policy --repo-root .`
    - `cargo package --workspace --locked`
-   - `uv build`
+   - `mise run release-build`
 3. Create and push a signed release tag.
 4. Confirm the tag-triggered CI run completes, including the tag-only artifact attestation job.
 5. Approve the pending `pypi` environment deployment in GitHub Actions.

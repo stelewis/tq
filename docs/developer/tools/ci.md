@@ -14,7 +14,7 @@ The main CI workflow enforces:
 - docs site build via `mise run docs-build` only when docs content, docs toolchain files, or docs generator inputs change
 - tests via `cargo test --workspace --locked`
 - release-policy validation via `cargo run -p tq-release --locked -- verify-release-policy --repo-root .`
-- build validation via `cargo build`, `cargo package --workspace --locked`, `uv build`, artifact policy verification, and built wheel/sdist entrypoint smoke checks
+- build validation via `cargo build`, `cargo package --workspace --locked`, `uv build --sdist`, an explicit `maturin build --release --locked --compatibility pypi --zig` Linux wheel build, artifact policy verification, and built wheel/sdist entrypoint smoke checks
 - secret scanning via `gitleaks` and `detect-secrets` on every push and pull request
 - Rust dependency security checks via `cargo audit` and `cargo deny` only when Rust dependency or Rust security-policy files change
 - docs dependency security checks via `npm audit --package-lock-only` only when docs dependency or docs-toolchain files change
@@ -52,4 +52,4 @@ The maintenance-tool pin workflow covers the embedded versions in `.github/actio
 
 On SemVer tag pushes, the unprivileged CI build job validates and uploads release-candidate wheel and sdist artifacts, then a separate tag-only CI job downloads those artifacts, generates provenance attestations, and uploads the final `validated-dist` artifact for promotion.
 
-The publish workflow runs after that successful tag-triggered CI run, downloads the validated wheel and sdist artifacts from CI, verifies the CI-generated provenance attestations, re-runs artifact content policy validation with `tq-release`, smoke-tests the release artifacts, publishes to PyPI with `uv publish`, verifies the consumer-facing wheel, and uploads the release assets and checksums to the GitHub release for the SemVer tag.
+The publish workflow runs after that successful tag-triggered CI run, downloads the validated wheel and sdist artifacts from CI, verifies the CI-generated provenance attestations, rejects native `linux_*` wheel tags before upload, re-runs artifact content policy validation with `tq-release`, smoke-tests the release artifacts, publishes to PyPI with `uv publish`, verifies the consumer-facing wheel, and uploads the release assets and checksums to the GitHub release for the SemVer tag.

@@ -44,4 +44,4 @@ Ensure all checks pass:
 - `cargo run -p tq-docsgen --locked -- generate all`
 - `cargo run -p tq-release --locked -- verify-dependabot --repo-root .`
 - `cargo package --workspace --locked`
-- `uv build`
+- `mise run release-build`

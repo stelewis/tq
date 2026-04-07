@@ -143,6 +143,13 @@ jobs:
             exit 1
           fi
 
+          wheel_path="$(find dist -maxdepth 1 -type f -name '*.whl' | head -n 1)"
+          wheel_name="$(basename "$wheel_path")"
+          if [[ "$wheel_name" == *linux_* && "$wheel_name" != *manylinux* && "$wheel_name" != *musllinux* ]]; then
+            echo "Wheel '$wheel_name' uses a native linux platform tag that PyPI will reject"
+            exit 1
+          fi
+
       - name: Verify CI artifact attestations
         env:
           GH_TOKEN: ${{ github.token }}
