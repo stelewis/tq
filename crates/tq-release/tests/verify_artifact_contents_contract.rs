@@ -83,6 +83,51 @@ fn verify_artifact_contents_allows_wheel_installer_scripts() {
         .expect("wheel installer scripts should be allowed");
 }
 
+#[test]
+fn verify_artifact_contents_fails_when_sdist_declares_missing_license_file() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let dist_dir = temp.path().join("dist");
+    fs::create_dir_all(&dist_dir).expect("create dist dir");
+
+    write_tar_gz(
+        &dist_dir.join("pkg-0.1.0.tar.gz"),
+        &[(
+            "pkg-0.1.0/PKG-INFO",
+            "Metadata-Version: 2.4\nName: pkg\nVersion: 0.1.0\nLicense-File: LICENSE\n",
+        )],
+    );
+
+    let error = tq_release::verify_artifact_contents(&dist_dir, None)
+        .expect_err("missing declared license file should fail");
+
+    assert!(
+        error
+            .to_string()
+            .contains("missing declared license file: LICENSE")
+    );
+}
+
+#[test]
+fn verify_artifact_contents_passes_when_sdist_includes_declared_license_file() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let dist_dir = temp.path().join("dist");
+    fs::create_dir_all(&dist_dir).expect("create dist dir");
+
+    write_tar_gz(
+        &dist_dir.join("pkg-0.1.0.tar.gz"),
+        &[
+            (
+                "pkg-0.1.0/PKG-INFO",
+                "Metadata-Version: 2.4\nName: pkg\nVersion: 0.1.0\nLicense-File: LICENSE\n",
+            ),
+            ("pkg-0.1.0/LICENSE", "MIT\n"),
+        ],
+    );
+
+    tq_release::verify_artifact_contents(&dist_dir, None)
+        .expect("sdist with declared license file should pass");
+}
+
 fn write_zip(path: &Path, members: &[(&str, &str)]) {
     let file = fs::File::create(path).expect("create zip file");
     let mut archive = zip::ZipWriter::new(file);

@@ -1,3 +1,4 @@
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use flate2::read::GzDecoder;
@@ -85,22 +86,36 @@ fn find_zip_violations(
         source,
     })?;
     let mut violations = Vec::new();
+    let mut members = Vec::with_capacity(archive.len());
+    let mut declared_license_files = Vec::new();
 
     for index in 0..archive.len() {
-        let member = archive
+        let mut member = archive
             .by_index(index)
             .map_err(|source| ReleaseError::Zip {
                 path: artifact_path.to_path_buf(),
                 source,
             })?;
         let member_name = member.name().to_owned();
+        members.push(member_name.clone());
         if is_forbidden_member(&member_name, forbidden_prefixes) {
             violations.push(ArtifactViolation {
                 artifact: artifact_path.to_path_buf(),
-                member: member_name,
+                member: member_name.clone(),
             });
         }
+
+        if member_name.ends_with(".dist-info/METADATA") {
+            let metadata = read_zip_member_to_string(&mut member, artifact_path)?;
+            declared_license_files.extend(parse_declared_license_files(&metadata));
+        }
     }
+
+    violations.extend(find_missing_declared_license_files(
+        artifact_path,
+        &members,
+        &declared_license_files,
+    ));
 
     Ok(violations)
 }
@@ -116,13 +131,15 @@ fn find_tar_gz_violations(
     let decoder = GzDecoder::new(file);
     let mut archive = tar::Archive::new(decoder);
     let mut violations = Vec::new();
+    let mut members = Vec::new();
+    let mut declared_license_files = Vec::new();
 
     let entries = archive.entries().map_err(|source| ReleaseError::Io {
         path: artifact_path.to_path_buf(),
         source,
     })?;
     for entry in entries {
-        let entry = entry.map_err(|source| ReleaseError::Io {
+        let mut entry = entry.map_err(|source| ReleaseError::Io {
             path: artifact_path.to_path_buf(),
             source,
         })?;
@@ -134,15 +151,102 @@ fn find_tar_gz_violations(
             })?
             .display()
             .to_string();
+        members.push(member_name.clone());
         if is_forbidden_member(&member_name, forbidden_prefixes) {
             violations.push(ArtifactViolation {
                 artifact: artifact_path.to_path_buf(),
-                member: member_name,
+                member: member_name.clone(),
             });
+        }
+
+        if member_name.ends_with("/PKG-INFO") || member_name == "PKG-INFO" {
+            let metadata = read_tar_member_to_string(&mut entry, artifact_path)?;
+            declared_license_files.extend(parse_declared_license_files(&metadata));
         }
     }
 
+    violations.extend(find_missing_declared_license_files(
+        artifact_path,
+        &members,
+        &declared_license_files,
+    ));
+
     Ok(violations)
+}
+
+fn read_zip_member_to_string<R: Read>(
+    member: &mut R,
+    artifact_path: &Path,
+) -> Result<String, ReleaseError> {
+    let mut metadata = String::new();
+    member
+        .read_to_string(&mut metadata)
+        .map_err(|source| ReleaseError::Io {
+            path: artifact_path.to_path_buf(),
+            source,
+        })?;
+    Ok(metadata)
+}
+
+fn read_tar_member_to_string<R: Read>(
+    member: &mut R,
+    artifact_path: &Path,
+) -> Result<String, ReleaseError> {
+    let mut metadata = String::new();
+    member
+        .read_to_string(&mut metadata)
+        .map_err(|source| ReleaseError::Io {
+            path: artifact_path.to_path_buf(),
+            source,
+        })?;
+    Ok(metadata)
+}
+
+fn parse_declared_license_files(metadata: &str) -> Vec<String> {
+    metadata
+        .lines()
+        .filter_map(|line| line.strip_prefix("License-File: "))
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+        .collect()
+}
+
+fn find_missing_declared_license_files(
+    artifact_path: &Path,
+    members: &[String],
+    declared_license_files: &[String],
+) -> Vec<ArtifactViolation> {
+    declared_license_files
+        .iter()
+        .filter(|license_file| {
+            !members
+                .iter()
+                .any(|member| member_matches_declared_license_file(member, license_file))
+        })
+        .map(|license_file| ArtifactViolation {
+            artifact: artifact_path.to_path_buf(),
+            member: format!("missing declared license file: {license_file}"),
+        })
+        .collect()
+}
+
+fn member_matches_declared_license_file(member_name: &str, license_file: &str) -> bool {
+    metadata_member_candidates(member_name)
+        .iter()
+        .any(|candidate| candidate == license_file)
+}
+
+fn metadata_member_candidates(member_name: &str) -> Vec<String> {
+    let mut candidates = normalized_candidates(member_name);
+
+    if let Some((_, remainder)) = member_name.split_once(".dist-info/licenses/") {
+        candidates.push(remainder.to_owned());
+    }
+
+    candidates.sort();
+    candidates.dedup();
+    candidates
 }
 
 fn is_forbidden_member(member_name: &str, forbidden_prefixes: &[String]) -> bool {

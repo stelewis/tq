@@ -294,7 +294,9 @@ jobs:
         run: cargo package --workspace --locked
 
       - name: Build Python package artifacts
-        run: uv build
+        run: |
+          rm -rf dist
+          uv build
 
       - name: Verify artifact contents policy
         run: cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist

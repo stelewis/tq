@@ -40,6 +40,9 @@ build-backend = "maturin"
 bindings = "bin"
 manifest-path = "crates/tq-cli/Cargo.toml"
 strip = true
+include = [
+    { path = "LICENSE", format = "sdist" },
+]
 exclude = [
     ".github/**",
     "docs/**",
