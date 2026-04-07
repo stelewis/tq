@@ -6,6 +6,50 @@ Configure `tq` under:
 
 `tq` loads configuration strictly and fails fast on unknown keys and invalid types.
 
+## Examples
+
+Start from one of these generated examples, then use the sections below to understand the exact rules and validation model.
+
+### Minimal required configuration
+
+<!-- BEGIN GENERATED:configuration-minimal-config -->
+
+```toml
+[tool.tq]
+
+[[tool.tq.targets]]
+name = "app"
+package = "your_package"
+source_root = "src"
+test_root = "tests"
+```
+<!-- END GENERATED:configuration-minimal-config -->
+
+### Typical project configuration
+
+<!-- BEGIN GENERATED:configuration-typical-config -->
+
+```toml
+[tool.tq]
+init_modules = "ignore"
+max_test_file_non_blank_lines = 600
+qualifier_strategy = "allowlist"
+allowed_qualifiers = ["regression", "config", "fixtures_golden"]
+
+[[tool.tq.targets]]
+name = "app"
+package = "your_package"
+source_root = "src"
+test_root = "tests"
+
+[[tool.tq.targets]]
+name = "scripts"
+package = "scripts"
+source_root = "."
+test_root = "tests"
+```
+<!-- END GENERATED:configuration-typical-config -->
+
 ## Config file locations
 
 `tq` reads `pyproject.toml` using this model:
@@ -159,48 +203,6 @@ Rule IDs are stable kebab-case identifiers. Severity vocabulary is fixed:
 - `info`
 
 Severity remapping may be applied at CLI/config boundaries without changing rule IDs.
-
-## Examples
-
-### Minimal required configuration
-
-<!-- BEGIN GENERATED:configuration-minimal-config -->
-
-```toml
-[tool.tq]
-
-[[tool.tq.targets]]
-name = "app"
-package = "your_package"
-source_root = "src"
-test_root = "tests"
-```
-<!-- END GENERATED:configuration-minimal-config -->
-
-### Typical project configuration
-
-<!-- BEGIN GENERATED:configuration-typical-config -->
-
-```toml
-[tool.tq]
-init_modules = "ignore"
-max_test_file_non_blank_lines = 600
-qualifier_strategy = "allowlist"
-allowed_qualifiers = ["regression", "config", "fixtures_golden"]
-
-[[tool.tq.targets]]
-name = "app"
-package = "your_package"
-source_root = "src"
-test_root = "tests"
-
-[[tool.tq.targets]]
-name = "scripts"
-package = "scripts"
-source_root = "."
-test_root = "tests"
-```
-<!-- END GENERATED:configuration-typical-config -->
 
 ## CLI override example
 
