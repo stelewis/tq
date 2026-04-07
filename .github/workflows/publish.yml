@@ -24,12 +24,6 @@ jobs:
       release_tag: ${{ steps.release.outputs.release_tag }}
       source_run_id: ${{ steps.release.outputs.source_run_id }}
     steps:
-      - name: Checkout triggering revision
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-          fetch-depth: 0
-
       - name: Verify source CI run produced validated release artifacts
         id: artifacts
         env:
@@ -66,18 +60,21 @@ jobs:
         run: |
           set -euo pipefail
 
-          git fetch --force --tags origin
+          head_sha='${{ github.event.workflow_run.head_sha }}'
 
-          mapfile -t release_tags < <(git tag --points-at HEAD | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' || true)
+          mapfile -t release_tags < <(
+            gh api --paginate "repos/$GITHUB_REPOSITORY/tags?per_page=100" \
+              --jq '.[] | select(.commit.sha == "'"$head_sha"'" and (.name | test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))) | .name'
+          )
 
           if [ "${#release_tags[@]}" -eq 0 ]; then
-            echo "No SemVer tag points at ${GITHUB_SHA}; skipping publish."
+            echo "No SemVer tag points at $head_sha; skipping publish."
             echo "should_publish=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           if [ "${#release_tags[@]}" -gt 1 ]; then
-            printf 'Multiple SemVer tags point at %s: %s\n' "$GITHUB_SHA" "${release_tags[*]}"
+            printf 'Multiple SemVer tags point at %s: %s\n' "$head_sha" "${release_tags[*]}"
             exit 1
           fi
 
@@ -109,6 +106,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: refs/tags/${{ needs.prepare.outputs.release_tag }}
+          persist-credentials: false
 
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
