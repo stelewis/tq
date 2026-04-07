@@ -117,6 +117,50 @@ fn check_command_emits_json_and_exit_code_one_for_findings() {
 }
 
 #[test]
+fn check_command_emits_effective_severity_in_json_output() {
+    let project = create_project();
+    write(
+        &project.path().join("pyproject.toml"),
+        r#"[tool.tq]
+severity_overrides = { mapping-missing-test = "info" }
+
+[[tool.tq.targets]]
+name = "app"
+package = "pkg"
+source_root = "src"
+test_root = "tests"
+"#,
+    );
+    write(
+        &project.path().join("src").join("pkg").join("module.py"),
+        "def run() -> None:\n    pass\n",
+    );
+
+    let assert = Command::new(env!("CARGO_BIN_EXE_tq"))
+        .current_dir(project.path())
+        .arg("check")
+        .arg("--config")
+        .arg(project.path().join("pyproject.toml"))
+        .arg("--output-format")
+        .arg("json")
+        .assert();
+
+    let output = assert.get_output();
+    assert!(output.status.success());
+    assert_eq!(
+        String::from_utf8(output.stdout.clone()).expect("stdout should be utf8"),
+        concat!(
+            "{\"findings\":[{\"rule_id\":\"mapping-missing-test\",\"severity\":\"info\",",
+            "\"message\":\"No test file found for source module: module.py\",",
+            "\"path\":\"src/pkg/module.py\",\"line\":null,",
+            "\"suggestion\":\"Create test file at: pkg/test_module.py\",\"target\":\"app\"}],",
+            "\"summary\":{\"errors\":0,\"warnings\":0,\"infos\":1,\"total\":1}}\n",
+        )
+    );
+    assert!(output.stderr.is_empty());
+}
+
+#[test]
 fn check_command_respects_target_filtering() {
     let project = create_multi_target_project();
     write(
@@ -527,6 +571,34 @@ fn check_command_rejects_unknown_rule_id_in_severity_override() {
         .arg(project.path().join("pyproject.toml"))
         .arg("--severity")
         .arg("unknown-rule=error")
+        .assert();
+
+    let output = assert.get_output();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Unknown built-in rule ID"));
+}
+
+#[test]
+fn check_command_rejects_unknown_rule_id_in_config_severity_override() {
+    let project = create_project();
+    write(
+        &project.path().join("pyproject.toml"),
+        r#"[tool.tq]
+severity_overrides = { not-a-built-in-rule = "error" }
+
+[[tool.tq.targets]]
+name = "app"
+package = "pkg"
+source_root = "src"
+test_root = "tests"
+"#,
+    );
+
+    let assert = Command::new(env!("CARGO_BIN_EXE_tq"))
+        .current_dir(project.path())
+        .arg("check")
+        .arg("--config")
+        .arg(project.path().join("pyproject.toml"))
         .assert();
 
     let output = assert.get_output();

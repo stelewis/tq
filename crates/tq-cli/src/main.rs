@@ -19,6 +19,16 @@ use tq_rules::{
 
 use crate::error::{CliError, Result};
 
+fn validate_active_targets(targets: &[TqTargetConfig]) -> Result<()> {
+    for target in targets {
+        validate_target_paths(target)?;
+        validate_severity_override_rule_ids(target.severity_overrides())
+            .map_err(|error| CliError::validation(error.to_string()))?;
+    }
+
+    Ok(())
+}
+
 fn main() {
     let exit_code = match run() {
         Ok(code) => code,
@@ -59,10 +69,7 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
     let config = resolve_tq_config(&cwd, args.config.as_deref(), args.isolated, &overrides)?;
 
     let active_targets = select_targets(config.targets(), &args.target_names)?;
-
-    for target in &active_targets {
-        validate_target_paths(target)?;
-    }
+    validate_active_targets(&active_targets)?;
 
     let configured_targets = build_target_inputs(config.targets())?;
     let active_target_inputs = build_target_inputs(&active_targets)?;
@@ -70,9 +77,6 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
 
     let mut target_results = Vec::with_capacity(planned_runs.len());
     for (target_config, planned_run) in active_targets.iter().zip(planned_runs) {
-        validate_severity_override_rule_ids(target_config.severity_overrides())
-            .map_err(|error| CliError::validation(error.to_string()))?;
-
         let options = BuiltinRuleOptions::new(
             target_config.init_modules(),
             target_config.max_test_file_non_blank_lines(),

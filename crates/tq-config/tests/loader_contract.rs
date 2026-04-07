@@ -692,6 +692,80 @@ fn resolve_parses_severity_overrides_from_config() {
 }
 
 #[test]
+fn target_severity_overrides_replace_top_level_severity_overrides() {
+    use std::collections::BTreeMap;
+    use tq_config::Severity;
+    use tq_core::RuleId;
+
+    let temp = tempfile::tempdir().expect("tempdir");
+    let config_path = temp.path().join("pyproject.toml");
+    write(
+        &config_path,
+        "[tool.tq]\n\
+         severity_overrides = { orphaned-test = \"error\" }\n\
+         [[tool.tq.targets]]\n\
+         name = \"app\"\n\
+         package = \"pkg\"\n\
+         source_root = \"src\"\n\
+         test_root = \"tests\"\n\
+         severity_overrides = { mapping-missing-test = \"info\" }\n",
+    );
+
+    let resolved = resolve_tq_config(
+        temp.path(),
+        Some(&config_path),
+        false,
+        &CliOverrides::default(),
+    )
+    .expect("config should resolve");
+
+    let expected: BTreeMap<RuleId, Severity> = std::iter::once((
+        RuleId::parse("mapping-missing-test").expect("valid rule id"),
+        Severity::Info,
+    ))
+    .collect();
+    assert_eq!(resolved.targets()[0].severity_overrides(), &expected);
+}
+
+#[test]
+fn cli_severity_overrides_replace_file_severity_overrides() {
+    use std::collections::BTreeMap;
+    use tq_config::Severity;
+    use tq_core::RuleId;
+
+    let temp = tempfile::tempdir().expect("tempdir");
+    let config_path = temp.path().join("pyproject.toml");
+    write(
+        &config_path,
+        "[tool.tq]\n\
+         severity_overrides = { orphaned-test = \"error\" }\n\
+         [[tool.tq.targets]]\n\
+         name = \"app\"\n\
+         package = \"pkg\"\n\
+         source_root = \"src\"\n\
+         test_root = \"tests\"\n\
+         severity_overrides = { mapping-missing-test = \"warning\" }\n",
+    );
+
+    let cli_overrides = CliOverrides::new().with_severity_overrides(Some(
+        std::iter::once((
+            RuleId::parse("test-file-too-large").expect("valid rule id"),
+            Severity::Info,
+        ))
+        .collect(),
+    ));
+    let resolved = resolve_tq_config(temp.path(), Some(&config_path), false, &cli_overrides)
+        .expect("config should resolve");
+
+    let expected: BTreeMap<RuleId, Severity> = std::iter::once((
+        RuleId::parse("test-file-too-large").expect("valid rule id"),
+        Severity::Info,
+    ))
+    .collect();
+    assert_eq!(resolved.targets()[0].severity_overrides(), &expected);
+}
+
+#[test]
 fn resolve_rejects_invalid_severity_in_severity_overrides() {
     let temp = tempfile::tempdir().expect("tempdir");
     let config_path = temp.path().join("pyproject.toml");
