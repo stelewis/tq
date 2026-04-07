@@ -13,7 +13,7 @@ members = [
 resolver = "3"
 
 [workspace.package]
-version = "0.7.1"
+version = "0.8.0"
 edition = "2024"
 rust-version = "1.94"
 license = "MIT"
@@ -28,15 +28,15 @@ serde_json = "1.0.149"
 tar = "0.4.45"
 thiserror = "2.0.18"
 toml = "1.1.2"
-tq-cli = { version = "0.7.1", path = "crates/tq-cli" }
-tq-core = { version = "0.7.1", path = "crates/tq-core" }
-tq-config = { version = "0.7.1", path = "crates/tq-config" }
-tq-discovery = { version = "0.7.1", path = "crates/tq-discovery" }
-tq-docsgen = { version = "0.7.1", path = "crates/tq-docsgen" }
-tq-engine = { version = "0.7.1", path = "crates/tq-engine" }
-tq-release = { version = "0.7.1", path = "crates/tq-release" }
-tq-reporting = { version = "0.7.1", path = "crates/tq-reporting" }
-tq-rules = { version = "0.7.1", path = "crates/tq-rules" }
+tq-cli = { version = "0.8.0", path = "crates/tq-cli" }
+tq-core = { version = "0.8.0", path = "crates/tq-core" }
+tq-config = { version = "0.8.0", path = "crates/tq-config" }
+tq-discovery = { version = "0.8.0", path = "crates/tq-discovery" }
+tq-docsgen = { version = "0.8.0", path = "crates/tq-docsgen" }
+tq-engine = { version = "0.8.0", path = "crates/tq-engine" }
+tq-release = { version = "0.8.0", path = "crates/tq-release" }
+tq-reporting = { version = "0.8.0", path = "crates/tq-reporting" }
+tq-rules = { version = "0.8.0", path = "crates/tq-rules" }
 zip = { version = "8.5.0", default-features = false, features = ["deflate-flate2"] }
 
 [workspace.lints.rust]
