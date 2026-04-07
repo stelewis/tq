@@ -253,6 +253,7 @@ fn parse_cli_severity_overrides(values: &[String]) -> Result<Option<BTreeMap<Rul
     }
 
     let mut overrides = BTreeMap::new();
+    let mut seen = BTreeSet::new();
     for value in values {
         let Some((rule_id_str, severity_str)) = value.split_once('=') else {
             return Err(CliError::validation(format!(
@@ -269,6 +270,12 @@ fn parse_cli_severity_overrides(values: &[String]) -> Result<Option<BTreeMap<Rul
             ))
         })?;
 
+        let rendered = rule_id.to_string();
+        if !seen.insert(rendered.clone()) {
+            return Err(CliError::validation(format!(
+                "Duplicate rule ID in CLI values: {rendered}"
+            )));
+        }
         overrides.insert(rule_id, severity);
     }
 

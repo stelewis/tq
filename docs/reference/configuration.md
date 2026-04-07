@@ -140,7 +140,8 @@ Top-level keys in `[tool.tq]` (other than `targets`) act as shared defaults.
 - Type: `inline-table` with rule ID keys and severity string values
 - Default: `{}`
 - Meaning: override the severity applied to findings for specific rule IDs
-- Validation: rule IDs must be known built-in rule IDs; severity values must be `error`, `warning`, or `info`
+- Validation: rule IDs must be valid kebab-case rule IDs; severity values must be `error`, `warning`, or `info`
+- Note: unknown built-in rule IDs are rejected when `tq` resolves the active rule set
 - Example: `severity_overrides = { structure-mismatch = "error", test-file-too-large = "info" }`
 - Effect: the effective severity replaces the default for those rules in reporting and exit-code evaluation
 

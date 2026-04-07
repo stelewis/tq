@@ -717,7 +717,11 @@ fn resolve_rejects_invalid_severity_in_severity_overrides() {
 }
 
 #[test]
-fn resolve_rejects_unknown_rule_id_in_severity_overrides() {
+fn resolve_preserves_unknown_rule_id_in_severity_overrides() {
+    use std::collections::BTreeMap;
+    use tq_config::Severity;
+    use tq_core::RuleId;
+
     let temp = tempfile::tempdir().expect("tempdir");
     let config_path = temp.path().join("pyproject.toml");
     write(
@@ -731,17 +735,18 @@ fn resolve_rejects_unknown_rule_id_in_severity_overrides() {
          test_root = \"tests\"\n",
     );
 
-    // The config parses OK (config doesn't validate against builtin IDs)
-    // Unknown rule ID validation happens at the rules layer when building rules
-    // So this config loads but fails at the rules layer
-    // Actually let's verify the config DOES load
     let resolved = resolve_tq_config(
         temp.path(),
         Some(&config_path),
         false,
         &CliOverrides::default(),
-    );
-    // Config loading doesn't validate builtin rule IDs for severity_overrides
-    // (same as select/ignore - validated at rules layer)
-    assert!(resolved.is_ok());
+    )
+    .expect("config should resolve");
+
+    let expected: BTreeMap<RuleId, Severity> = std::iter::once((
+        RuleId::parse("not-a-rule").expect("valid rule id syntax"),
+        Severity::Error,
+    ))
+    .collect();
+    assert_eq!(resolved.targets()[0].severity_overrides(), &expected);
 }

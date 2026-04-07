@@ -357,14 +357,17 @@ fn check_command_uses_consistent_display_frame_for_structure_suggestions() {
 #[test]
 fn check_command_fail_on_warning_exits_one_for_warnings() {
     let project = create_project();
-    // Create a source file with no test file - produces a mapping-missing-test error
+    // Create a test file that does not match any source - produces an orphaned-test warning.
     write(
-        &project.path().join("src").join("pkg").join("module.py"),
-        "def run() -> None:\n    pass\n",
+        &project
+            .path()
+            .join("tests")
+            .join("pkg")
+            .join("test_orphan.py"),
+        "def test_orphan() -> None:\n    pass\n",
     );
 
-    // With --fail-on error (default), warnings only don't trigger exit 1
-    // Override structure-mismatch to info and test that --fail-on warning picks up on warnings
+    // --fail-on warning should treat warnings as a failure.
     let assert = Command::new(env!("CARGO_BIN_EXE_tq"))
         .current_dir(project.path())
         .arg("check")
@@ -372,6 +375,31 @@ fn check_command_fail_on_warning_exits_one_for_warnings() {
         .arg(project.path().join("pyproject.toml"))
         .arg("--fail-on")
         .arg("warning")
+        .assert();
+
+    let output = assert.get_output();
+    assert_eq!(output.status.code(), Some(1));
+}
+
+#[test]
+fn check_command_fail_on_info_exits_one_for_info_findings() {
+    let project = create_project();
+    // Create a source file with no test file - produces a mapping-missing-test error by default.
+    write(
+        &project.path().join("src").join("pkg").join("module.py"),
+        "def run() -> None:\n    pass\n",
+    );
+
+    // Remap the finding to info so the info threshold is the gate.
+    let assert = Command::new(env!("CARGO_BIN_EXE_tq"))
+        .current_dir(project.path())
+        .arg("check")
+        .arg("--config")
+        .arg(project.path().join("pyproject.toml"))
+        .arg("--fail-on")
+        .arg("info")
+        .arg("--severity")
+        .arg("mapping-missing-test=info")
         .assert();
 
     let output = assert.get_output();
@@ -504,4 +532,24 @@ fn check_command_rejects_unknown_rule_id_in_severity_override() {
     let output = assert.get_output();
     assert_eq!(output.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&output.stderr).contains("Unknown built-in rule ID"));
+}
+
+#[test]
+fn check_command_rejects_duplicate_rule_id_in_severity_override() {
+    let project = create_project();
+
+    let assert = Command::new(env!("CARGO_BIN_EXE_tq"))
+        .current_dir(project.path())
+        .arg("check")
+        .arg("--config")
+        .arg(project.path().join("pyproject.toml"))
+        .arg("--severity")
+        .arg("orphaned-test=warning")
+        .arg("--severity")
+        .arg("orphaned-test=error")
+        .assert();
+
+    let output = assert.get_output();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Duplicate rule ID in CLI values"));
 }
