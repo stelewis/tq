@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Removed
 
-- Removed the `tq` pre-commit hook because it required an installed Rust toolchain. Opened an issue to create a dedicated pre-commit wrapper repository for tq so downstream users can install the shared tq hook from published Python artifacts rather than from this Rust source repository.
+- Removed the `tq` pre-commit hook because it required an installed Rust toolchain. Opened an issue to create a dedicated pre-commit wrapper repository for `tq` so downstream users can install the shared `tq` hook from published Python artifacts rather than from the Rust source repository.
 
 ## [0.9.0] - 2026-04-07
 
