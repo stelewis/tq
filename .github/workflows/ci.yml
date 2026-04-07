@@ -301,6 +301,23 @@ jobs:
       - name: Verify artifact contents policy
         run: cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist
 
+      - name: Verify built release artifact set
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          wheel_count="$(find dist -maxdepth 1 -type f -name '*.whl' | wc -l | tr -d ' ')"
+          if [ "$wheel_count" -ne 1 ]; then
+            echo "Expected exactly one wheel artifact in dist/, found $wheel_count"
+            exit 1
+          fi
+
+          sdist_count="$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l | tr -d ' ')"
+          if [ "$sdist_count" -ne 1 ]; then
+            echo "Expected exactly one source distribution artifact in dist/, found $sdist_count"
+            exit 1
+          fi
+
       - name: Smoke check built package entrypoints
         shell: bash
         run: |
@@ -345,6 +362,9 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - name: Reset artifact directory
+        run: rm -rf dist
+
       - name: Download tag release candidates
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -356,13 +376,15 @@ jobs:
         run: |
           set -euo pipefail
 
-          if ! compgen -G 'dist/*.whl' > /dev/null; then
-            echo "No wheel artifact found in dist/"
+          wheel_count="$(find dist -maxdepth 1 -type f -name '*.whl' | wc -l | tr -d ' ')"
+          if [ "$wheel_count" -ne 1 ]; then
+            echo "Expected exactly one wheel artifact in dist/, found $wheel_count"
             exit 1
           fi
 
-          if ! compgen -G 'dist/*.tar.gz' > /dev/null; then
-            echo "No source distribution artifact found in dist/"
+          sdist_count="$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l | tr -d ' ')"
+          if [ "$sdist_count" -ne 1 ]; then
+            echo "Expected exactly one source distribution artifact in dist/, found $sdist_count"
             exit 1
           fi
 
@@ -404,7 +426,26 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Build Python package artifacts
-        run: uv build
+        run: |
+          rm -rf dist
+          uv build
+
+      - name: Verify built release artifact set
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          wheel_count="$(find dist -maxdepth 1 -type f -name '*.whl' | wc -l | tr -d ' ')"
+          if [ "$wheel_count" -ne 1 ]; then
+            echo "Expected exactly one wheel artifact in dist/, found $wheel_count"
+            exit 1
+          fi
+
+          sdist_count="$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l | tr -d ' ')"
+          if [ "$sdist_count" -ne 1 ]; then
+            echo "Expected exactly one source distribution artifact in dist/, found $sdist_count"
+            exit 1
+          fi
 
       - name: Smoke check built package entrypoints
         shell: bash

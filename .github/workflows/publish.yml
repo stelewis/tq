@@ -102,6 +102,9 @@ jobs:
       contents: write
       id-token: write
     steps:
+      - name: Reset transient directories
+        run: rm -rf dist tmp/release-smoke tmp/pypi-verify
+
       - name: Checkout tagged revision
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -128,13 +131,15 @@ jobs:
         run: |
           set -euo pipefail
 
-          if ! compgen -G 'dist/*.whl' > /dev/null; then
-            echo "No wheel artifact found in dist/"
+          wheel_count="$(find dist -maxdepth 1 -type f -name '*.whl' | wc -l | tr -d ' ')"
+          if [ "$wheel_count" -ne 1 ]; then
+            echo "Expected exactly one wheel artifact in dist/, found $wheel_count"
             exit 1
           fi
 
-          if ! compgen -G 'dist/*.tar.gz' > /dev/null; then
-            echo "No source distribution artifact found in dist/"
+          sdist_count="$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l | tr -d ' ')"
+          if [ "$sdist_count" -ne 1 ]; then
+            echo "Expected exactly one source distribution artifact in dist/, found $sdist_count"
             exit 1
           fi
 
@@ -185,6 +190,7 @@ jobs:
             echo "No wheel artifact found in dist/"
             exit 1
           fi
+          rm -rf tmp/release-smoke
           mkdir -p tmp/release-smoke/src/demo tmp/release-smoke/tests/demo
           cat > tmp/release-smoke/pyproject.toml <<'TOML'
           [project]
@@ -248,6 +254,7 @@ jobs:
           set -euo pipefail
 
           TAG_NAME='${{ needs.prepare.outputs.release_tag }}'
+          rm -rf tmp/pypi-verify
           mkdir -p tmp/pypi-verify
 
           for attempt in 1 2 3 4 5; do
