@@ -8,6 +8,35 @@ pub use domain::{
     PackageName, PackageNameError, RelativePathBuf, RelativePathError, TargetName, TargetNameError,
 };
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Default)]
+pub enum Severity {
+    #[default]
+    Error,
+    Warning,
+    Info,
+}
+
+impl Severity {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Error => "error",
+            Self::Warning => "warning",
+            Self::Info => "info",
+        }
+    }
+
+    #[must_use]
+    pub fn parse(raw: &str) -> Option<Self> {
+        match raw {
+            "error" => Some(Self::Error),
+            "warning" => Some(Self::Warning),
+            "info" => Some(Self::Info),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
 pub enum InitModulesMode {
     #[default]

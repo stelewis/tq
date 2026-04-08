@@ -35,11 +35,15 @@ Output serves both human and machine consumers.
 
 `tq check` exit codes are:
 
-- `0`: no diagnostics at `error` severity or higher.
-- `1`: one or more diagnostics at `error` severity or higher.
+- `0`: no findings at or above the configured fail threshold.
+- `1`: one or more findings at or above the configured fail threshold.
 - `2`: invalid CLI options, invalid configuration, or IO/runtime setup errors.
 
-This mirrors Ruff and Ty conventions for normal and abnormal termination.
+The default fail threshold is `error`, which preserves the original behavior. Users may raise the threshold strictness with `--fail-on` or `[tool.tq].fail_on`.
+
+Severity remapping is applied before exit-code evaluation, so `severity_overrides` and `--severity` affect both reporting and exit status.
+
+This mirrors Ruff and Ty conventions for normal and abnormal termination while keeping fail policy explicit in `tq`.
 
 ### 3. Configuration namespace and precedence
 

@@ -9,7 +9,7 @@ fn generate_cli_docs_updates_marked_section_from_rust_cli_contract() {
 
     write(
         &manifest_path,
-        "{\n  \"version\": 1,\n  \"cli_options\": [\n    { \"arg_ids\": [\"config\"] },\n    { \"arg_ids\": [\"isolated\"] },\n    { \"arg_ids\": [\"target_names\"] },\n    { \"arg_ids\": [\"init_modules\"], \"config_key\": \"init_modules\" },\n    { \"arg_ids\": [\"max_test_file_non_blank_lines\"], \"config_key\": \"max_test_file_non_blank_lines\" },\n    { \"arg_ids\": [\"qualifier_strategy\"], \"config_key\": \"qualifier_strategy\" },\n    { \"arg_ids\": [\"allowed_qualifiers\"], \"config_key\": \"allowed_qualifiers\" },\n    { \"arg_ids\": [\"select_rules\"], \"config_key\": \"select\" },\n    { \"arg_ids\": [\"ignore_rules\"], \"config_key\": \"ignore\" },\n    { \"arg_ids\": [\"output_format\"] },\n    { \"arg_ids\": [\"show_suggestions\"] },\n    { \"arg_ids\": [\"exit_zero\"] }\n  ]\n}\n",
+        "{\n  \"version\": 1,\n  \"cli_options\": [\n    { \"arg_ids\": [\"config\"] },\n    { \"arg_ids\": [\"isolated\"] },\n    { \"arg_ids\": [\"target_names\"] },\n    { \"arg_ids\": [\"init_modules\"], \"config_key\": \"init_modules\" },\n    { \"arg_ids\": [\"max_test_file_non_blank_lines\"], \"config_key\": \"max_test_file_non_blank_lines\" },\n    { \"arg_ids\": [\"qualifier_strategy\"], \"config_key\": \"qualifier_strategy\" },\n    { \"arg_ids\": [\"allowed_qualifiers\"], \"config_key\": \"allowed_qualifiers\" },\n    { \"arg_ids\": [\"select_rules\"], \"config_key\": \"select\" },\n    { \"arg_ids\": [\"ignore_rules\"], \"config_key\": \"ignore\" },\n    { \"arg_ids\": [\"severity_overrides\"], \"config_key\": \"severity_overrides\" },\n    { \"arg_ids\": [\"output_format\"] },\n    { \"arg_ids\": [\"show_suggestions\"] },\n    { \"arg_ids\": [\"exit_zero\"] },\n    { \"arg_ids\": [\"fail_on\"], \"config_key\": \"fail_on\", \"default_display\": \"error\", \"description_note\": \"When omitted, the effective default is `error` unless configuration overrides it.\" }\n  ]\n}\n",
     );
     write(
         &cli_doc_path,
@@ -21,6 +21,7 @@ fn generate_cli_docs_updates_marked_section_from_rust_cli_contract() {
     let generated = fs::read_to_string(&cli_doc_path).expect("read generated CLI docs");
     assert!(generated.contains("| `--target` | — | `[]` | Run only listed target names. |"));
     assert!(generated.contains("| `--init-modules` | [`init_modules`](./configuration.md#init_modules-optional) | `none` | How mapping checks handle __init__.py modules. |"));
+    assert!(generated.contains("| `--fail-on` | [`fail_on`](./configuration.md#fail_on-optional) | `error` | Minimum severity level that causes a nonzero exit. When omitted, the effective default is `error` unless configuration overrides it. |"));
     assert!(generated.contains("Run `tq check --help` for the runtime source of truth."));
 }
 
@@ -51,7 +52,7 @@ fn generate_cli_docs_fails_when_markers_are_missing() {
 
     write(
         &manifest_path,
-        "{\n  \"version\": 1,\n  \"cli_options\": [\n    { \"arg_ids\": [\"config\"] },\n    { \"arg_ids\": [\"isolated\"] },\n    { \"arg_ids\": [\"target_names\"] },\n    { \"arg_ids\": [\"init_modules\"], \"config_key\": \"init_modules\" },\n    { \"arg_ids\": [\"max_test_file_non_blank_lines\"], \"config_key\": \"max_test_file_non_blank_lines\" },\n    { \"arg_ids\": [\"qualifier_strategy\"], \"config_key\": \"qualifier_strategy\" },\n    { \"arg_ids\": [\"allowed_qualifiers\"], \"config_key\": \"allowed_qualifiers\" },\n    { \"arg_ids\": [\"select_rules\"], \"config_key\": \"select\" },\n    { \"arg_ids\": [\"ignore_rules\"], \"config_key\": \"ignore\" },\n    { \"arg_ids\": [\"output_format\"] },\n    { \"arg_ids\": [\"show_suggestions\"] },\n    { \"arg_ids\": [\"exit_zero\"] }\n  ]\n}\n",
+        "{\n  \"version\": 1,\n  \"cli_options\": [\n    { \"arg_ids\": [\"config\"] },\n    { \"arg_ids\": [\"isolated\"] },\n    { \"arg_ids\": [\"target_names\"] },\n    { \"arg_ids\": [\"init_modules\"], \"config_key\": \"init_modules\" },\n    { \"arg_ids\": [\"max_test_file_non_blank_lines\"], \"config_key\": \"max_test_file_non_blank_lines\" },\n    { \"arg_ids\": [\"qualifier_strategy\"], \"config_key\": \"qualifier_strategy\" },\n    { \"arg_ids\": [\"allowed_qualifiers\"], \"config_key\": \"allowed_qualifiers\" },\n    { \"arg_ids\": [\"select_rules\"], \"config_key\": \"select\" },\n    { \"arg_ids\": [\"ignore_rules\"], \"config_key\": \"ignore\" },\n    { \"arg_ids\": [\"severity_overrides\"], \"config_key\": \"severity_overrides\" },\n    { \"arg_ids\": [\"output_format\"] },\n    { \"arg_ids\": [\"show_suggestions\"] },\n    { \"arg_ids\": [\"exit_zero\"] },\n    { \"arg_ids\": [\"fail_on\"], \"config_key\": \"fail_on\", \"default_display\": \"error\", \"description_note\": \"When omitted, the effective default is `error` unless configuration overrides it.\" }\n  ]\n}\n",
     );
     write(&cli_doc_path, "# CLI\nNo markers here.\n");
 

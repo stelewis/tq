@@ -1,27 +1,10 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use tq_core::TargetName;
+use tq_core::{RuleId, Severity, TargetName};
 
 use crate::EngineError;
-use crate::{RuleId, TargetContext};
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
-pub enum Severity {
-    Error,
-    Warning,
-    Info,
-}
-
-impl Severity {
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Error => "error",
-            Self::Warning => "warning",
-            Self::Info => "info",
-        }
-    }
-}
+use crate::TargetContext;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Finding {
@@ -113,6 +96,12 @@ impl Finding {
         cloned.target = Some(target_name.clone());
         cloned
     }
+
+    #[must_use]
+    pub const fn with_severity(mut self, severity: Severity) -> Self {
+        self.severity = severity;
+        self
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -179,6 +168,34 @@ impl EngineResult {
     #[must_use]
     pub const fn has_errors(&self) -> bool {
         self.summary.errors() > 0
+    }
+
+    #[must_use]
+    pub fn with_severity_overrides(self, overrides: &BTreeMap<RuleId, Severity>) -> Self {
+        if overrides.is_empty() {
+            return self;
+        }
+        let findings = self
+            .findings
+            .into_iter()
+            .map(|finding| {
+                if let Some(&severity) = overrides.get(finding.rule_id()) {
+                    finding.with_severity(severity)
+                } else {
+                    finding
+                }
+            })
+            .collect();
+        Self::new(findings)
+    }
+
+    #[must_use]
+    pub const fn has_findings_at_or_above(&self, min_severity: Severity) -> bool {
+        match min_severity {
+            Severity::Error => self.summary.errors() > 0,
+            Severity::Warning => self.summary.errors() > 0 || self.summary.warnings() > 0,
+            Severity::Info => self.summary.total() > 0,
+        }
     }
 }
 

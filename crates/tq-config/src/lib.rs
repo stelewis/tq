@@ -12,5 +12,5 @@ pub use model::{
     TqTargetConfig,
 };
 pub use tq_core::{
-    InitModulesMode, PackageName, QualifierStrategy, RelativePathBuf, RuleId, TargetName,
+    InitModulesMode, PackageName, QualifierStrategy, RelativePathBuf, RuleId, Severity, TargetName,
 };

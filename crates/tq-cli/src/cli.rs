@@ -134,6 +134,21 @@ pub struct CheckArgs {
         help = "Always exit with code 0 regardless of findings."
     )]
     pub exit_zero: bool,
+    #[arg(
+        long = "fail-on",
+        value_enum,
+        value_name = "SEVERITY",
+        help_heading = "Output",
+        help = "Minimum severity level that causes a nonzero exit."
+    )]
+    pub fail_on: Option<FailOnArg>,
+    #[arg(
+        long = "severity",
+        value_name = "RULE_ID=SEVERITY",
+        help_heading = "Rule configuration",
+        help = "Override severity for a specific rule ID. Repeatable."
+    )]
+    pub severity_overrides: Vec<String>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
@@ -147,4 +162,11 @@ pub enum QualifierStrategyArg {
     None,
     AnySuffix,
     Allowlist,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum FailOnArg {
+    Error,
+    Warning,
+    Info,
 }

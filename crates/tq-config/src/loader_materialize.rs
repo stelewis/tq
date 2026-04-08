@@ -14,13 +14,14 @@ pub fn merge_partial(base: &PartialTqConfig, override_: &PartialTqConfig) -> Par
     PartialTqConfig {
         defaults: merge_rule_partial(&base.defaults, &override_.defaults),
         targets: override_.targets.clone().or_else(|| base.targets.clone()),
+        fail_on: override_.fail_on.or(base.fail_on),
     }
 }
 
 pub fn materialize_config(
     cwd: &Path,
     partial: &PartialTqConfig,
-    cli_defaults: &PartialRuleConfig,
+    cli_partial: &PartialTqConfig,
     targets_base_dir: Option<&Path>,
 ) -> Result<TqConfig, ConfigError> {
     let Some(targets) = &partial.targets else {
@@ -42,7 +43,7 @@ pub fn materialize_config(
             &base_dir,
             target,
             &partial.defaults,
-            cli_defaults,
+            &cli_partial.defaults,
             target_index,
         )?;
 
@@ -69,8 +70,10 @@ pub fn materialize_config(
     }
 
     normalized_targets.sort_by(|left, right| left.name().cmp(right.name()));
+    let fail_on = cli_partial.fail_on.or(partial.fail_on).unwrap_or_default();
     Ok(TqConfig {
         targets: normalized_targets,
+        fail_on,
     })
 }
 
@@ -90,6 +93,10 @@ fn merge_rule_partial(
             .or_else(|| base.allowed_qualifiers.clone()),
         select: override_.select.clone().or_else(|| base.select.clone()),
         ignore: override_.ignore.clone().or_else(|| base.ignore.clone()),
+        severity_overrides: override_
+            .severity_overrides
+            .clone()
+            .or_else(|| base.severity_overrides.clone()),
     }
 }
 
@@ -136,6 +143,7 @@ fn materialize_target(
             allowed_qualifiers: target.allowed_qualifiers.clone(),
             select: target.select.clone(),
             ignore: target.ignore.clone(),
+            severity_overrides: target.severity_overrides.clone(),
         },
     );
     let final_rules = merge_rule_partial(&merged_rules, cli_defaults);
@@ -174,6 +182,7 @@ fn materialize_target(
         allowed_qualifiers,
         select: final_rules.select.unwrap_or_default(),
         ignore: final_rules.ignore.unwrap_or_default(),
+        severity_overrides: final_rules.severity_overrides.unwrap_or_default(),
     })
 }
 

@@ -135,6 +135,27 @@ Top-level keys in `[tool.tq]` (other than `targets`) act as shared defaults.
 - Meaning: rule IDs to skip after selection is resolved
 - Validation: values must be valid kebab-case rule IDs and known built-ins
 
+### `severity_overrides` (optional)
+
+- Type: `inline-table` with rule ID keys and severity string values
+- Default: `{}`
+- Meaning: override the severity applied to findings for specific rule IDs
+- Validation: rule IDs must be valid kebab-case rule IDs; severity values must be `error`, `warning`, or `info`
+- Note: unknown built-in rule IDs are rejected when `tq` resolves the active rule set
+- Example: `severity_overrides = { structure-mismatch = "error", test-file-too-large = "info" }`
+- Effect: the effective severity replaces the default for those rules in reporting and exit-code evaluation
+
+### `fail_on` (optional)
+
+- Type: `string`
+- Default: `"error"`
+- Allowed values:
+  - `error`: exit nonzero only when there are findings at `error` severity (default behavior)
+  - `warning`: exit nonzero when there are findings at `warning` severity or higher
+  - `info`: exit nonzero when there are any findings
+- Meaning: minimum severity level that triggers a nonzero exit code
+- Note: `fail_on` is a global-only key and cannot be set per target
+
 ## Target entries (`[[tool.tq.targets]]`)
 
 `targets` is required and must contain one or more entries.
@@ -184,6 +205,7 @@ A target may override any shared top-level optional key:
 - `allowed_qualifiers`
 - `select`
 - `ignore`
+- `severity_overrides`
 
 ## Built-in rule IDs
 
@@ -200,7 +222,7 @@ Rule IDs are stable kebab-case identifiers. Severity vocabulary is fixed:
 - `warning`
 - `info`
 
-Severity remapping may be applied at CLI/config boundaries without changing rule IDs.
+Severity remapping may be applied at CLI/config boundaries without changing rule IDs. Use `severity_overrides` in config or `--severity` on the CLI to promote or demote individual rules.
 
 ## CLI override example
 

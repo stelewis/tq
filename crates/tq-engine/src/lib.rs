@@ -6,7 +6,7 @@ mod runner;
 
 pub use context::{AnalysisContext, PlannedTargetRun, TargetContext, TargetPlanInput};
 pub use error::EngineError;
-pub use models::{EngineResult, Finding, FindingSummary, Severity};
+pub use models::{EngineResult, Finding, FindingSummary};
 pub use planner::plan_target_runs;
 pub use runner::{Rule, RuleEngine, aggregate_results, validate_unique_rule_ids};
-pub use tq_core::RuleId;
+pub use tq_core::{RuleId, Severity};

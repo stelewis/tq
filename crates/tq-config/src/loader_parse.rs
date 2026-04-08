@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 
 use toml::Table;
-use tq_core::{QualifierStrategy, RuleId};
+use tq_core::{QualifierStrategy, RuleId, Severity};
 
 use crate::{
     ConfigError, InitModulesMode,
@@ -62,6 +62,8 @@ pub fn load_partial_from_pyproject(
             "allowed_qualifiers",
             "select",
             "ignore",
+            "severity_overrides",
+            "fail_on",
             "targets",
         ],
         "Unknown [tool.tq] key(s):",
@@ -87,10 +89,20 @@ pub fn load_partial_from_pyproject(
         )?,
         select: expect_optional_rule_ids(tq_table, "select", "tool.tq")?,
         ignore: expect_optional_rule_ids(tq_table, "ignore", "tool.tq")?,
+        severity_overrides: expect_optional_severity_overrides(
+            tq_table,
+            "severity_overrides",
+            "tool.tq",
+        )?,
     };
 
+    let fail_on = expect_optional_fail_on(tq_table, "fail_on", "tool.tq")?;
     let targets = expect_optional_targets(tq_table, "targets")?;
-    Ok(PartialTqConfig { defaults, targets })
+    Ok(PartialTqConfig {
+        defaults,
+        targets,
+        fail_on,
+    })
 }
 
 pub fn ensure_unique_strings(values: &[String], location: &str) -> Result<(), ConfigError> {
@@ -339,6 +351,7 @@ fn expect_optional_targets(
                 "allowed_qualifiers",
                 "select",
                 "ignore",
+                "severity_overrides",
             ],
             &format!("Unknown key(s) in {location}:"),
         )?;
@@ -367,8 +380,86 @@ fn expect_optional_targets(
             )?,
             select: expect_optional_rule_ids(target_table, "select", &location)?,
             ignore: expect_optional_rule_ids(target_table, "ignore", &location)?,
+            severity_overrides: expect_optional_severity_overrides(
+                target_table,
+                "severity_overrides",
+                &location,
+            )?,
         });
     }
 
     Ok(Some(targets))
+}
+
+fn expect_optional_fail_on(
+    table: &Table,
+    key: &str,
+    location: &str,
+) -> Result<Option<Severity>, ConfigError> {
+    let Some(value) = table.get(key) else {
+        return Ok(None);
+    };
+
+    let Some(raw) = value.as_str() else {
+        return Err(ConfigError::StringExpected {
+            location: format!("{location}.{key}"),
+        });
+    };
+
+    Severity::parse(raw)
+        .map(Some)
+        .ok_or_else(|| ConfigError::InvalidEnumValue {
+            location: format!("{location}.{key}"),
+            expected: severity_expected_values(),
+        })
+}
+
+fn expect_optional_severity_overrides(
+    table: &Table,
+    key: &str,
+    location: &str,
+) -> Result<Option<BTreeMap<RuleId, Severity>>, ConfigError> {
+    let Some(value) = table.get(key) else {
+        return Ok(None);
+    };
+
+    let Some(inline_table) = value.as_table() else {
+        return Err(ConfigError::TableExpected {
+            location: format!("{location}.{key}"),
+        });
+    };
+
+    let mut overrides = BTreeMap::new();
+    for (rule_id_str, severity_value) in inline_table {
+        let rule_id = RuleId::parse(rule_id_str).map_err(|source| ConfigError::InvalidRuleId {
+            location: format!("{location}.{key}"),
+            value: rule_id_str.clone(),
+            source,
+        })?;
+
+        let Some(severity_str) = severity_value.as_str() else {
+            return Err(ConfigError::StringExpected {
+                location: format!("{location}.{key}.{rule_id_str}"),
+            });
+        };
+
+        let severity =
+            Severity::parse(severity_str).ok_or_else(|| ConfigError::InvalidEnumValue {
+                location: format!("{location}.{key}.{rule_id_str}"),
+                expected: severity_expected_values(),
+            })?;
+
+        overrides.insert(rule_id, severity);
+    }
+
+    Ok(Some(overrides))
+}
+
+fn severity_expected_values() -> String {
+    format!(
+        "{}, {}, {}",
+        Severity::Error.as_str(),
+        Severity::Warning.as_str(),
+        Severity::Info.as_str()
+    )
 }

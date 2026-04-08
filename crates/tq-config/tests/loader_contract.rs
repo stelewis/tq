@@ -576,3 +576,251 @@ fn rejects_duplicate_source_package_roots() {
     .expect_err("must reject duplicate source package root");
     assert!(error.to_string().contains("Duplicate source package root"));
 }
+
+#[test]
+fn resolve_parses_fail_on_from_config() {
+    use tq_config::Severity;
+
+    let temp = tempfile::tempdir().expect("tempdir");
+    let config_path = temp.path().join("pyproject.toml");
+    write(
+        &config_path,
+        "[tool.tq]\n\
+         fail_on = \"warning\"\n\
+         [[tool.tq.targets]]\n\
+         name = \"app\"\n\
+         package = \"pkg\"\n\
+         source_root = \"src\"\n\
+         test_root = \"tests\"\n",
+    );
+
+    let resolved = resolve_tq_config(
+        temp.path(),
+        Some(&config_path),
+        false,
+        &CliOverrides::default(),
+    )
+    .expect("config should resolve");
+
+    assert_eq!(resolved.fail_on(), Severity::Warning);
+}
+
+#[test]
+fn resolve_fail_on_defaults_to_error() {
+    use tq_config::Severity;
+
+    let temp = tempfile::tempdir().expect("tempdir");
+    let config_path = temp.path().join("pyproject.toml");
+    write(
+        &config_path,
+        "[tool.tq]\n\
+         [[tool.tq.targets]]\n\
+         name = \"app\"\n\
+         package = \"pkg\"\n\
+         source_root = \"src\"\n\
+         test_root = \"tests\"\n",
+    );
+
+    let resolved = resolve_tq_config(
+        temp.path(),
+        Some(&config_path),
+        false,
+        &CliOverrides::default(),
+    )
+    .expect("config should resolve");
+
+    assert_eq!(resolved.fail_on(), Severity::Error);
+}
+
+#[test]
+fn cli_override_fail_on_takes_precedence_over_config() {
+    use tq_config::Severity;
+
+    let temp = tempfile::tempdir().expect("tempdir");
+    let config_path = temp.path().join("pyproject.toml");
+    write(
+        &config_path,
+        "[tool.tq]\n\
+         fail_on = \"info\"\n\
+         [[tool.tq.targets]]\n\
+         name = \"app\"\n\
+         package = \"pkg\"\n\
+         source_root = \"src\"\n\
+         test_root = \"tests\"\n",
+    );
+
+    let overrides = CliOverrides::new().with_fail_on(Some(Severity::Error));
+    let resolved = resolve_tq_config(temp.path(), Some(&config_path), false, &overrides)
+        .expect("config should resolve");
+
+    assert_eq!(resolved.fail_on(), Severity::Error);
+}
+
+#[test]
+fn resolve_parses_severity_overrides_from_config() {
+    use std::collections::BTreeMap;
+    use tq_config::Severity;
+    use tq_core::RuleId;
+
+    let temp = tempfile::tempdir().expect("tempdir");
+    let config_path = temp.path().join("pyproject.toml");
+    write(
+        &config_path,
+        "[tool.tq]\n\
+         severity_overrides = { orphaned-test = \"error\" }\n\
+         [[tool.tq.targets]]\n\
+         name = \"app\"\n\
+         package = \"pkg\"\n\
+         source_root = \"src\"\n\
+         test_root = \"tests\"\n",
+    );
+
+    let resolved = resolve_tq_config(
+        temp.path(),
+        Some(&config_path),
+        false,
+        &CliOverrides::default(),
+    )
+    .expect("config should resolve");
+
+    let expected: BTreeMap<RuleId, Severity> = std::iter::once((
+        RuleId::parse("orphaned-test").expect("valid rule id"),
+        Severity::Error,
+    ))
+    .collect();
+    assert_eq!(resolved.targets()[0].severity_overrides(), &expected);
+}
+
+#[test]
+fn target_severity_overrides_replace_top_level_severity_overrides() {
+    use std::collections::BTreeMap;
+    use tq_config::Severity;
+    use tq_core::RuleId;
+
+    let temp = tempfile::tempdir().expect("tempdir");
+    let config_path = temp.path().join("pyproject.toml");
+    write(
+        &config_path,
+        "[tool.tq]\n\
+         severity_overrides = { orphaned-test = \"error\" }\n\
+         [[tool.tq.targets]]\n\
+         name = \"app\"\n\
+         package = \"pkg\"\n\
+         source_root = \"src\"\n\
+         test_root = \"tests\"\n\
+         severity_overrides = { mapping-missing-test = \"info\" }\n",
+    );
+
+    let resolved = resolve_tq_config(
+        temp.path(),
+        Some(&config_path),
+        false,
+        &CliOverrides::default(),
+    )
+    .expect("config should resolve");
+
+    let expected: BTreeMap<RuleId, Severity> = std::iter::once((
+        RuleId::parse("mapping-missing-test").expect("valid rule id"),
+        Severity::Info,
+    ))
+    .collect();
+    assert_eq!(resolved.targets()[0].severity_overrides(), &expected);
+}
+
+#[test]
+fn cli_severity_overrides_replace_file_severity_overrides() {
+    use std::collections::BTreeMap;
+    use tq_config::Severity;
+    use tq_core::RuleId;
+
+    let temp = tempfile::tempdir().expect("tempdir");
+    let config_path = temp.path().join("pyproject.toml");
+    write(
+        &config_path,
+        "[tool.tq]\n\
+         severity_overrides = { orphaned-test = \"error\" }\n\
+         [[tool.tq.targets]]\n\
+         name = \"app\"\n\
+         package = \"pkg\"\n\
+         source_root = \"src\"\n\
+         test_root = \"tests\"\n\
+         severity_overrides = { mapping-missing-test = \"warning\" }\n",
+    );
+
+    let cli_overrides = CliOverrides::new().with_severity_overrides(Some(
+        std::iter::once((
+            RuleId::parse("test-file-too-large").expect("valid rule id"),
+            Severity::Info,
+        ))
+        .collect(),
+    ));
+    let resolved = resolve_tq_config(temp.path(), Some(&config_path), false, &cli_overrides)
+        .expect("config should resolve");
+
+    let expected: BTreeMap<RuleId, Severity> = std::iter::once((
+        RuleId::parse("test-file-too-large").expect("valid rule id"),
+        Severity::Info,
+    ))
+    .collect();
+    assert_eq!(resolved.targets()[0].severity_overrides(), &expected);
+}
+
+#[test]
+fn resolve_rejects_invalid_severity_in_severity_overrides() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let config_path = temp.path().join("pyproject.toml");
+    write(
+        &config_path,
+        "[tool.tq]\n\
+         severity_overrides = { orphaned-test = \"critical\" }\n\
+         [[tool.tq.targets]]\n\
+         name = \"app\"\n\
+         package = \"pkg\"\n\
+         source_root = \"src\"\n\
+         test_root = \"tests\"\n",
+    );
+
+    let error = resolve_tq_config(
+        temp.path(),
+        Some(&config_path),
+        false,
+        &CliOverrides::default(),
+    )
+    .expect_err("should reject invalid severity");
+    assert!(error.to_string().contains("must be one of"));
+}
+
+#[test]
+fn resolve_preserves_unknown_rule_id_in_severity_overrides() {
+    use std::collections::BTreeMap;
+    use tq_config::Severity;
+    use tq_core::RuleId;
+
+    let temp = tempfile::tempdir().expect("tempdir");
+    let config_path = temp.path().join("pyproject.toml");
+    write(
+        &config_path,
+        "[tool.tq]\n\
+         severity_overrides = { not-a-rule = \"error\" }\n\
+         [[tool.tq.targets]]\n\
+         name = \"app\"\n\
+         package = \"pkg\"\n\
+         source_root = \"src\"\n\
+         test_root = \"tests\"\n",
+    );
+
+    let resolved = resolve_tq_config(
+        temp.path(),
+        Some(&config_path),
+        false,
+        &CliOverrides::default(),
+    )
+    .expect("config should resolve");
+
+    let expected: BTreeMap<RuleId, Severity> = std::iter::once((
+        RuleId::parse("not-a-rule").expect("valid rule id syntax"),
+        Severity::Error,
+    ))
+    .collect();
+    assert_eq!(resolved.targets()[0].severity_overrides(), &expected);
+}

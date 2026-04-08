@@ -1,7 +1,8 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use tq_core::{
-    InitModulesMode, PackageName, QualifierStrategy, RelativePathBuf, RuleId, TargetName,
+    InitModulesMode, PackageName, QualifierStrategy, RelativePathBuf, RuleId, Severity, TargetName,
 };
 
 use crate::paths::normalize_absolute;
@@ -17,6 +18,7 @@ pub struct PartialRuleConfig {
     pub allowed_qualifiers: Option<Vec<String>>,
     pub select: Option<Vec<RuleId>>,
     pub ignore: Option<Vec<RuleId>>,
+    pub severity_overrides: Option<BTreeMap<RuleId, Severity>>,
 }
 
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
@@ -31,12 +33,14 @@ pub struct PartialTargetConfig {
     pub allowed_qualifiers: Option<Vec<String>>,
     pub select: Option<Vec<RuleId>>,
     pub ignore: Option<Vec<RuleId>>,
+    pub severity_overrides: Option<BTreeMap<RuleId, Severity>>,
 }
 
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct PartialTqConfig {
     pub defaults: PartialRuleConfig,
     pub targets: Option<Vec<PartialTargetConfig>>,
+    pub fail_on: Option<Severity>,
 }
 
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
@@ -47,6 +51,8 @@ pub struct CliOverrides {
     allowed_qualifiers: Option<Vec<String>>,
     select: Option<Vec<RuleId>>,
     ignore: Option<Vec<RuleId>>,
+    fail_on: Option<Severity>,
+    severity_overrides: Option<BTreeMap<RuleId, Severity>>,
 }
 
 impl CliOverrides {
@@ -91,6 +97,21 @@ impl CliOverrides {
         self
     }
 
+    #[must_use]
+    pub const fn with_fail_on(mut self, fail_on: Option<Severity>) -> Self {
+        self.fail_on = fail_on;
+        self
+    }
+
+    #[must_use]
+    pub fn with_severity_overrides(
+        mut self,
+        overrides: Option<BTreeMap<RuleId, Severity>>,
+    ) -> Self {
+        self.severity_overrides = overrides;
+        self
+    }
+
     pub(crate) const fn init_modules(&self) -> Option<InitModulesMode> {
         self.init_modules
     }
@@ -118,6 +139,14 @@ impl CliOverrides {
     pub(crate) fn clone_ignore(&self) -> Option<Vec<RuleId>> {
         self.ignore.clone()
     }
+
+    pub(crate) const fn fail_on(&self) -> Option<Severity> {
+        self.fail_on
+    }
+
+    pub(crate) fn clone_severity_overrides(&self) -> Option<BTreeMap<RuleId, Severity>> {
+        self.severity_overrides.clone()
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -133,6 +162,7 @@ pub struct TqTargetConfig {
     pub(crate) allowed_qualifiers: Vec<String>,
     pub(crate) select: Vec<RuleId>,
     pub(crate) ignore: Vec<RuleId>,
+    pub(crate) severity_overrides: BTreeMap<RuleId, Severity>,
 }
 
 impl TqTargetConfig {
@@ -192,6 +222,11 @@ impl TqTargetConfig {
     }
 
     #[must_use]
+    pub const fn severity_overrides(&self) -> &BTreeMap<RuleId, Severity> {
+        &self.severity_overrides
+    }
+
+    #[must_use]
     pub const fn package_path(&self) -> &RelativePathBuf {
         self.package.relative_path()
     }
@@ -205,11 +240,17 @@ impl TqTargetConfig {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TqConfig {
     pub(crate) targets: Vec<TqTargetConfig>,
+    pub(crate) fail_on: Severity,
 }
 
 impl TqConfig {
     #[must_use]
     pub fn targets(&self) -> &[TqTargetConfig] {
         &self.targets
+    }
+
+    #[must_use]
+    pub const fn fail_on(&self) -> Severity {
+        self.fail_on
     }
 }

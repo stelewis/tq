@@ -25,6 +25,10 @@ struct CliOptionSpec {
     arg_ids: Vec<String>,
     #[serde(default)]
     config_key: Option<String>,
+    #[serde(default)]
+    default_display: Option<String>,
+    #[serde(default)]
+    description_note: Option<String>,
 }
 
 pub fn generate(workspace_root: &Path) -> Result<(), DocsgenError> {
@@ -79,6 +83,28 @@ fn load_manifest(path: &Path) -> Result<Vec<CliOptionSpec>, DocsgenError> {
             return Err(DocsgenError::manifest(
                 path.to_path_buf(),
                 "config_key must be null or a non-empty string",
+            ));
+        }
+
+        if spec
+            .default_display
+            .as_deref()
+            .is_some_and(|value| value.trim().is_empty())
+        {
+            return Err(DocsgenError::manifest(
+                path.to_path_buf(),
+                "default_display must be null or a non-empty string",
+            ));
+        }
+
+        if spec
+            .description_note
+            .as_deref()
+            .is_some_and(|value| value.trim().is_empty())
+        {
+            return Err(DocsgenError::manifest(
+                path.to_path_buf(),
+                "description_note must be null or a non-empty string",
             ));
         }
     }
@@ -170,8 +196,8 @@ fn render_cli_table(
             "| `{}` | {} | `{}` | {} |",
             render_flags(&args),
             render_config_key(spec.config_key.as_deref()),
-            render_default(&args),
-            render_help(&args),
+            render_default(spec.default_display.as_deref(), &args),
+            render_help(spec.description_note.as_deref(), &args),
         ));
     }
 
@@ -205,18 +231,29 @@ fn render_flags(args: &[Arg]) -> String {
     flags.join(", ")
 }
 
-fn render_help(args: &[Arg]) -> String {
-    args.iter()
+fn render_help(description_note: Option<&str>, args: &[Arg]) -> String {
+    let help = args
+        .iter()
         .filter_map(|arg| arg.get_help())
         .map(ToString::to_string)
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect::<Vec<_>>()
-        .join(" / ")
-        .replace('|', "\\|")
+        .join(" / ");
+
+    let rendered = match description_note {
+        Some(note) => format!("{help} {note}"),
+        None => help,
+    };
+
+    rendered.replace('|', "\\|")
 }
 
-fn render_default(args: &[Arg]) -> String {
+fn render_default(default_display: Option<&str>, args: &[Arg]) -> String {
+    if let Some(default_display) = default_display {
+        return default_display.to_owned();
+    }
+
     let Some(arg) = args.first() else {
         return "none".to_owned();
     };
