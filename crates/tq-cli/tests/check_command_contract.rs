@@ -451,6 +451,31 @@ fn check_command_fail_on_info_exits_one_for_info_findings() {
 }
 
 #[test]
+fn check_command_fail_on_warning_ignores_info_findings() {
+    let project = create_project();
+    // Create a source file with no test file - produces a mapping-missing-test error by default.
+    write(
+        &project.path().join("src").join("pkg").join("module.py"),
+        "def run() -> None:\n    pass\n",
+    );
+
+    // Remap the finding to info so it stays below the warning threshold.
+    let assert = Command::new(env!("CARGO_BIN_EXE_tq"))
+        .current_dir(project.path())
+        .arg("check")
+        .arg("--config")
+        .arg(project.path().join("pyproject.toml"))
+        .arg("--fail-on")
+        .arg("warning")
+        .arg("--severity")
+        .arg("mapping-missing-test=info")
+        .assert();
+
+    let output = assert.get_output();
+    assert_eq!(output.status.code(), Some(0));
+}
+
+#[test]
 fn check_command_fail_on_error_default_ignores_warnings() {
     let project = create_project();
     // Create a test file that doesn't match any source - produces orphaned-test warning
