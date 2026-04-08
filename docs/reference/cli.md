@@ -42,7 +42,7 @@ The table below documents command options.
 | `--output-format` | — | `text` | Select output format. |
 | `--show-suggestions` | — | `false` | Render remediation suggestions in diagnostics output. |
 | `--exit-zero` | — | `false` | Always exit with code 0 regardless of findings. |
-| `--fail-on` | [`fail_on`](./configuration.md#fail_on-optional) | `none` | Minimum severity level that causes a nonzero exit. |
+| `--fail-on` | [`fail_on`](./configuration.md#fail_on-optional) | `error` | Minimum severity level that causes a nonzero exit. When omitted, the effective default is `error` unless configuration overrides it. |
 
 Run `tq check --help` for the runtime source of truth.
 

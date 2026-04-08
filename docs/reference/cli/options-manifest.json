@@ -14,6 +14,11 @@
     { "arg_ids": ["output_format"] },
     { "arg_ids": ["show_suggestions"] },
     { "arg_ids": ["exit_zero"] },
-    { "arg_ids": ["fail_on"], "config_key": "fail_on" }
+    {
+      "arg_ids": ["fail_on"],
+      "config_key": "fail_on",
+      "default_display": "error",
+      "description_note": "When omitted, the effective default is `error` unless configuration overrides it."
+    }
   ]
 }
