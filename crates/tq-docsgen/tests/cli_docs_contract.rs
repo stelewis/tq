@@ -20,8 +20,8 @@ fn generate_cli_docs_updates_marked_section_from_rust_cli_contract() {
 
     let generated = fs::read_to_string(&cli_doc_path).expect("read generated CLI docs");
     assert!(generated.contains("| `--target` | — | `[]` | Run only listed target names. |"));
-    assert!(generated.contains("| `--init-modules` | [`init_modules`](./configuration.md#init_modules-optional) | `none` | How mapping checks handle __init__.py modules. |"));
-    assert!(generated.contains("| `--fail-on` | [`fail_on`](./configuration.md#fail_on-optional) | `error` | Minimum severity level that causes a nonzero exit. When omitted, the effective default is `error` unless configuration overrides it. |"));
+    assert!(generated.contains("| `--init-modules` | [`init_modules`](./configuration.md#init-modules-optional) | `none` | How mapping checks handle __init__.py modules. |"));
+    assert!(generated.contains("| `--fail-on` | [`fail_on`](./configuration.md#fail-on-optional) | `error` | Minimum severity level that causes a nonzero exit. When omitted, the effective default is `error` unless configuration overrides it. |"));
     assert!(generated.contains("Run `tq check --help` for the runtime source of truth."));
 }
 

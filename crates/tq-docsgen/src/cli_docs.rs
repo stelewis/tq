@@ -294,5 +294,6 @@ fn render_config_key(config_key: Option<&str>) -> String {
     } else {
         "optional"
     };
-    format!("[`{config_key}`](./configuration.md#{config_key}-{suffix})")
+    let fragment = format!("{config_key}-{suffix}").replace('_', "-");
+    format!("[`{config_key}`](./configuration.md#{fragment})")
 }

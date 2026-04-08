@@ -32,17 +32,17 @@ The table below documents command options.
 | `--config` | — | `none` | Use this pyproject file instead of discovered configuration. |
 | `--isolated` | — | `false` | Ignore discovered configuration files. |
 | `--target` | — | `[]` | Run only listed target names. |
-| `--init-modules` | [`init_modules`](./configuration.md#init_modules-optional) | `none` | How mapping checks handle __init__.py modules. |
-| `--max-test-file-non-blank-lines` | [`max_test_file_non_blank_lines`](./configuration.md#max_test_file_non_blank_lines-optional) | `none` | Maximum non-blank, non-comment lines per test file. |
-| `--qualifier-strategy` | [`qualifier_strategy`](./configuration.md#qualifier_strategy-optional) | `none` | Module-name qualifier policy for qualified test files. |
-| `--allowed-qualifier` | [`allowed_qualifiers`](./configuration.md#allowed_qualifiers-optional) | `[]` | Allowed qualifier suffix for allowlist strategy. |
+| `--init-modules` | [`init_modules`](./configuration.md#init-modules-optional) | `none` | How mapping checks handle __init__.py modules. |
+| `--max-test-file-non-blank-lines` | [`max_test_file_non_blank_lines`](./configuration.md#max-test-file-non-blank-lines-optional) | `none` | Maximum non-blank, non-comment lines per test file. |
+| `--qualifier-strategy` | [`qualifier_strategy`](./configuration.md#qualifier-strategy-optional) | `none` | Module-name qualifier policy for qualified test files. |
+| `--allowed-qualifier` | [`allowed_qualifiers`](./configuration.md#allowed-qualifiers-optional) | `[]` | Allowed qualifier suffix for allowlist strategy. |
 | `--select` | [`select`](./configuration.md#select-optional) | `[]` | Only run selected rule IDs. |
 | `--ignore` | [`ignore`](./configuration.md#ignore-optional) | `[]` | Skip listed rule IDs. |
-| `--severity` | [`severity_overrides`](./configuration.md#severity_overrides-optional) | `[]` | Override severity for a specific rule ID. Repeatable. |
+| `--severity` | [`severity_overrides`](./configuration.md#severity-overrides-optional) | `[]` | Override severity for a specific rule ID. Repeatable. |
 | `--output-format` | — | `text` | Select output format. |
 | `--show-suggestions` | — | `false` | Render remediation suggestions in diagnostics output. |
 | `--exit-zero` | — | `false` | Always exit with code 0 regardless of findings. |
-| `--fail-on` | [`fail_on`](./configuration.md#fail_on-optional) | `error` | Minimum severity level that causes a nonzero exit. When omitted, the effective default is `error` unless configuration overrides it. |
+| `--fail-on` | [`fail_on`](./configuration.md#fail-on-optional) | `error` | Minimum severity level that causes a nonzero exit. When omitted, the effective default is `error` unless configuration overrides it. |
 
 Run `tq check --help` for the runtime source of truth.
 
