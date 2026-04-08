@@ -15,7 +15,7 @@ use crate::rule_docs::{
 use crate::structure_mismatch::StructureMismatchRule;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub(crate) enum BuiltinRule {
+pub enum BuiltinRule {
     MappingMissingTest,
     StructureMismatch,
     TestFileTooLarge,
@@ -36,7 +36,7 @@ impl BuiltinRule {
     }
 
     #[must_use]
-    pub(crate) fn default_severity(self) -> tq_core::Severity {
+    pub const fn default_severity(self) -> tq_core::Severity {
         self.doc().default_severity
     }
 

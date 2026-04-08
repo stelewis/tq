@@ -21,27 +21,29 @@ pub struct BuiltinRuleDoc {
     pub related_controls: &'static [&'static str],
 }
 
-pub fn builtin_rule_docs() -> &'static [BuiltinRuleDoc] {
+#[must_use]
+pub const fn builtin_rule_docs() -> &'static [BuiltinRuleDoc] {
     &BUILTIN_RULE_DOCS
 }
 
-pub fn builtin_rule_severity_vocabulary() -> &'static [&'static str] {
+#[must_use]
+pub const fn builtin_rule_severity_vocabulary() -> &'static [&'static str] {
     &SEVERITY_VOCABULARY
 }
 
-pub(crate) const fn mapping_missing_test_doc() -> &'static BuiltinRuleDoc {
+pub const fn mapping_missing_test_doc() -> &'static BuiltinRuleDoc {
     &BUILTIN_RULE_DOCS[0]
 }
 
-pub(crate) const fn structure_mismatch_doc() -> &'static BuiltinRuleDoc {
+pub const fn structure_mismatch_doc() -> &'static BuiltinRuleDoc {
     &BUILTIN_RULE_DOCS[1]
 }
 
-pub(crate) const fn test_file_too_large_doc() -> &'static BuiltinRuleDoc {
+pub const fn test_file_too_large_doc() -> &'static BuiltinRuleDoc {
     &BUILTIN_RULE_DOCS[2]
 }
 
-pub(crate) const fn orphaned_test_doc() -> &'static BuiltinRuleDoc {
+pub const fn orphaned_test_doc() -> &'static BuiltinRuleDoc {
     &BUILTIN_RULE_DOCS[3]
 }
 
