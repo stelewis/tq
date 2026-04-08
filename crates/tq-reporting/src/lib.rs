@@ -5,4 +5,4 @@ mod text;
 
 pub use error::ReportingError;
 pub use json::JsonReporter;
-pub use text::TextReporter;
+pub use text::{TextReporter, TextStyling};

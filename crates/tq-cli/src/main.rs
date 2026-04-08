@@ -1,7 +1,7 @@
 mod error;
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::io;
+use std::io::{self, IsTerminal};
 
 use clap::Parser;
 use tq_cli::{
@@ -12,7 +12,7 @@ use tq_config::{
     resolve_tq_config,
 };
 use tq_engine::{RuleEngine, TargetPlanInput, aggregate_results, plan_target_runs};
-use tq_reporting::{JsonReporter, TextReporter};
+use tq_reporting::{JsonReporter, TextReporter, TextStyling};
 use tq_rules::{
     BuiltinRuleOptions, BuiltinRuleRegistry, RuleSelection, validate_severity_override_rule_ids,
 };
@@ -33,7 +33,8 @@ fn main() {
     let exit_code = match run() {
         Ok(code) => code,
         Err(error) => {
-            eprintln!("Error: {error}");
+            let styling = terminal_text_styling(io::stderr().is_terminal());
+            eprintln!("{} {error}", styling.error_label("Error:"));
             2
         }
     };
@@ -97,12 +98,14 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
 
     let result = aggregate_results(&target_results);
     let stdout = io::stdout();
+    let styling = terminal_text_styling(stdout.is_terminal());
     let mut writer = stdout.lock();
 
     match args.output_format {
         OutputFormat::Text => {
             TextReporter::new(&cwd)
                 .with_suggestions(args.show_suggestions)
+                .with_styling(styling)
                 .write(&mut writer, &result)?;
         }
         OutputFormat::Json => {
@@ -112,6 +115,10 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
 
     let breach = result.has_findings_at_or_above(config.fail_on());
     Ok(i32::from(breach && !args.exit_zero))
+}
+
+fn terminal_text_styling(is_terminal: bool) -> TextStyling {
+    TextStyling::enabled(is_terminal && std::env::var_os("NO_COLOR").is_none())
 }
 
 fn build_cli_overrides(args: &CheckArgs) -> Result<CliOverrides> {

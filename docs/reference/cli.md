@@ -55,6 +55,8 @@ Run `tq check --help` for the runtime source of truth.
 - `text` (default): concise terminal diagnostics
 - `json`: machine-readable diagnostics payload
 
+When text output is written to an interactive terminal, `tq` styles success and severity labels. Redirected or captured text output stays plain so automation and golden tests remain stable. Set `NO_COLOR=1` to disable terminal styling.
+
 Use:
 
 ```sh
