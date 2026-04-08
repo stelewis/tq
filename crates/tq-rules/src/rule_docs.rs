@@ -10,7 +10,7 @@ pub struct RuleDocExample {
 pub struct BuiltinRuleDoc {
     pub id: &'static str,
     pub title: &'static str,
-    pub default_severity: &'static str,
+    pub default_severity: Severity,
     pub added_in: &'static str,
     pub behavior_changes: &'static str,
     pub what_it_does: &'static str,
@@ -55,7 +55,7 @@ const BUILTIN_RULE_DOCS: [BuiltinRuleDoc; 4] = [
     BuiltinRuleDoc {
         id: "mapping-missing-test",
         title: "Mapping Missing Test",
-        default_severity: Severity::Error.as_str(),
+        default_severity: Severity::Error,
         added_in: "pre-1.0",
         behavior_changes: "None to date.",
         what_it_does: "Ensure each discovered source module has at least one matching unit test module in the mirrored tests path.",
@@ -85,7 +85,7 @@ const BUILTIN_RULE_DOCS: [BuiltinRuleDoc; 4] = [
     BuiltinRuleDoc {
         id: "structure-mismatch",
         title: "Structure Mismatch",
-        default_severity: Severity::Warning.as_str(),
+        default_severity: Severity::Warning,
         added_in: "pre-1.0",
         behavior_changes: "None to date.",
         what_it_does: "Detect unit test files that do not mirror the expected source-relative path layout. In multi-target mode, evaluation is scoped to the active target package path and excludes sibling configured target roots.",
@@ -115,7 +115,7 @@ const BUILTIN_RULE_DOCS: [BuiltinRuleDoc; 4] = [
     BuiltinRuleDoc {
         id: "test-file-too-large",
         title: "Test File Too Large",
-        default_severity: Severity::Warning.as_str(),
+        default_severity: Severity::Warning,
         added_in: "pre-1.0",
         behavior_changes: "None to date.",
         what_it_does: "Flag test files that exceed the configured non-blank, non-comment-only line budget.",
@@ -142,7 +142,7 @@ const BUILTIN_RULE_DOCS: [BuiltinRuleDoc; 4] = [
     BuiltinRuleDoc {
         id: "orphaned-test",
         title: "Orphaned Test",
-        default_severity: Severity::Warning.as_str(),
+        default_severity: Severity::Warning,
         added_in: "pre-1.0",
         behavior_changes: "None to date.",
         what_it_does: "Identify unit test files that do not map to an existing source module.",

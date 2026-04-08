@@ -37,12 +37,7 @@ impl BuiltinRule {
 
     #[must_use]
     pub(crate) fn default_severity(self) -> tq_core::Severity {
-        match self.doc().default_severity {
-            "error" => tq_core::Severity::Error,
-            "warning" => tq_core::Severity::Warning,
-            "info" => tq_core::Severity::Info,
-            _ => unreachable!("built-in rule docs define an unsupported severity"),
-        }
+        self.doc().default_severity
     }
 
     pub(crate) fn rule_id(self) -> Result<RuleId, RulesError> {

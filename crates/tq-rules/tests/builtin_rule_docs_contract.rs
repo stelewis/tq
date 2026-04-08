@@ -30,16 +30,48 @@ fn builtin_rule_docs_define_complete_non_empty_contract_text() {
         .collect::<BTreeSet<_>>();
 
     for entry in builtin_rule_docs() {
-        assert!(!entry.id.trim().is_empty());
-        assert!(!entry.title.trim().is_empty());
-        assert!(allowed_severities.contains(entry.default_severity));
-        assert!(!entry.added_in.trim().is_empty());
-        assert!(!entry.behavior_changes.trim().is_empty());
-        assert!(!entry.what_it_does.trim().is_empty());
-        assert!(!entry.why_this_matters.trim().is_empty());
-        assert!(!entry.trigger_conditions.is_empty());
-        assert!(!entry.examples.is_empty());
-        assert!(!entry.how_to_address.is_empty());
-        assert!(!entry.related_controls.is_empty());
+        let tq_rules::BuiltinRuleDoc {
+            id,
+            title,
+            default_severity,
+            added_in,
+            behavior_changes,
+            what_it_does,
+            why_this_matters,
+            trigger_conditions,
+            examples,
+            how_to_address,
+            related_controls,
+        } = entry;
+
+        assert!(!id.trim().is_empty());
+        assert!(!title.trim().is_empty());
+        assert!(allowed_severities.contains(default_severity.as_str()));
+        assert!(!added_in.trim().is_empty());
+        assert!(!behavior_changes.trim().is_empty());
+        assert!(!what_it_does.trim().is_empty());
+        assert!(!why_this_matters.trim().is_empty());
+        assert!(!trigger_conditions.is_empty());
+        assert!(!examples.is_empty());
+        assert!(!how_to_address.is_empty());
+        assert!(!related_controls.is_empty());
+
+        for example in *examples {
+            let tq_rules::RuleDocExample { source, test } = example;
+            assert!(!source.trim().is_empty());
+            assert!(!test.trim().is_empty());
+        }
+
+        for condition in *trigger_conditions {
+            assert!(!condition.trim().is_empty());
+        }
+
+        for item in *how_to_address {
+            assert!(!item.trim().is_empty());
+        }
+
+        for control in *related_controls {
+            assert!(!control.trim().is_empty());
+        }
     }
 }

@@ -44,6 +44,64 @@ fn resolve_rejects_unknown_tool_tq_keys() {
 }
 
 #[test]
+fn resolve_rejects_legacy_python_init_modules_key() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let config_path = temp.path().join("pyproject.toml");
+    write(
+        &config_path,
+        "[tool.tq]\n\
+         ignore_init_modules = true\n\
+         [[tool.tq.targets]]\n\
+         name = \"app\"\n\
+         package = \"pkg\"\n\
+         source_root = \"src\"\n\
+         test_root = \"tests\"\n",
+    );
+
+    let error = resolve_tq_config(
+        temp.path(),
+        Some(&config_path),
+        false,
+        &CliOverrides::default(),
+    )
+    .expect_err("must reject legacy key");
+    assert!(
+        error
+            .to_string()
+            .contains("Unknown [tool.tq] key(s): ignore_init_modules")
+    );
+}
+
+#[test]
+fn resolve_rejects_unknown_target_keys() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let config_path = temp.path().join("pyproject.toml");
+    write(
+        &config_path,
+        "[tool.tq]\n\
+         [[tool.tq.targets]]\n\
+         name = \"app\"\n\
+         package = \"pkg\"\n\
+         source_root = \"src\"\n\
+         test_root = \"tests\"\n\
+         unknown = 1\n",
+    );
+
+    let error = resolve_tq_config(
+        temp.path(),
+        Some(&config_path),
+        false,
+        &CliOverrides::default(),
+    )
+    .expect_err("must reject unknown target key");
+    assert!(
+        error
+            .to_string()
+            .contains("Unknown key(s) in tool.tq.targets[0]: unknown")
+    );
+}
+
+#[test]
 fn resolve_rejects_duplicate_target_names() {
     let temp = tempfile::tempdir().expect("tempdir");
     let config_path = temp.path().join("pyproject.toml");

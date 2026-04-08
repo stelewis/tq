@@ -65,7 +65,10 @@ fn render_index(entries: &[BuiltinRuleDoc], severity_vocabulary: &[&str]) -> Str
     lines.extend(entries.iter().map(|entry| {
         format!(
             "- [`{}`](./{}.md) (`{}`; default severity: `{}`)",
-            entry.title, entry.id, entry.id, entry.default_severity
+            entry.title,
+            entry.id,
+            entry.id,
+            entry.default_severity.as_str()
         )
     }));
 
@@ -110,7 +113,7 @@ fn render_rule_page(entry: &BuiltinRuleDoc) -> String {
         String::new(),
         "## Default severity".to_owned(),
         String::new(),
-        format!("`{}`", entry.default_severity),
+        format!("`{}`", entry.default_severity.as_str()),
         String::new(),
         "## Trigger conditions".to_owned(),
         String::new(),

@@ -1,5 +1,9 @@
 use std::fs;
 
+use tq_rules::{
+    BuiltinRuleDoc, RuleDocExample, builtin_rule_docs, builtin_rule_severity_vocabulary,
+};
+
 #[test]
 fn generate_rules_docs_writes_index_pages_and_sidebar() {
     let temp = tempfile::tempdir().expect("tempdir");
@@ -8,9 +12,6 @@ fn generate_rules_docs_writes_index_pages_and_sidebar() {
 
     let index_content =
         fs::read_to_string(temp.path().join("docs/reference/rules/index.md")).expect("read index");
-    let page_content =
-        fs::read_to_string(temp.path().join("docs/reference/rules/orphaned-test.md"))
-            .expect("read page");
     let sidebar_content = fs::read_to_string(
         temp.path()
             .join("docs/.vitepress/generated/rules-sidebar.ts"),
@@ -18,14 +19,26 @@ fn generate_rules_docs_writes_index_pages_and_sidebar() {
     .expect("read sidebar");
 
     assert!(index_content.contains("# Rules"));
-    assert!(index_content.contains("[`Orphaned Test`](./orphaned-test.md)"));
-    assert!(index_content.contains("`orphaned-test`; default severity: `warning`"));
+    for severity in builtin_rule_severity_vocabulary() {
+        assert!(index_content.contains(&format!("- `{severity}`")));
+    }
+
+    for entry in builtin_rule_docs() {
+        assert_index_contains_entry(&index_content, entry);
+        assert_rule_page_matches_contract(
+            &fs::read_to_string(
+                temp.path()
+                    .join("docs/reference/rules")
+                    .join(format!("{}.md", entry.id)),
+            )
+            .expect("read rule page"),
+            entry,
+        );
+        assert_sidebar_contains_entry(&sidebar_content, entry);
+    }
+
     assert!(index_content.contains("[governance policy](../../developer/governance.md)"));
-    assert!(page_content.contains("# Orphaned Test"));
-    assert!(page_content.contains("Rule ID: `orphaned-test`"));
-    assert!(page_content.contains("## Trigger conditions"));
     assert!(sidebar_content.contains("export const rulesSidebarItems = ["));
-    assert!(sidebar_content.contains("text: \"Orphaned Test\""));
 }
 
 #[test]
@@ -39,4 +52,74 @@ fn generate_rules_docs_creates_missing_output_directories() {
             .join("docs/.vitepress/generated/rules-sidebar.ts")
             .is_file()
     );
+}
+
+fn assert_index_contains_entry(index_content: &str, entry: &BuiltinRuleDoc) {
+    assert!(index_content.contains(&format!(
+        "[`{}`](./{}.md) (`{}`; default severity: `{}`)",
+        entry.title,
+        entry.id,
+        entry.id,
+        entry.default_severity.as_str()
+    )));
+}
+
+fn assert_rule_page_matches_contract(page_content: &str, entry: &BuiltinRuleDoc) {
+    let BuiltinRuleDoc {
+        id,
+        title,
+        default_severity,
+        added_in,
+        behavior_changes,
+        what_it_does,
+        why_this_matters,
+        trigger_conditions,
+        examples,
+        how_to_address,
+        related_controls,
+    } = entry;
+
+    assert!(page_content.contains(&format!("# {title}")));
+    assert!(page_content.contains(&format!("Rule ID: `{id}`")));
+    assert!(page_content.contains("## What it does"));
+    assert!(page_content.contains(what_it_does));
+    assert!(page_content.contains("## Why this matters"));
+    assert!(page_content.contains(why_this_matters));
+    assert!(page_content.contains("## Default severity"));
+    assert!(page_content.contains(&format!("`{}`", default_severity.as_str())));
+    assert!(page_content.contains("## Trigger conditions"));
+    assert!(page_content.contains("## Examples"));
+    assert!(page_content.contains("## How to address"));
+    assert!(page_content.contains("## Related configuration and suppression controls"));
+    assert!(page_content.contains("## Added in"));
+    assert!(page_content.contains(&format!("`{added_in}`")));
+    assert!(page_content.contains("## Behavior changes"));
+    assert!(page_content.contains(behavior_changes));
+
+    for condition in *trigger_conditions {
+        assert!(page_content.contains(&format!("- {condition}")));
+    }
+
+    for example in *examples {
+        assert_example_is_rendered(page_content, *example);
+    }
+
+    for item in *how_to_address {
+        assert!(page_content.contains(&format!("- {item}")));
+    }
+
+    for control in *related_controls {
+        assert!(page_content.contains(&format!("- `{control}`")));
+    }
+}
+
+fn assert_example_is_rendered(page_content: &str, example: RuleDocExample) {
+    let RuleDocExample { source, test } = example;
+    assert!(page_content.contains(&format!("- Source module: `{source}`")));
+    assert!(page_content.contains(&format!("- Test module: `{test}`")));
+}
+
+fn assert_sidebar_contains_entry(sidebar_content: &str, entry: &BuiltinRuleDoc) {
+    assert!(sidebar_content.contains(&format!("text: \"{}\"", entry.title)));
+    assert!(sidebar_content.contains(&format!("link: \"/reference/rules/{}\"", entry.id)));
 }
