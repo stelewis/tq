@@ -10,7 +10,7 @@ The default fail threshold is `error` severity.
 
 ## Exit behavior toggles
 
-- `--exit-zero`: return `0` even when diagnostics are found
+- `--exit-zero`: return `0` even when findings are found
 - `--fail-on <SEVERITY>`: set the minimum severity that triggers exit code `1`
   - `error` (default): exit `1` only when there are `error` findings
   - `warning`: exit `1` when there are `warning` or `error` findings
