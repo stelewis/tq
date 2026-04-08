@@ -8,10 +8,14 @@ use crate::error::RulesError;
 use crate::file_too_large::TestFileTooLargeRule;
 use crate::mapping_missing_test::MappingMissingTestRule;
 use crate::orphaned_test::OrphanedTestRule;
+use crate::rule_docs::{
+    BuiltinRuleDoc, mapping_missing_test_doc, orphaned_test_doc, structure_mismatch_doc,
+    test_file_too_large_doc,
+};
 use crate::structure_mismatch::StructureMismatchRule;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-enum BuiltinRule {
+pub(crate) enum BuiltinRule {
     MappingMissingTest,
     StructureMismatch,
     TestFileTooLarge,
@@ -28,16 +32,31 @@ impl BuiltinRule {
 
     #[must_use]
     const fn as_str(self) -> &'static str {
-        match self {
-            Self::MappingMissingTest => "mapping-missing-test",
-            Self::StructureMismatch => "structure-mismatch",
-            Self::TestFileTooLarge => "test-file-too-large",
-            Self::OrphanedTest => "orphaned-test",
+        self.doc().id
+    }
+
+    #[must_use]
+    pub(crate) fn default_severity(self) -> tq_core::Severity {
+        match self.doc().default_severity {
+            "error" => tq_core::Severity::Error,
+            "warning" => tq_core::Severity::Warning,
+            "info" => tq_core::Severity::Info,
+            _ => unreachable!("built-in rule docs define an unsupported severity"),
         }
     }
 
-    fn rule_id(self) -> Result<RuleId, RulesError> {
+    pub(crate) fn rule_id(self) -> Result<RuleId, RulesError> {
         parse_builtin_rule_id(self.as_str())
+    }
+
+    #[must_use]
+    const fn doc(self) -> &'static BuiltinRuleDoc {
+        match self {
+            Self::MappingMissingTest => mapping_missing_test_doc(),
+            Self::StructureMismatch => structure_mismatch_doc(),
+            Self::TestFileTooLarge => test_file_too_large_doc(),
+            Self::OrphanedTest => orphaned_test_doc(),
+        }
     }
 
     #[must_use]

@@ -659,6 +659,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tq-cli",
+ "tq-rules",
 ]
 
 [[package]]

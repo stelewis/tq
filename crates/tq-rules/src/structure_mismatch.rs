@@ -2,10 +2,10 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use tq_core::RelativePathBuf;
-use tq_engine::{AnalysisContext, Finding, Rule, RuleId, Severity};
+use tq_engine::{AnalysisContext, Finding, Rule, RuleId};
 
 use crate::builtin::{
-    is_non_unit_test_path, is_unit_test_filename, parse_builtin_rule_id, path_to_forward_slashes,
+    BuiltinRule, is_non_unit_test_path, is_unit_test_filename, path_to_forward_slashes,
     starts_with_path_prefix,
 };
 
@@ -16,7 +16,7 @@ pub struct StructureMismatchRule {
 impl StructureMismatchRule {
     pub fn new() -> Result<Self, crate::error::RulesError> {
         Ok(Self {
-            rule_id: parse_builtin_rule_id("structure-mismatch")?,
+            rule_id: BuiltinRule::StructureMismatch.rule_id()?,
         })
     }
 }
@@ -58,7 +58,7 @@ impl Rule for StructureMismatchRule {
                 let suggestion_path = test_root_display.join(package_path).join(file_name);
                 if let Ok(finding) = Finding::new(
                     self.rule_id.clone(),
-                    Severity::Warning,
+                    BuiltinRule::StructureMismatch.default_severity(),
                     "Unit test is not located under the package test root",
                     context.index().test_root().join(test_file),
                     None,
@@ -84,7 +84,7 @@ impl Rule for StructureMismatchRule {
 
             if let Ok(finding) = Finding::new(
                 self.rule_id.clone(),
-                Severity::Warning,
+                BuiltinRule::StructureMismatch.default_severity(),
                 "Test file is not in the expected location",
                 context.index().test_root().join(test_file),
                 None,

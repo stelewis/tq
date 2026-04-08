@@ -1,11 +1,11 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-use tq_engine::{AnalysisContext, Finding, Rule, RuleId, Severity};
+use tq_engine::{AnalysisContext, Finding, Rule, RuleId};
 
 use crate::QualifierStrategy;
 use crate::builtin::{
-    is_non_unit_test_path, is_unit_test_filename, parse_builtin_rule_id, path_to_forward_slashes,
+    BuiltinRule, is_non_unit_test_path, is_unit_test_filename, path_to_forward_slashes,
     starts_with_path_prefix,
 };
 use crate::candidate_module_names;
@@ -27,7 +27,7 @@ impl OrphanedTestRule {
         }
 
         Ok(Self {
-            rule_id: parse_builtin_rule_id("orphaned-test")?,
+            rule_id: BuiltinRule::OrphanedTest.rule_id()?,
             qualifier_strategy,
             allowed_qualifiers,
         })
@@ -110,7 +110,7 @@ impl Rule for OrphanedTestRule {
 
             if let Ok(finding) = Finding::new(
                 self.rule_id.clone(),
-                Severity::Warning,
+                BuiltinRule::OrphanedTest.default_severity(),
                 format!(
                     "Test file has no corresponding source module: {}",
                     path_to_forward_slashes(test_file)

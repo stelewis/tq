@@ -15,6 +15,7 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tq-cli.workspace = true
+tq-rules.workspace = true
 
 [dev-dependencies]
 assert_cmd = "2.2.0"

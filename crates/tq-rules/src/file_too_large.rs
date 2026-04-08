@@ -1,9 +1,9 @@
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 
-use tq_engine::{AnalysisContext, Finding, Rule, RuleId, Severity};
+use tq_engine::{AnalysisContext, Finding, Rule, RuleId};
 
-use crate::builtin::{parse_builtin_rule_id, path_to_forward_slashes};
+use crate::builtin::{BuiltinRule, path_to_forward_slashes};
 use crate::error::RulesError;
 
 pub struct TestFileTooLargeRule {
@@ -18,7 +18,7 @@ impl TestFileTooLargeRule {
         }
 
         Ok(Self {
-            rule_id: parse_builtin_rule_id("test-file-too-large")?,
+            rule_id: BuiltinRule::TestFileTooLarge.rule_id()?,
             max_non_blank_lines,
         })
     }
@@ -42,7 +42,7 @@ impl Rule for TestFileTooLargeRule {
 
                     if let Ok(finding) = Finding::new(
                         self.rule_id.clone(),
-                        Severity::Warning,
+                        BuiltinRule::TestFileTooLarge.default_severity(),
                         format!(
                             "Test file is too large ({line_count} lines, limit: {})",
                             self.max_non_blank_lines
@@ -58,7 +58,7 @@ impl Rule for TestFileTooLargeRule {
                 Err(_) => {
                     if let Ok(finding) = Finding::new(
                         self.rule_id.clone(),
-                        Severity::Warning,
+                        BuiltinRule::TestFileTooLarge.default_severity(),
                         format!(
                             "Could not read test file for size check (path: {})",
                             path_to_forward_slashes(test_file)

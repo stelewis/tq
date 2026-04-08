@@ -2,10 +2,10 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use tq_core::InitModulesMode;
-use tq_engine::{AnalysisContext, Finding, Rule, RuleId, Severity};
+use tq_engine::{AnalysisContext, Finding, Rule, RuleId};
 
 use crate::QualifierStrategy;
-use crate::builtin::{parse_builtin_rule_id, path_to_forward_slashes};
+use crate::builtin::{BuiltinRule, path_to_forward_slashes};
 use crate::candidate_module_names;
 use crate::error::RulesError;
 
@@ -27,7 +27,7 @@ impl MappingMissingTestRule {
         }
 
         Ok(Self {
-            rule_id: parse_builtin_rule_id("mapping-missing-test")?,
+            rule_id: BuiltinRule::MappingMissingTest.rule_id()?,
             init_modules,
             qualifier_strategy,
             allowed_qualifiers,
@@ -103,7 +103,7 @@ impl Rule for MappingMissingTestRule {
             let expected_test_path = expected_test_path(source_file, package_path);
             if let Ok(finding) = Finding::new(
                 self.rule_id.clone(),
-                Severity::Error,
+                BuiltinRule::MappingMissingTest.default_severity(),
                 format!(
                     "No test file found for source module: {}",
                     path_to_forward_slashes(source_file)

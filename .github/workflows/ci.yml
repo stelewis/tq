@@ -186,12 +186,12 @@ jobs:
           fi
 
           docs_sync=false
-          if printf '%s\n' "$changed_files" | grep -Eq '^(Cargo\.toml|pyproject\.toml|README\.md|crates/tq-docsgen/|crates/tq-cli/|docs/reference/cli/options-manifest\.json|docs/reference/config/examples-manifest\.json|docs/reference/rules/manifest\.json|docs/reference/cli\.md|docs/reference/configuration\.md|docs/guide/quickstart\.md|docs/\.vitepress/generated/rules-sidebar\.ts|docs/reference/rules/[^/]+\.md|\.github/workflows/ci\.yml)$'; then
+          if printf '%s\n' "$changed_files" | grep -Eq '^(Cargo\.toml|pyproject\.toml|README\.md|crates/tq-docsgen/|crates/tq-cli/|crates/tq-rules/|docs/reference/cli/options-manifest\.json|docs/reference/config/examples-manifest\.json|docs/reference/cli\.md|docs/reference/configuration\.md|docs/guide/quickstart\.md|docs/\.vitepress/generated/rules-sidebar\.ts|docs/reference/rules/[^/]+\.md|\.github/workflows/ci\.yml)$'; then
             docs_sync=true
           fi
 
           docs_build=false
-          if printf '%s\n' "$changed_files" | grep -Eq '^(docs/|crates/tq-docsgen/|crates/tq-cli/|package\.json|package-lock\.json|mise\.toml|\.github/workflows/(ci|docs-pages)\.yml|\.github/actions/setup-mise-docs/action\.yml)$'; then
+          if printf '%s\n' "$changed_files" | grep -Eq '^(docs/|crates/tq-docsgen/|crates/tq-cli/|crates/tq-rules/|package\.json|package-lock\.json|mise\.toml|\.github/workflows/(ci|docs-pages)\.yml|\.github/actions/setup-mise-docs/action\.yml)$'; then
             docs_build=true
           fi
 
@@ -215,7 +215,7 @@ jobs:
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
 
-      - name: Regenerate manifest-backed docs
+      - name: Regenerate reference docs
         run: cargo run -p tq-docsgen --locked -- generate all
 
       - name: Ensure generated docs are committed
