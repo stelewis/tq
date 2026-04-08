@@ -20,17 +20,17 @@ Publishing is handled by the [publish workflow](https://github.com/stelewis/tq/b
 
 The workflow performs:
 
-- download of the validated wheel and sdist produced by the successful tag CI run
+- download of the validated wheels and sdist produced by the successful tag CI run
 - promotion of artifacts that were built in an unprivileged CI job and attested in a separate tag-only CI job
 - verification of the CI-generated artifact attestations
 - artifact content policy validation via `tq-release`
 - package metadata validation (`twine check dist/*`)
-- smoke checks against the validated wheel and sdist entrypoints
-- fixture smoke validation with the validated wheel
+- smoke checks against the validated Linux wheel and sdist entrypoints
+- fixture smoke validation with the validated Linux wheel
 - trusted publish with `uv publish` on tag-triggered runs
 - post-publish smoke validation via `uvx --from tqlint tq`
-- consumer provenance verification against the PyPI wheel
-- GitHub release upload for wheel, sdist, and checksums
+- consumer provenance verification against the PyPI Linux wheel
+- GitHub release upload for wheels, sdist, and checksums
 
 Dry-run validation happens in local release checks and in the tag-triggered CI build path before the publish workflow is allowed to promote artifacts.
 
@@ -55,6 +55,8 @@ Publishing runs in the `pypi` GitHub Actions environment. This environment must 
    - `uvx --from tqlint tq --help`
    - `uvx --from tqlint tq check --help`
    - `uv tool install tqlint && tq --help`
+
+`mise run release-build` validates the source distribution plus a host-platform wheel. The full publishable artifact set is built in CI as Linux x86_64, macOS x86_64, macOS arm64, Windows x86_64 wheels, and the source distribution.
 
 ## Rollback guidance
 

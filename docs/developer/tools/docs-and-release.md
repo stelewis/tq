@@ -54,9 +54,15 @@ The artifact verifier inspects built wheels and sdists for repository-only paths
 
 ## Release artifact shape
 
-The CI build job builds the source distribution through `uv build --sdist`, then builds the Linux wheel explicitly through `maturin build --release --locked --compatibility pypi --zig`. The explicit CI flags keep the release artifact path unambiguous because plain `uv build` currently drives maturin's PEP 517 wheel build with native compatibility defaults on Linux. On SemVer tags, a separate CI attestation job promotes those validated build artifacts into the final `validated-dist` artifact that the publish workflow consumes without rebuilding.
+`mise run release-build` builds the source distribution plus a wheel for the current host platform.
+
+The CI release wheel matrix builds the source distribution on Linux, then builds publishable wheels for Linux x86_64, macOS x86_64, macOS arm64, and Windows x86_64. The Linux wheel is built explicitly through `maturin build --release --locked --compatibility pypi --zig` so the platform tag is PyPI-compatible instead of a native `linux_*` tag. On SemVer tags, a separate CI attestation job promotes those validated build artifacts into the final `validated-dist` artifact that the publish workflow consumes without rebuilding.
 
 Current artifacts are:
 
-- wheel: `dist/tqlint-<version>-*.whl` (platform-specific)
+- wheels:
+  - `dist/tqlint-<version>-py3-none-manylinux_*.whl`
+  - `dist/tqlint-<version>-py3-none-macosx_*_x86_64.whl`
+  - `dist/tqlint-<version>-py3-none-macosx_*_arm64.whl`
+  - `dist/tqlint-<version>-py3-none-win_amd64.whl`
 - source distribution: `dist/tqlint-<version>.tar.gz`

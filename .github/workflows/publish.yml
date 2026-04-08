@@ -116,6 +116,8 @@ jobs:
 
       - name: Setup Python + uv + deps
         uses: ./.github/actions/setup-python-uv
+        with:
+          sync-project: "false"
 
       - name: Download validated distribution artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -131,24 +133,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          wheel_count="$(find dist -maxdepth 1 -type f -name '*.whl' | wc -l | tr -d ' ')"
-          if [ "$wheel_count" -ne 1 ]; then
-            echo "Expected exactly one wheel artifact in dist/, found $wheel_count"
-            exit 1
-          fi
-
-          sdist_count="$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l | tr -d ' ')"
-          if [ "$sdist_count" -ne 1 ]; then
-            echo "Expected exactly one source distribution artifact in dist/, found $sdist_count"
-            exit 1
-          fi
-
-          wheel_path="$(find dist -maxdepth 1 -type f -name '*.whl' | head -n 1)"
-          wheel_name="$(basename "$wheel_path")"
-          if [[ "$wheel_name" == *linux_* && "$wheel_name" != *manylinux* && "$wheel_name" != *musllinux* ]]; then
-            echo "Wheel '$wheel_name' uses a native linux platform tag that PyPI will reject"
-            exit 1
-          fi
+          bash .github/scripts/verify-release-artifact-set.sh dist
 
       - name: Verify CI artifact attestations
         env:
@@ -173,11 +158,14 @@ jobs:
       - name: Validate package metadata
         run: uv run --isolated --no-project --with twine -- twine check dist/*
 
-      - name: Smoke check wheel and sdist entrypoints
+      - name: Smoke check Linux wheel and sdist entrypoints
+        shell: bash
         run: |
-          wheel_path="$(find "$PWD/dist" -maxdepth 1 -type f -name '*.whl' | head -n 1)"
+          set -euo pipefail
+
+          wheel_path="$(find "$PWD/dist" -maxdepth 1 -type f \( -name '*manylinux*.whl' -o -name '*musllinux*.whl' \) | head -n 1)"
           if [ -z "$wheel_path" ]; then
-            echo "No wheel artifact found in dist/"
+            echo "No Linux wheel artifact found in dist/"
             exit 1
           fi
           sdist_path="$(find "$PWD/dist" -maxdepth 1 -type f -name '*.tar.gz' | head -n 1)"
@@ -190,11 +178,14 @@ jobs:
           uv run --isolated --no-project --with "$sdist_path" -- tq --help
           uv run --isolated --no-project --with "$sdist_path" -- tq check --help
 
-      - name: Smoke check fixture from built wheel
+      - name: Smoke check fixture from Linux wheel
+        shell: bash
         run: |
-          wheel_path="$(find "$PWD/dist" -maxdepth 1 -type f -name '*.whl' | head -n 1)"
+          set -euo pipefail
+
+          wheel_path="$(find "$PWD/dist" -maxdepth 1 -type f \( -name '*manylinux*.whl' -o -name '*musllinux*.whl' \) | head -n 1)"
           if [ -z "$wheel_path" ]; then
-            echo "No wheel artifact found in dist/"
+            echo "No Linux wheel artifact found in dist/"
             exit 1
           fi
           rm -rf tmp/release-smoke
@@ -253,7 +244,7 @@ jobs:
             uvx --from tqlint tq check
           )
 
-      - name: Consumer provenance check (PyPI wheel)
+      - name: Consumer provenance check (PyPI Linux wheel)
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -282,6 +273,12 @@ jobs:
           wheel_path="$(find tmp/pypi-verify -maxdepth 1 -type f -name "tqlint-${TAG_NAME}-*.whl" | head -n 1)"
           if [ -z "$wheel_path" ]; then
             echo "No wheel found for tqlint==$TAG_NAME"
+            exit 1
+          fi
+
+          wheel_name="$(basename "$wheel_path")"
+          if [[ "$wheel_name" != *manylinux* && "$wheel_name" != *musllinux* ]]; then
+            echo "Expected a Linux wheel from PyPI download, found '$wheel_name'"
             exit 1
           fi
 

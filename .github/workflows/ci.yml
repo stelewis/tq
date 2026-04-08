@@ -267,7 +267,7 @@ jobs:
         run: cargo test --workspace --locked
 
   build:
-    name: Build and packaging checks
+    name: Build and source packaging checks
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
@@ -284,6 +284,8 @@ jobs:
 
       - name: Setup Python + uv + deps
         uses: ./.github/actions/setup-python-uv
+        with:
+          sync-project: "false"
 
       - name: Build workspace
         run: cargo build --workspace --locked
@@ -299,16 +301,116 @@ jobs:
           rm -rf dist
           uv build --sdist
 
-      - name: Build publishable Linux wheel
-        run: >-
-          uv run --isolated --with 'maturin[zig]>=1.11,<2.0' --
-          maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml
-          --bindings bin --out dist -i python --compatibility pypi --zig
-
       - name: Verify artifact contents policy
         run: cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist
 
-      - name: Verify built release artifact set
+      - name: Verify built source distribution artifact set
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          wheel_count="$(find dist -maxdepth 1 -type f -name '*.whl' | wc -l | tr -d ' ')"
+          if [ "$wheel_count" -ne 0 ]; then
+            echo "Expected no wheel artifacts in dist/, found $wheel_count"
+            exit 1
+          fi
+
+          sdist_count="$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l | tr -d ' ')"
+          if [ "$sdist_count" -ne 1 ]; then
+            echo "Expected exactly one source distribution artifact in dist/, found $sdist_count"
+            exit 1
+          fi
+
+      - name: Smoke check built source distribution entrypoints
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sdist_path="$(find "$PWD/dist" -maxdepth 1 -type f -name '*.tar.gz' | head -n 1)"
+          if [ -z "$sdist_path" ]; then
+            echo "No source distribution artifact found in dist/"
+            exit 1
+          fi
+
+          uv run --isolated --no-project --with "$sdist_path" -- tq --help
+          uv run --isolated --no-project --with "$sdist_path" -- tq check --help
+
+      - name: Upload tag release candidates
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: tag-release-candidate-sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  release-wheels:
+    name: Release wheel build (${{ matrix.label }})
+    runs-on: ${{ matrix.runs_on }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Linux x86_64
+            runs_on: ubuntu-latest
+            artifact_name: wheel-manylinux-x86_64
+            expected_wheel_pattern: '*manylinux*.whl|*musllinux*.whl'
+            build_command: >-
+              uv run --isolated --with 'maturin[zig]>=1.11,<2.0' --
+              maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml
+              --bindings bin --out dist -i python --compatibility pypi --zig
+          - label: macOS x86_64
+            runs_on: macos-13
+            artifact_name: wheel-macos-x86_64
+            expected_wheel_pattern: '*macosx*x86_64.whl'
+            build_command: >-
+              uv run --isolated --with 'maturin>=1.11,<2.0' --
+              maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml
+              --bindings bin --out dist -i python
+          - label: macOS arm64
+            runs_on: macos-14
+            artifact_name: wheel-macos-arm64
+            expected_wheel_pattern: '*macosx*arm64.whl'
+            build_command: >-
+              uv run --isolated --with 'maturin>=1.11,<2.0' --
+              maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml
+              --bindings bin --out dist -i python
+          - label: Windows x86_64
+            runs_on: windows-latest
+            artifact_name: wheel-windows-x86_64
+            expected_wheel_pattern: '*win_amd64.whl'
+            build_command: >-
+              uv run --isolated --with 'maturin>=1.11,<2.0' --
+              maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml
+              --bindings bin --out dist -i python
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Setup Python + uv + deps
+        uses: ./.github/actions/setup-python-uv
+        with:
+          sync-project: "false"
+
+      - name: Build release wheel
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rm -rf dist
+          ${{ matrix.build_command }}
+
+      - name: Verify artifact contents policy
+        shell: bash
+        run: cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist
+
+      - name: Verify built wheel artifact set
         shell: bash
         run: |
           set -euo pipefail
@@ -320,19 +422,29 @@ jobs:
           fi
 
           sdist_count="$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l | tr -d ' ')"
-          if [ "$sdist_count" -ne 1 ]; then
-            echo "Expected exactly one source distribution artifact in dist/, found $sdist_count"
+          if [ "$sdist_count" -ne 0 ]; then
+            echo "Expected no source distribution artifacts in dist/, found $sdist_count"
             exit 1
           fi
 
           wheel_path="$(find dist -maxdepth 1 -type f -name '*.whl' | head -n 1)"
           wheel_name="$(basename "$wheel_path")"
+
+          case "$wheel_name" in
+            ${{ matrix.expected_wheel_pattern }})
+              ;;
+            *)
+              echo "Wheel '$wheel_name' does not match expected pattern ${{ matrix.expected_wheel_pattern }}"
+              exit 1
+              ;;
+          esac
+
           if [[ "$wheel_name" == *linux_* && "$wheel_name" != *manylinux* && "$wheel_name" != *musllinux* ]]; then
             echo "Wheel '$wheel_name' uses a native linux platform tag that PyPI will reject"
             exit 1
           fi
 
-      - name: Smoke check built package entrypoints
+      - name: Smoke check built wheel entrypoints
         shell: bash
         run: |
           set -euo pipefail
@@ -343,32 +455,22 @@ jobs:
             exit 1
           fi
 
-          sdist_path="$(find "$PWD/dist" -maxdepth 1 -type f -name '*.tar.gz' | head -n 1)"
-          if [ -z "$sdist_path" ]; then
-            echo "No source distribution artifact found in dist/"
-            exit 1
-          fi
-
           uv run --isolated --no-project --with "$wheel_path" -- tq --help
           uv run --isolated --no-project --with "$wheel_path" -- tq check --help
-          uv run --isolated --no-project --with "$sdist_path" -- tq --help
-          uv run --isolated --no-project --with "$sdist_path" -- tq check --help
 
-      - name: Upload tag release candidates
+      - name: Upload tag release candidate wheel
         if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: tag-release-candidate
-          path: |
-            dist/*.whl
-            dist/*.tar.gz
+          name: tag-release-candidate-${{ matrix.artifact_name }}
+          path: dist/*.whl
           if-no-files-found: error
           retention-days: 7
 
   tag-release-artifacts:
     name: Tag release artifact attestation
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
-    needs: build
+    needs: [build, release-wheels]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     permissions:
@@ -382,7 +484,8 @@ jobs:
       - name: Download tag release candidates
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: tag-release-candidate
+          pattern: tag-release-candidate-*
+          merge-multiple: true
           path: dist
 
       - name: Verify downloaded release artifacts are present
@@ -390,17 +493,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          wheel_count="$(find dist -maxdepth 1 -type f -name '*.whl' | wc -l | tr -d ' ')"
-          if [ "$wheel_count" -ne 1 ]; then
-            echo "Expected exactly one wheel artifact in dist/, found $wheel_count"
-            exit 1
-          fi
-
-          sdist_count="$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l | tr -d ' ')"
-          if [ "$sdist_count" -ne 1 ]; then
-            echo "Expected exactly one source distribution artifact in dist/, found $sdist_count"
-            exit 1
-          fi
+          bash .github/scripts/verify-release-artifact-set.sh dist
 
       - name: Generate artifact attestations for validated distributions
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
@@ -438,6 +531,7 @@ jobs:
         uses: ./.github/actions/setup-python-uv
         with:
           python-version: ${{ matrix.python-version }}
+          sync-project: "false"
 
       - name: Build Python source distribution
         run: |

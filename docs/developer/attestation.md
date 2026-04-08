@@ -12,7 +12,7 @@ This guide covers:
 
 ## Maintainer verification in CI
 
-The publish workflow verifies each CI-built wheel and sdist attestation using:
+The publish workflow verifies each CI-built wheel and the source distribution attestation using:
 
 - repository identity (`--repo stelewis/tq` via `${GITHUB_REPOSITORY}`),
 - signer workflow identity (`--signer-workflow stelewis/tq/.github/workflows/ci.yml`),
@@ -29,7 +29,7 @@ gh attestation verify dist/tqlint-<version>-*.whl \
 
 ## Consumer verification before install
 
-1. Download the exact wheel you plan to install.
+1. Download the exact wheel you plan to install for your platform.
 2. Verify provenance before installing.
 
 Example:
@@ -44,7 +44,7 @@ gh attestation verify tqlint-<version>-*.whl \
 
 The verified wheel installs the `tq` command. For ephemeral execution through `uvx`, use `uvx --from tqlint tq --help`.
 
-Release automation runs an equivalent consumer check after publish by downloading from PyPI and verifying the CI-generated wheel attestation before marking the workflow green.
+Release automation runs an equivalent consumer check after publish by downloading the Linux wheel from PyPI on the publish runner and verifying the CI-generated attestation before marking the workflow green.
 
 ## Offline verification
 

@@ -19,6 +19,8 @@ Use `cargo check` as the fast compile, type, trait, and borrow-check loop before
 - `cargo package --workspace --locked`
 - `mise run release-build`
 
+`mise run release-build` validates the source distribution plus a wheel for the current host platform. The full publishable artifact matrix is validated in CI.
+
 ## Combined local check
 
 - `cargo fmt --all --check && cargo clippy --workspace --all-targets --locked -- -D warnings && cargo test --workspace --locked`
