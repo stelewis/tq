@@ -70,7 +70,7 @@ runs:
 
     - name: Restore cached maintenance tool binaries
       if: ${{ inputs.install-cargo-outdated == 'true' || inputs.install-cargo-audit == 'true' || inputs.install-cargo-deny == 'true' }}
-      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: ~/.cargo-maintenance-tools
         key: rust-maintenance-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.cache-suffix }}-outdated-${{ inputs.install-cargo-outdated }}-${{ inputs.cargo-outdated-version }}-audit-${{ inputs.install-cargo-audit }}-${{ inputs.cargo-audit-rev }}-deny-${{ inputs.install-cargo-deny }}-${{ inputs.cargo-deny-version }}-${{ hashFiles('.github/actions/setup-rust-maintenance-tools/action.yml') }}
