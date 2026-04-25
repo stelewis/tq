@@ -103,6 +103,46 @@ jobs:
       - name: Cargo clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
+  release-intent:
+    name: Release intent
+    if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Verify declared release intent
+        shell: bash
+        env:
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, '<<<TQ_LABEL_SEPARATOR>>>') }}
+        run: |
+          set -euo pipefail
+
+          command=(
+            cargo run -p tq-release --locked -- verify-pr-release-intent
+            --repo-root .
+            --base-ref '${{ github.event.pull_request.base.sha }}'
+            --head-ref '${{ github.event.pull_request.head.sha }}'
+          )
+
+          if [[ -n "$PR_LABELS" ]]; then
+            label_lines=${PR_LABELS//<<<TQ_LABEL_SEPARATOR>>>/$'\n'}
+            mapfile -t pr_labels <<< "$label_lines"
+
+            for label in "${pr_labels[@]}"; do
+              command+=(--label "$label")
+            done
+          fi
+
+          "${command[@]}"
+
   change-scope:
     name: Change scope
     runs-on: ubuntu-latest

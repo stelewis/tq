@@ -36,6 +36,17 @@ Dry-run validation happens in local release checks and in the tag-triggered CI b
 
 Publishing runs in the `pypi` GitHub Actions environment. This environment must be configured with required reviewers for manual approval before publish runs.
 
+For PR-time release classification, use the checklist in [versioning.md](./versioning.md). Maintainers should ensure each non-draft PR has exactly one `release:none`, `release:patch`, or `release:minor` label before merge. Bot-authored PRs follow the same rule; reviewers apply the label during review.
+
+If the release-intent CI job fails, read the reported signal literally:
+
+- missing or multiple `release:*` labels means fix the PR labels first
+- `shipped runtime source changes` or `contract policy or reference doc changes` means re-check the checklist in [versioning.md](./versioning.md) and choose `release:patch` or `release:minor` if the shipped contract or behavior changed
+- `shipped runtime dependency change` means a runtime manifest or lockfile change affected the published CLI path and `release:none` is not valid
+- missing version or changelog metadata on `release:patch` or `release:minor` means prepare both in the same PR before merge
+
+Resolve mismatches by either correcting the label or removing the release-relevant change from the PR.
+
 ## Maintainer checklist
 
 1. Ensure `CHANGELOG.md` and version are ready.
