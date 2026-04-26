@@ -68,12 +68,27 @@ runs:
 
         echo "cache-suffix=active-${release}" >> "$GITHUB_OUTPUT"
 
+    - name: Compose maintenance tool cache keys
+      if: ${{ inputs.install-cargo-outdated == 'true' || inputs.install-cargo-audit == 'true' || inputs.install-cargo-deny == 'true' }}
+      id: cache-key
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        cache_key_prefix="rust-maintenance-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.cache-suffix }}-outdated-${{ inputs.install-cargo-outdated }}-${{ inputs.cargo-outdated-version }}-audit-${{ inputs.install-cargo-audit }}-${{ inputs.cargo-audit-rev }}-deny-${{ inputs.install-cargo-deny }}-${{ inputs.cargo-deny-version }}"
+
+        echo "exact=${cache_key_prefix}-${{ hashFiles('.github/actions/setup-rust-maintenance-tools/action.yml') }}" >> "$GITHUB_OUTPUT"
+        echo "prefix=${cache_key_prefix}-" >> "$GITHUB_OUTPUT"
+
     - name: Restore cached maintenance tool binaries
       if: ${{ inputs.install-cargo-outdated == 'true' || inputs.install-cargo-audit == 'true' || inputs.install-cargo-deny == 'true' }}
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      id: maintenance-cache
+      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: ~/.cargo-maintenance-tools
-        key: rust-maintenance-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.cache-suffix }}-outdated-${{ inputs.install-cargo-outdated }}-${{ inputs.cargo-outdated-version }}-audit-${{ inputs.install-cargo-audit }}-${{ inputs.cargo-audit-rev }}-deny-${{ inputs.install-cargo-deny }}-${{ inputs.cargo-deny-version }}-${{ hashFiles('.github/actions/setup-rust-maintenance-tools/action.yml') }}
+        key: ${{ steps.cache-key.outputs.exact }}
+        restore-keys: |
+          ${{ steps.cache-key.outputs.prefix }}
 
     - name: Add maintenance tools to PATH
       if: ${{ inputs.install-cargo-outdated == 'true' || inputs.install-cargo-audit == 'true' || inputs.install-cargo-deny == 'true' }}
@@ -131,3 +146,10 @@ runs:
         fi
 
         cargo +stable install --root "$tool_root" --locked "cargo-deny@${{ inputs.cargo-deny-version }}"
+
+    - name: Save maintenance tool cache
+      if: ${{ (inputs.install-cargo-outdated == 'true' || inputs.install-cargo-audit == 'true' || inputs.install-cargo-deny == 'true') && steps.maintenance-cache.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ~/.cargo-maintenance-tools
+        key: ${{ steps.cache-key.outputs.exact }}
