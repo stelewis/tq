@@ -8,8 +8,6 @@ pub const RELEASE_INTENT_LABELS: [&str; 3] = ["release:none", "release:patch", "
 
 const CONTRACT_DOC_PREFIXES: [&str; 1] = ["docs/reference/"];
 
-const CONTRACT_DOC_FILES: [&str; 1] = ["docs/developer/versioning.md"];
-
 const SHIPPED_RUNTIME_SOURCE_PREFIXES: [&str; 7] = [
     "crates/tq-cli/src/",
     "crates/tq-config/src/",
@@ -174,7 +172,7 @@ fn suspicious_release_none_changes(
     let mut signals = BTreeMap::new();
 
     for changed_file in changed_files {
-        let changed_file = changed_file.to_string_lossy();
+        let changed_file = changed_file.to_string_lossy().replace('\\', "/");
         if SHIPPED_RUNTIME_SOURCE_PREFIXES
             .iter()
             .any(|prefix| changed_file.starts_with(prefix))
@@ -182,20 +180,17 @@ fn suspicious_release_none_changes(
             signals
                 .entry("shipped runtime source changes")
                 .or_insert_with(Vec::new)
-                .push(changed_file.to_string());
+                .push(changed_file.clone());
         }
 
         if CONTRACT_DOC_PREFIXES
             .iter()
             .any(|prefix| changed_file.starts_with(prefix))
-            || CONTRACT_DOC_FILES
-                .iter()
-                .any(|path| changed_file.as_ref() == *path)
         {
             signals
                 .entry("contract policy or reference doc changes")
                 .or_insert_with(Vec::new)
-                .push(changed_file.to_string());
+                .push(changed_file);
         }
     }
 

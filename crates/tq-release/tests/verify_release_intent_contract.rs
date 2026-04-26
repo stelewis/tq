@@ -39,6 +39,15 @@ fn verify_release_intent_allows_release_none_for_repo_only_changes() {
 }
 
 #[test]
+fn verify_release_intent_allows_release_none_for_versioning_doc_changes() {
+    let labels = labels(&["release:none"]);
+    let changed_files = paths(&["docs/developer/versioning.md"]);
+
+    tq_release::verify_release_intent(check_input(&labels, &changed_files, false, false, false))
+        .expect("versioning doc changes are repo-only and should allow release:none");
+}
+
+#[test]
 fn verify_release_intent_rejects_release_none_for_shipped_runtime_source_changes() {
     let labels = labels(&["release:none"]);
     let changed_files = paths(&["crates/tq-cli/src/cli.rs"]);

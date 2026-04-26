@@ -161,12 +161,9 @@ fn load_member_manifests(
     for member in members {
         let manifest_relative_path = member.join(ROOT_MANIFEST_PATH);
         let manifest_path = repo_root.join(&manifest_relative_path);
+        let manifest_relative_str = manifest_relative_path.to_string_lossy().replace('\\', "/");
         let manifest = parse_toml_table(
-            &git_file_contents(
-                repo_root,
-                git_ref,
-                &manifest_relative_path.to_string_lossy(),
-            )?,
+            &git_file_contents(repo_root, git_ref, &manifest_relative_str)?,
             &manifest_path,
         )?;
         let crate_name = manifest
