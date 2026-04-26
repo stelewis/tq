@@ -2,6 +2,11 @@
 
 Describe what this PR changes and why.
 
+## Release Intent
+
+Apply exactly one PR label before merge: `release:none`, `release:patch`, or `release:minor`.
+Labels are the canonical release-intent signal; this template is only a reminder.
+
 ## Key Changes
 
 - (e.g.)

@@ -1,5 +1,5 @@
 [tools]
-node = "25.7.0"
+node = "25.9.0"
 
 [tasks]
 docs-bootstrap = "if [ ! -x node_modules/.bin/vitepress ]; then npm ci; fi"
