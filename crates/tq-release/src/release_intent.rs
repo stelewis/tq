@@ -172,25 +172,23 @@ fn suspicious_release_none_changes(
     let mut signals = BTreeMap::new();
 
     for changed_file in changed_files {
-        let changed_file = changed_file.to_string_lossy().replace('\\', "/");
+        let path = changed_file.to_string_lossy().replace('\\', "/");
         if SHIPPED_RUNTIME_SOURCE_PREFIXES
             .iter()
-            .any(|prefix| changed_file.starts_with(prefix))
+            .any(|prefix| path.starts_with(prefix))
         {
             signals
                 .entry("shipped runtime source changes")
                 .or_insert_with(Vec::new)
-                .push(changed_file.clone());
-        }
-
-        if CONTRACT_DOC_PREFIXES
+                .push(path);
+        } else if CONTRACT_DOC_PREFIXES
             .iter()
-            .any(|prefix| changed_file.starts_with(prefix))
+            .any(|prefix| path.starts_with(prefix))
         {
             signals
                 .entry("contract policy or reference doc changes")
                 .or_insert_with(Vec::new)
-                .push(changed_file);
+                .push(path);
         }
     }
 
