@@ -21,7 +21,7 @@ repository = "https://github.com/stelewis/tq"
 readme = "README.md"
 
 [workspace.dependencies]
-clap = { version = "4.6.0", features = ["derive"] }
+clap = { version = "4.6.1", features = ["derive"] }
 flate2 = { version = "1.1.9", default-features = false, features = ["miniz_oxide"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
@@ -37,7 +37,7 @@ tq-engine = { version = "0.11.0", path = "crates/tq-engine" }
 tq-release = { version = "0.11.0", path = "crates/tq-release" }
 tq-reporting = { version = "0.11.0", path = "crates/tq-reporting" }
 tq-rules = { version = "0.11.0", path = "crates/tq-rules" }
-zip = { version = "8.5.1", default-features = false, features = ["deflate-flate2"] }
+zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
