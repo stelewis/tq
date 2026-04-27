@@ -18,7 +18,7 @@ tq-cli.workspace = true
 tq-rules.workspace = true
 
 [dev-dependencies]
-assert_cmd = "2.2.0"
+assert_cmd = "2.2.1"
 tempfile = "3.27.0"
 
 [lints]
