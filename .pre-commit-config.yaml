@@ -12,7 +12,7 @@ repos:
       - id: check-added-large-files
 
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 659a7789596d520c849e9c96525119e9fbaa731f  # frozen: 0.11.8  # pragma: allowlist secret
+    rev: f19149a31a5aad375f89df042b796688201d6840  # frozen: 0.11.16  # pragma: allowlist secret
     hooks:
       - id: uv-lock
 
@@ -28,7 +28,7 @@ repos:
         args: ["--baseline", ".detect-secrets.baseline"]
 
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: b4f42099479e89287849346bfa9021e1c2d99e04  # frozen: v4.15.0  # pragma: allowlist secret
+    rev: 953e1ba4599cc3143122ed5c3e8de3d6dfd5524d  # frozen: v4.16.2  # pragma: allowlist secret
     hooks:
       - id: commitizen
         stages: [commit-msg]
