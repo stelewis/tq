@@ -32,10 +32,7 @@ runs:
 
         rustup set profile minimal
         rustup toolchain install "$toolchain" --profile minimal --component rustfmt --component clippy
-        (
-          cd "$repo_root"
-          rustup override set "$toolchain"
-        )
+        rustup default "$toolchain"
 
         cargo --version
         rustc --version
