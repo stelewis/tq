@@ -142,5 +142,13 @@ export default defineConfig({
       "/developer/": developerSidebar
     },
     socialLinks: [{ icon: "github", link: "https://github.com/stelewis/tq" }]
+  },
+  vite: {
+    build: {
+      // esbuild >=0.28 cannot transform destructuring for old browser targets;
+      // es2022 supports native destructuring and is supported by all browsers
+      // that vitepress targets in practice.
+      target: "es2022"
+    }
   }
 });
