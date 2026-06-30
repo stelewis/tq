@@ -18,6 +18,7 @@ Sweep a docs folder and remove or refactor stale documents.
 - Audit each doc against the current codebase.
 - Keep one enduring reference doc per topic.
 - Prefer consolidating durable content over duplicating it.
+- Do not hard-wrap Markdown you write or edit.
 
 ## Procedure
 

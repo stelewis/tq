@@ -18,6 +18,7 @@ Audit a documentation file and decide whether to keep it, refactor its durable c
 - Separate durable guidance from plans, TODOs, and implementation trivia.
 - Prefer one enduring reference doc per topic.
 - Do not preserve legacy wording or compatibility baggage just because it already exists.
+- Do not hard-wrap Markdown you write or edit.
 
 ## Actions
 

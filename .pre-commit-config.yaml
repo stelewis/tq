@@ -1,4 +1,4 @@
-default_install_hook_types: [pre-commit, commit-msg, pre-push]
+default_install_hook_types: [pre-commit, commit-msg]
 default_stages: [pre-commit]
 
 repos:
@@ -12,7 +12,7 @@ repos:
       - id: check-added-large-files
 
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: fc310cf5c89c3772bdfae0073eeb2f200b6118bb  # frozen: 0.11.25  # pragma: allowlist secret
+    rev: 84ed656d5ada0b07830b74fb0fe18b3bc1029441  # frozen: 0.11.26  # pragma: allowlist secret
     hooks:
       - id: uv-lock
 
@@ -32,8 +32,6 @@ repos:
     hooks:
       - id: commitizen
         stages: [commit-msg]
-      - id: commitizen-branch
-        stages: [pre-push]
 
   - repo: local
     hooks:

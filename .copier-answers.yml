@@ -1,11 +1,14 @@
 # Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
-_commit: 1.12.1
-_src_path: gh:stelewis/copier-uv-template
+_commit: 1.17.2
+_src_path: gh:stelewis/template-python
 author_email: 31178492+stelewis@users.noreply.github.com
 author_name: Stephen Lewis
 description: A Python test quality toolkit written in Rust
+distribution_name: tqlint
+enable_codeql: true
 github_codeowner: '@stelewis'
 github_repository: stelewis/tq
+include_rulesets: false
 package_name: tq
-project_name: Test Quality Toolkit
-project_slug: tq
+product_name: Test Quality Toolkit
+repository_name: tq

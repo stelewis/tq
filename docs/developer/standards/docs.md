@@ -11,6 +11,7 @@ Keep docs:
 - **Concise**: get to the point quickly without unnecessary exposition.
 - **Purposeful**: avoid “docs for docs’ sake,” especially where code is the source of truth.
 - **Correct**: avoid drift and outdated information; revisit and update regularly.
+- **Unwrapped in source**: do not hard-wrap Markdown; let editors and renderers handle visual wrapping.
 
 Aim for clean, maintainable docs with the same design quality as the code.
 

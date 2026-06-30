@@ -5,4 +5,4 @@ applyTo: '**/*.md'
 # Markdown Instructions
 
 - Use `#` style headings for all heading levels.
-- Do not hard-wrap lines; let the renderer handle it.
+- Do not hard-wrap Markdown source; let editors and renderers handle visual wrapping.

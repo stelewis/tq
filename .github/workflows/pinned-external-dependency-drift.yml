@@ -7,17 +7,22 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  pinned-external-drift:
+  audit-pins:
     name: Review pinned action and pre-commit refs
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      title: ${{ steps.drift.outputs.title }}
+      drift_detected: ${{ steps.drift.outputs.drift_detected }}
+      issue_body: ${{ steps.drift.outputs.issue_body }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -290,43 +295,49 @@ jobs:
 
           puts "title=chore: review frozen external pins"
           puts "drift_detected=#{drift_detected}"
-          puts "report_file=#{report_file}"
-          puts "issue_body_file=#{issue_body_file}"
           RUBY
 
           cat "$report_file" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Open or refresh pin drift issue
-        if: ${{ steps.drift.outputs.drift_detected == 'true' && github.event_name == 'schedule' }}
+          {
+            echo 'issue_body<<__ISSUE_BODY__'
+            cat "$issue_body_file"
+            echo '__ISSUE_BODY__'
+          } >> "$GITHUB_OUTPUT"
+
+  sync-drift-issue:
+    name: Sync pin drift issue
+    if: ${{ github.event_name == 'schedule' }}
+    needs: audit-pins
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Sync pin drift issue
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-          ISSUE_TITLE: ${{ steps.drift.outputs.title }}
-          ISSUE_BODY_FILE: ${{ steps.drift.outputs.issue_body_file }}
+          ISSUE_TITLE: ${{ needs.audit-pins.outputs.title }}
+          ISSUE_BODY: ${{ needs.audit-pins.outputs.issue_body }}
+          DRIFT_DETECTED: ${{ needs.audit-pins.outputs.drift_detected }}
         run: |
           set -euo pipefail
 
           existing_issue_number="$(gh issue list --repo "$GH_REPO" --state open --limit 100 --search "$ISSUE_TITLE in:title" --json number,title | ruby -rjson -e 'issues = JSON.parse(STDIN.read); match = issues.find { |issue| issue.fetch("title") == ENV.fetch("ISSUE_TITLE") }; print(match ? match.fetch("number") : "")')"
 
-          if [[ -n "$existing_issue_number" ]]; then
-            gh issue edit "$existing_issue_number" --repo "$GH_REPO" --body-file "$ISSUE_BODY_FILE"
+          if [[ "$DRIFT_DETECTED" == 'true' ]]; then
+            issue_body_file="$(mktemp)"
+            printf '%s' "$ISSUE_BODY" > "$issue_body_file"
+
+            if [[ -n "$existing_issue_number" ]]; then
+              gh issue edit "$existing_issue_number" --repo "$GH_REPO" --body-file "$issue_body_file"
+              exit 0
+            fi
+
+            gh issue create --repo "$GH_REPO" --title "$ISSUE_TITLE" --body-file "$issue_body_file"
             exit 0
           fi
-
-          gh issue create --repo "$GH_REPO" --title "$ISSUE_TITLE" --body-file "$ISSUE_BODY_FILE"
-
-      - name: Close resolved pin drift issue
-        if: ${{ steps.drift.outputs.drift_detected != 'true' && github.event_name == 'schedule' }}
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          ISSUE_TITLE: ${{ steps.drift.outputs.title }}
-        run: |
-          set -euo pipefail
-
-          existing_issue_number="$(gh issue list --repo "$GH_REPO" --state open --limit 100 --search "$ISSUE_TITLE in:title" --json number,title | ruby -rjson -e 'issues = JSON.parse(STDIN.read); match = issues.find { |issue| issue.fetch("title") == ENV.fetch("ISSUE_TITLE") }; print(match ? match.fetch("number") : "")')"
 
           if [[ -z "$existing_issue_number" ]]; then
             exit 0
@@ -335,8 +346,14 @@ jobs:
           gh issue comment "$existing_issue_number" --repo "$GH_REPO" --body "Frozen action and pre-commit pins are current again. Closing this tracking issue."
           gh issue close "$existing_issue_number" --repo "$GH_REPO"
 
+  fail-on-drift:
+    name: Fail on drift
+    if: ${{ needs.audit-pins.outputs.drift_detected == 'true' }}
+    needs: audit-pins
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
       - name: Fail on drift
-        if: ${{ steps.drift.outputs.drift_detected == 'true' }}
         shell: bash
         run: |
           echo "Frozen action or pre-commit pins are stale. Review the workflow summary for details."

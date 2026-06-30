@@ -35,7 +35,7 @@ Because `tq` is a developer tool used by multiple teams, we strive for consisten
    cargo test --workspace --locked
    ```
 
-6. If you plan to rebase onto main instead of squash merging, clean up your commit history before opening a PR. See the [Git workflow docs](docs/developer/standards/git.md) for the merge policy.
+6. If you plan to use the signed local fast-forward exception instead of the default squash merge, clean up and sign your commit history before opening a PR. See the [Git workflow docs](docs/developer/standards/git.md) for the merge policy.
 
 7. Open a pull request targeting `main` and request a review.
 

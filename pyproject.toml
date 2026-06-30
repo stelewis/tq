@@ -51,13 +51,16 @@ exclude = [
     "tmp/**",
 ]
 
+[tool.uv.build-backend]
+module-name = "tq"
+
 [dependency-groups]
 dev = [
-    "commitizen>=4.16.3",
+    "commitizen>=4.16.4",
     "detect-secrets>=1.5.0",
-    "prek>=0.3.1",
-    "ruff>=0.15.0",
-    "ty>=0.0.14",
+    "prek>=0.4.5",
+    "ruff>=0.15.20",
+    "ty>=0.0.55",
 ]
 
 [tool.ruff]
@@ -87,7 +90,6 @@ ignore = [
 ban-relative-imports = "all"
 
 [tool.ruff.lint.per-file-ignores]
-# Tests are intentionally not packages (INP001) to avoid import shadowing in src-layout projects.
 "tests/**/*.py" = [
     "INP001",  # Tests are intentionally not Python packages to avoid import shadowing
     "S101",  # Assert statements are fine in tests

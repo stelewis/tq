@@ -6,6 +6,7 @@ Use this workflow to keep `main` stable and changes easy to review.
 
 - **Stable trunk**: `main` is always green and shippable.
 - **Linear history**: readable blame/log; avoid merge-commit noise.
+- **Verified provenance**: commits on `main` must preserve GitHub verified signature status.
 - **Fast integration**: resolve conflicts early and reduce long-lived divergence.
 - **Small refactor surface area**: integrate in small slices; keep changes easy to review.
 
@@ -39,10 +40,12 @@ Use a short, descriptive name with a clear prefix:
 
 ## Merge Strategy
 
-Prefer one of these approaches:
+Use one of these approaches:
 
-- **Squash merge onto `main`**: produces one meaningful commit per PR.
-- **Rebase + fast-forward onto `main`**: preserves individual commits, but requires strict commit hygiene.
+- **Squash merge onto `main` from the GitHub web UI**: default approach. It produces one meaningful, verified commit per PR and keeps `main` linear without rewriting the branch commits into unsigned commits.
+- **Signed local rebase and fast-forward onto `main`**: exception for PRs where preserving individual commits on `main` is more valuable than the simpler squash history. The maintainer rebases locally, signs the rewritten commits with GPG or SSH signing, verifies every commit, and pushes with fast-forward semantics.
+
+Do not use GitHub's web-based **Rebase and merge** for `main`. GitHub creates new commits during that operation; those rewritten commits do not preserve the original cryptographic signatures and can leave unverified commits in protected history.
 
 Do not merge PRs with merge commits into `main`.
 
@@ -51,7 +54,8 @@ Do not merge PRs with merge commits into `main`.
 - Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for commit messages.
 - Commit messages are validated with [Commitizen](https://commitizen-tools.github.io/commitizen/) in both local `commit-msg` hooks and CI commit-range checks.
 - Before merge, rewrite local history via interactive rebase as needed (fixup/squash) so commits are intentional.
-- Commits on `main` must be meaningful; e.g., avoid “wip”, “oops”, or “try again”.
+- Commits on `main` must be meaningful and verified; e.g., avoid “wip”, “oops”, or “try again”.
+- Local rebase or fast-forward integration must use commit signing. Verify the final commit range before pushing.
 
 ## Feature Flags
 
@@ -65,6 +69,9 @@ Do not merge PRs with merge commits into `main`.
   - requires status checks
   - requires at least one review
   - requires linear history
+  - requires signed commits
   - disallows force-pushes
-- Enable either squash-merge only, or rebase-merge only.
+- Enable squash merge.
+- Disable merge commits.
+- Disable GitHub web rebase merge unless maintainers explicitly operate a signed local fast-forward workflow and repository administrators accept the risk that the web UI cannot enforce it.
 - Tag releases with annotated tags on `main`.
