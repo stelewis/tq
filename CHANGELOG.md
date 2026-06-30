@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.11.4] - 2026-07-01
+
+### Changed
+
+- Refreshed shipped runtime dependencies through a `Cargo.lock` update (including `memchr` to 2.8.2) and dropped unused build-time transitive crates.
+- Updated repository tooling to current versions: GitHub Actions, pre-commit hooks, Python dev dependencies, and the docs Node toolchain.
+- Bumped the pinned Rust toolchain to 1.96.1.
+
+### Security
+
+- Hardened supply-chain posture by clearing all `cargo audit` and `npm audit` advisories: removed `anyhow` (RUSTSEC-2026-0190) from the dependency graph and bumped the documentation toolchain to patched `vite` 6.4.3 and `esbuild` 0.28.1.
+
 ## [0.11.3] - 2026-06-07
 
 ### Fixed
