@@ -1,32 +1,14 @@
 mod dependabot;
 mod error;
-mod release_intent;
-mod release_intent_repo;
+mod runtime_deps;
 mod verify;
 mod workspace_version;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 pub use error::ReleaseError;
-pub use release_intent::{RELEASE_INTENT_LABELS, ReleaseIntent};
+pub use runtime_deps::RuntimeDependencyChange;
 pub use verify::{ArtifactViolation, DEFAULT_FORBIDDEN_PREFIXES};
-
-#[derive(Clone, Copy, Debug)]
-pub struct PrReleaseIntentCheck<'a> {
-    pub repo_root: &'a Path,
-    pub base_ref: &'a str,
-    pub head_ref: &'a str,
-    pub labels: &'a [String],
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct ReleaseIntentCheck<'a> {
-    pub labels: &'a [String],
-    pub changed_files: &'a [PathBuf],
-    pub version_updated: bool,
-    pub changelog_updated: bool,
-    pub runtime_dependency_changed: bool,
-}
 
 pub fn verify_artifact_contents(
     dist_dir: &Path,
@@ -48,10 +30,10 @@ pub fn verify_release_policy(repo_root: &Path) -> Result<(), ReleaseError> {
     verify_dependabot(repo_root)
 }
 
-pub fn verify_release_intent(input: ReleaseIntentCheck<'_>) -> Result<(), ReleaseError> {
-    release_intent::verify_release_intent(input)
-}
-
-pub fn verify_pr_release_intent(input: PrReleaseIntentCheck<'_>) -> Result<(), ReleaseError> {
-    release_intent_repo::verify_pr_release_intent(input)
+pub fn check_runtime_dep_changes(
+    repo_root: &Path,
+    base_ref: &str,
+    head_ref: &str,
+) -> Result<RuntimeDependencyChange, ReleaseError> {
+    runtime_deps::check_runtime_dep_changes(repo_root, base_ref, head_ref)
 }

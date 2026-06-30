@@ -10,7 +10,7 @@ The main CI workflow enforces:
 - hygiene hooks via `pre-commit`
 - formatting via `cargo fmt --all --check`
 - lint via `cargo clippy --workspace --all-targets --locked -- -D warnings`
-- release-intent validation on non-draft pull requests via `cargo run -p tq-release --locked -- verify-pr-release-intent ...`, using PR labels plus repository refs so `tq-release` computes merge-base, changed-file signals, version/changelog deltas, and shipped runtime dependency changes in one tested path
+- advisory runtime dependency check via `cargo run -p tq-release --locked -- check-runtime-deps ...` only on pull requests when `Cargo.lock` or `Cargo.toml` change; reports whether the shipped CLI dependency graph changed without blocking the PR
 - docs sync via `cargo run -p tq-docsgen --locked -- generate all` only when docs contract inputs, generated reference outputs, `crates/tq-docsgen/**`, `crates/tq-cli/**`, or `crates/tq-rules/**` change
 - docs site build via `mise run docs-build` only when docs content, docs toolchain files, or docs generator inputs change
 - tests via `cargo test --workspace --locked`

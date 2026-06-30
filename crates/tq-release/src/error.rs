@@ -27,8 +27,8 @@ pub enum ReleaseError {
     },
     #[error("invalid Dependabot config {path}: {message}")]
     DependabotConfig { path: PathBuf, message: String },
-    #[error("invalid release intent input {path}: {message}")]
-    ReleaseIntentInput { path: PathBuf, message: String },
+    #[error("invalid input {path}: {message}")]
+    InvalidInput { path: PathBuf, message: String },
     #[error("invalid workspace version input {path}: {message}")]
     WorkspaceVersionInput { path: PathBuf, message: String },
     #[error("failed to read zip archive {path}: {source}")]

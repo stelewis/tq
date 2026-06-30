@@ -103,46 +103,6 @@ jobs:
       - name: Cargo clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
-  release-intent:
-    name: Release intent
-    if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.draft }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    steps:
-      - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Setup Rust toolchain
-        uses: ./.github/actions/setup-rust
-
-      - name: Verify declared release intent
-        shell: bash
-        env:
-          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, '<<<TQ_LABEL_SEPARATOR>>>') }}
-        run: |
-          set -euo pipefail
-
-          command=(
-            cargo run -p tq-release --locked -- verify-pr-release-intent
-            --repo-root .
-            --base-ref '${{ github.event.pull_request.base.sha }}'
-            --head-ref '${{ github.event.pull_request.head.sha }}'
-          )
-
-          if [[ -n "$PR_LABELS" ]]; then
-            label_lines=${PR_LABELS//<<<TQ_LABEL_SEPARATOR>>>/$'\n'}
-            mapfile -t pr_labels <<< "$label_lines"
-
-            for label in "${pr_labels[@]}"; do
-              command+=(--label "$label")
-            done
-          fi
-
-          "${command[@]}"
-
   change-scope:
     name: Change scope
     runs-on: ubuntu-latest
@@ -152,6 +112,7 @@ jobs:
       docs_security_scan: ${{ steps.scope.outputs.docs_security_scan }}
       docs_sync: ${{ steps.scope.outputs.docs_sync }}
       docs_build: ${{ steps.scope.outputs.docs_build }}
+      cargo_deps_changed: ${{ steps.scope.outputs.cargo_deps_changed }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -173,6 +134,7 @@ jobs:
             echo "docs_security_scan=true" >> "$GITHUB_OUTPUT"
             echo "docs_sync=true" >> "$GITHUB_OUTPUT"
             echo "docs_build=true" >> "$GITHUB_OUTPUT"
+            echo "cargo_deps_changed=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -187,6 +149,7 @@ jobs:
               echo "docs_security_scan=true" >> "$GITHUB_OUTPUT"
               echo "docs_sync=true" >> "$GITHUB_OUTPUT"
               echo "docs_build=true" >> "$GITHUB_OUTPUT"
+              echo "cargo_deps_changed=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
 
@@ -200,6 +163,7 @@ jobs:
               echo "docs_security_scan=true" >> "$GITHUB_OUTPUT"
               echo "docs_sync=true" >> "$GITHUB_OUTPUT"
               echo "docs_build=true" >> "$GITHUB_OUTPUT"
+              echo "cargo_deps_changed=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
           else
@@ -207,6 +171,7 @@ jobs:
             echo "docs_security_scan=true" >> "$GITHUB_OUTPUT"
             echo "docs_sync=true" >> "$GITHUB_OUTPUT"
             echo "docs_build=true" >> "$GITHUB_OUTPUT"
+            echo "cargo_deps_changed=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -237,10 +202,16 @@ jobs:
             docs_build=true
           fi
 
+          cargo_deps_changed=false
+          if printf '%s\n' "$changed_files" | grep -Eq '^(Cargo\.lock|Cargo\.toml|crates/[^/]+/Cargo\.toml)$'; then
+            cargo_deps_changed=true
+          fi
+
           echo "rust_security_scan=$rust_security_scan" >> "$GITHUB_OUTPUT"
           echo "docs_security_scan=$docs_security_scan" >> "$GITHUB_OUTPUT"
           echo "docs_sync=$docs_sync" >> "$GITHUB_OUTPUT"
           echo "docs_build=$docs_build" >> "$GITHUB_OUTPUT"
+          echo "cargo_deps_changed=$cargo_deps_changed" >> "$GITHUB_OUTPUT"
 
   docs-sync:
     name: Docs sync contracts
@@ -291,6 +262,33 @@ jobs:
 
       - name: Build docs
         run: mise run docs-build
+
+  runtime-dep-check:
+    name: Runtime dependency check (advisory)
+    needs: change-scope
+    if: ${{ github.event_name == 'pull_request' && needs.change-scope.outputs.cargo_deps_changed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Check runtime dependency changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$(cargo run -p tq-release --locked -- check-runtime-deps \
+            --repo-root . \
+            --base-ref '${{ github.event.pull_request.base.sha }}' \
+            --head-ref '${{ github.event.pull_request.head.sha }}')"
+          echo "$output"
+          printf '## Runtime dependency check\n\n%s\n' "$output" >> "$GITHUB_STEP_SUMMARY"
 
   tests:
     name: Tests (cargo)

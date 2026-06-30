@@ -4,12 +4,8 @@ use std::process::Command;
 
 use toml::{Table, Value};
 
-use crate::PrReleaseIntentCheck;
 use crate::ReleaseError;
-use crate::ReleaseIntentCheck;
-use crate::release_intent::verify_release_intent;
 
-const CHANGELOG_PATH: &str = "CHANGELOG.md";
 const LOCKFILE_PATH: &str = "Cargo.lock";
 const ROOT_MANIFEST_PATH: &str = "Cargo.toml";
 const SHIPPED_RUNTIME_ROOT_CRATE: &str = "tq-cli";
@@ -49,49 +45,37 @@ struct ResolvedDependency {
     package_name: String,
 }
 
-pub fn verify_pr_release_intent(input: PrReleaseIntentCheck<'_>) -> Result<(), ReleaseError> {
-    let PrReleaseIntentCheck {
-        repo_root,
-        base_ref,
-        head_ref,
-        labels,
-    } = input;
-    let merge_base = git_stdout(repo_root, &["merge-base", base_ref, head_ref])?;
-    let merge_base = merge_base.trim();
-    if merge_base.is_empty() {
-        return Err(ReleaseError::RepositoryPolicyViolation {
-            details: format!("could not determine merge base for refs {base_ref} and {head_ref}"),
-        });
-    }
-
-    let changed_files = changed_files_between(repo_root, merge_base, head_ref)?;
-    let version_updated =
-        workspace_version_at(repo_root, merge_base)? != workspace_version_at(repo_root, head_ref)?;
-    let changelog_updated = top_changelog_heading_at(repo_root, merge_base)?
-        != top_changelog_heading_at(repo_root, head_ref)?;
-    let runtime_dependency_changed = runtime_dependency_snapshot_at(repo_root, merge_base)?
-        != runtime_dependency_snapshot_at(repo_root, head_ref)?;
-
-    verify_release_intent(ReleaseIntentCheck {
-        labels,
-        changed_files: &changed_files,
-        version_updated,
-        changelog_updated,
-        runtime_dependency_changed,
-    })
+/// Whether the shipped runtime dependency closure changed between two git refs.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum RuntimeDependencyChange {
+    Changed,
+    Unchanged,
 }
 
-fn changed_files_between(
+/// Compares the shipped runtime dependency snapshot at `base_ref` and `head_ref`
+/// using the merge base as the comparison anchor.
+pub fn check_runtime_dep_changes(
     repo_root: &Path,
     base_ref: &str,
     head_ref: &str,
-) -> Result<Vec<PathBuf>, ReleaseError> {
-    let stdout = git_stdout(repo_root, &["diff", "--name-only", base_ref, head_ref])?;
-    Ok(stdout
-        .lines()
-        .filter(|line| !line.is_empty())
-        .map(PathBuf::from)
-        .collect())
+) -> Result<RuntimeDependencyChange, ReleaseError> {
+    let merge_base = git_stdout(repo_root, &["merge-base", base_ref, head_ref])?;
+    let merge_base = merge_base.trim();
+
+    let anchor = if merge_base.is_empty() {
+        base_ref
+    } else {
+        merge_base
+    };
+
+    let base_snapshot = runtime_dependency_snapshot_at(repo_root, anchor)?;
+    let head_snapshot = runtime_dependency_snapshot_at(repo_root, head_ref)?;
+
+    Ok(if base_snapshot == head_snapshot {
+        RuntimeDependencyChange::Unchanged
+    } else {
+        RuntimeDependencyChange::Changed
+    })
 }
 
 fn runtime_dependency_snapshot_at(
@@ -103,11 +87,11 @@ fn runtime_dependency_snapshot_at(
         &git_file_contents(repo_root, git_ref, ROOT_MANIFEST_PATH)?,
         &root_manifest_path,
     )?;
-    let workspace_dependencies = workspace_dependencies(&root_manifest, &root_manifest_path)?;
+    let workspace_deps = workspace_dependencies(&root_manifest, &root_manifest_path)?;
     let members = workspace_members(&root_manifest, &root_manifest_path)?;
     let member_manifests = load_member_manifests(repo_root, git_ref, &members)?;
     let (manifest_fingerprint, direct_external_packages) =
-        runtime_manifest_fingerprint(workspace_dependencies, &member_manifests)?;
+        runtime_manifest_fingerprint(workspace_deps, &member_manifests)?;
 
     let lockfile_path = repo_root.join(LOCKFILE_PATH);
     let lock_packages = parse_lock_packages(
@@ -119,36 +103,6 @@ fn runtime_dependency_snapshot_at(
         lock_fingerprint: runtime_lock_fingerprint(&lock_packages, &direct_external_packages),
         manifest_fingerprint,
     })
-}
-
-fn workspace_version_at(repo_root: &Path, git_ref: &str) -> Result<String, ReleaseError> {
-    let manifest_path = repo_root.join(ROOT_MANIFEST_PATH);
-    let manifest = parse_toml_table(
-        &git_file_contents(repo_root, git_ref, ROOT_MANIFEST_PATH)?,
-        &manifest_path,
-    )?;
-
-    manifest
-        .get("workspace")
-        .and_then(Value::as_table)
-        .and_then(|workspace| workspace.get("package"))
-        .and_then(Value::as_table)
-        .and_then(|package| package.get("version"))
-        .and_then(Value::as_str)
-        .map(ToOwned::to_owned)
-        .ok_or_else(|| {
-            release_intent_input_error(&manifest_path, "missing workspace.package.version")
-        })
-}
-
-fn top_changelog_heading_at(
-    repo_root: &Path,
-    git_ref: &str,
-) -> Result<Option<String>, ReleaseError> {
-    Ok(git_file_contents(repo_root, git_ref, CHANGELOG_PATH)?
-        .lines()
-        .find(|line| line.starts_with("## ["))
-        .map(ToOwned::to_owned))
 }
 
 fn load_member_manifests(
@@ -171,7 +125,7 @@ fn load_member_manifests(
             .and_then(Value::as_table)
             .and_then(|package| package.get("name"))
             .and_then(Value::as_str)
-            .ok_or_else(|| release_intent_input_error(&manifest_path, "missing package.name"))?;
+            .ok_or_else(|| invalid_input(&manifest_path, "missing package.name"))?;
 
         manifests.insert(
             crate_name.to_owned(),
@@ -189,9 +143,8 @@ fn runtime_manifest_fingerprint(
     workspace_dependencies: &Table,
     member_manifests: &BTreeMap<String, MemberManifest>,
 ) -> Result<(Fingerprint, DirectExternalPackages), ReleaseError> {
-    let internal_crates = member_manifests.keys().cloned().collect::<BTreeSet<_>>();
     let mut direct_external_packages = BTreeSet::new();
-    let mut manifest_fingerprint = BTreeMap::new();
+    let mut manifest_fingerprint = Fingerprint::new();
     let mut queued = VecDeque::from([SHIPPED_RUNTIME_ROOT_CRATE.to_owned()]);
     let mut visited = BTreeSet::new();
 
@@ -201,7 +154,7 @@ fn runtime_manifest_fingerprint(
         }
 
         let member = member_manifests.get(&crate_name).ok_or_else(|| {
-            release_intent_input_error(
+            invalid_input(
                 Path::new(ROOT_MANIFEST_PATH),
                 &format!("missing shipped runtime crate manifest for {crate_name}"),
             )
@@ -225,10 +178,10 @@ fn runtime_manifest_fingerprint(
 
             manifest_fingerprint
                 .entry(crate_name.clone())
-                .or_insert_with(BTreeSet::new)
-                .insert(resolved.fingerprint.clone());
+                .or_default()
+                .insert(resolved.fingerprint);
 
-            if internal_crates.contains(&resolved.package_name) {
+            if member_manifests.contains_key(&resolved.package_name) {
                 queued.push_back(resolved.package_name);
             } else {
                 direct_external_packages.insert(resolved.package_name);
@@ -239,42 +192,64 @@ fn runtime_manifest_fingerprint(
     Ok((manifest_fingerprint, direct_external_packages))
 }
 
+/// Builds a comparable fingerprint for a single declared dependency edge.
+///
+/// A workspace-inherited dependency (`{ workspace = true }`) is fingerprinted
+/// from both the member declaration and the inherited workspace declaration, so
+/// member-level overrides such as `features`, `optional`, or `default-features`
+/// are not lost when comparing two refs.
 fn resolve_dependency(
     dependency_key: &str,
-    dependency_value: &Value,
+    member_value: &Value,
     workspace_dependencies: &Table,
     manifest_path: &Path,
 ) -> Result<ResolvedDependency, ReleaseError> {
-    if dependency_value
+    let inherits_workspace = member_value
         .as_table()
         .and_then(|table| table.get("workspace"))
         .and_then(Value::as_bool)
-        .unwrap_or(false)
-    {
-        let workspace_dependency = workspace_dependencies.get(dependency_key).ok_or_else(|| {
-            release_intent_input_error(
+        .unwrap_or(false);
+
+    let workspace_value = if inherits_workspace {
+        let entry = workspace_dependencies.get(dependency_key).ok_or_else(|| {
+            invalid_input(
                 manifest_path,
                 &format!("missing workspace dependency entry for {dependency_key}"),
             )
         })?;
+        Some(entry)
+    } else {
+        None
+    };
 
-        return resolve_dependency(
-            dependency_key,
-            workspace_dependency,
-            workspace_dependencies,
-            manifest_path,
-        );
-    }
-
-    let package_name = dependency_value
+    // A package rename is declared wherever the dependency details live: the
+    // workspace entry for inherited deps, otherwise the member entry.
+    let package_name = workspace_value
+        .unwrap_or(member_value)
         .as_table()
         .and_then(|table| table.get("package"))
         .and_then(Value::as_str)
         .unwrap_or(dependency_key)
         .to_owned();
 
+    let fingerprint = workspace_value.map_or_else(
+        || {
+            format!(
+                "{package_name}|member={}",
+                canonical_toml_value(member_value)
+            )
+        },
+        |workspace_value| {
+            format!(
+                "{package_name}|member={}|workspace={}",
+                canonical_toml_value(member_value),
+                canonical_toml_value(workspace_value),
+            )
+        },
+    );
+
     Ok(ResolvedDependency {
-        fingerprint: format!("{package_name}|{}", canonical_toml_value(dependency_value)),
+        fingerprint,
         package_name,
     })
 }
@@ -284,23 +259,22 @@ fn parse_lock_packages(contents: &str, path: &Path) -> Result<Vec<LockPackage>, 
     let packages = lockfile
         .get("package")
         .and_then(Value::as_array)
-        .ok_or_else(|| release_intent_input_error(path, "missing package array"))?;
+        .ok_or_else(|| invalid_input(path, "missing package array"))?;
 
     packages
         .iter()
         .map(|package| {
-            let package = package.as_table().ok_or_else(|| {
-                release_intent_input_error(path, "lockfile package entry must be a table")
-            })?;
-            let name = package.get("name").and_then(Value::as_str).ok_or_else(|| {
-                release_intent_input_error(path, "lockfile package is missing name")
-            })?;
+            let package = package
+                .as_table()
+                .ok_or_else(|| invalid_input(path, "lockfile package entry must be a table"))?;
+            let name = package
+                .get("name")
+                .and_then(Value::as_str)
+                .ok_or_else(|| invalid_input(path, "lockfile package is missing name"))?;
             let version = package
                 .get("version")
                 .and_then(Value::as_str)
-                .ok_or_else(|| {
-                    release_intent_input_error(path, "lockfile package is missing version")
-                })?;
+                .ok_or_else(|| invalid_input(path, "lockfile package is missing version"))?;
             let source = package
                 .get("source")
                 .and_then(Value::as_str)
@@ -311,16 +285,13 @@ fn parse_lock_packages(contents: &str, path: &Path) -> Result<Vec<LockPackage>, 
                     .iter()
                     .map(|dependency| {
                         let dependency = dependency.as_str().ok_or_else(|| {
-                            release_intent_input_error(
-                                path,
-                                "lockfile dependency entries must be strings",
-                            )
+                            invalid_input(path, "lockfile dependency entries must be strings")
                         })?;
                         parse_lock_dependency(dependency, path)
                     })
                     .collect::<Result<Vec<_>, _>>()?,
                 Some(_) => {
-                    return Err(release_intent_input_error(
+                    return Err(invalid_input(
                         path,
                         "lockfile dependencies must be an array",
                     ));
@@ -340,9 +311,9 @@ fn parse_lock_packages(contents: &str, path: &Path) -> Result<Vec<LockPackage>, 
 
 fn parse_lock_dependency(dependency: &str, path: &Path) -> Result<LockDependencyRef, ReleaseError> {
     let mut tokens = dependency.split_whitespace();
-    let name = tokens.next().ok_or_else(|| {
-        release_intent_input_error(path, "lockfile dependency entry must not be empty")
-    })?;
+    let name = tokens
+        .next()
+        .ok_or_else(|| invalid_input(path, "lockfile dependency entry must not be empty"))?;
     let version = tokens
         .next()
         .filter(|token| {
@@ -383,14 +354,14 @@ fn runtime_lock_fingerprint(
 
     while let Some(package) = queued.pop_front() {
         let package_id = package_fingerprint(package);
-        if !visited.insert(package_id) {
+        if !visited.insert(package_id.clone()) {
             continue;
         }
 
         fingerprint
             .entry(package.name.clone())
             .or_default()
-            .insert(package_fingerprint(package));
+            .insert(package_id);
 
         for dependency in &package.dependencies {
             if let Some(candidates) = packages_by_name.get(&dependency.name) {
@@ -423,7 +394,7 @@ fn workspace_dependencies<'a>(manifest: &'a Table, path: &Path) -> Result<&'a Ta
         .and_then(Value::as_table)
         .and_then(|workspace| workspace.get("dependencies"))
         .and_then(Value::as_table)
-        .ok_or_else(|| release_intent_input_error(path, "missing workspace.dependencies"))
+        .ok_or_else(|| invalid_input(path, "missing workspace.dependencies"))
 }
 
 fn workspace_members(manifest: &Table, path: &Path) -> Result<Vec<PathBuf>, ReleaseError> {
@@ -432,14 +403,15 @@ fn workspace_members(manifest: &Table, path: &Path) -> Result<Vec<PathBuf>, Rele
         .and_then(Value::as_table)
         .and_then(|workspace| workspace.get("members"))
         .and_then(Value::as_array)
-        .ok_or_else(|| release_intent_input_error(path, "missing workspace.members"))?;
+        .ok_or_else(|| invalid_input(path, "missing workspace.members"))?;
 
     members
         .iter()
         .map(|member| {
-            member.as_str().map(PathBuf::from).ok_or_else(|| {
-                release_intent_input_error(path, "workspace.members entries must be strings")
-            })
+            member
+                .as_str()
+                .map(PathBuf::from)
+                .ok_or_else(|| invalid_input(path, "workspace.members entries must be strings"))
         })
         .collect()
 }
@@ -447,7 +419,7 @@ fn workspace_members(manifest: &Table, path: &Path) -> Result<Vec<PathBuf>, Rele
 fn parse_toml_table(contents: &str, path: &Path) -> Result<Table, ReleaseError> {
     contents
         .parse::<Table>()
-        .map_err(|source| release_intent_input_error(path, &format!("invalid TOML: {source}")))
+        .map_err(|source| invalid_input(path, &format!("invalid TOML: {source}")))
 }
 
 fn git_file_contents(
@@ -482,32 +454,29 @@ fn git_stdout(repo_root: &Path, args: &[&str]) -> Result<String, ReleaseError> {
 
 fn canonical_toml_value(value: &Value) -> String {
     match value {
-        Value::Array(array) => format!(
-            "[{}]",
-            array
-                .iter()
-                .map(canonical_toml_value)
-                .collect::<Vec<_>>()
-                .join(",")
-        ),
-        Value::Boolean(boolean) => format!("bool:{boolean}"),
-        Value::Datetime(datetime) => format!("datetime:{datetime}"),
-        Value::Float(float) => format!("float:{float}"),
-        Value::Integer(integer) => format!("int:{integer}"),
-        Value::String(string) => format!("string:{string}"),
+        Value::String(s) => s.clone(),
+        Value::Integer(i) => i.to_string(),
+        Value::Float(f) => f.to_string(),
+        Value::Boolean(b) => b.to_string(),
+        Value::Datetime(dt) => dt.to_string(),
+        Value::Array(arr) => {
+            let mut items: Vec<String> = arr.iter().map(canonical_toml_value).collect();
+            items.sort_unstable();
+            format!("[{}]", items.join(","))
+        }
         Value::Table(table) => {
-            let mut entries = table
+            let mut pairs: Vec<String> = table
                 .iter()
-                .map(|(key, table_value)| format!("{key}={}", canonical_toml_value(table_value)))
-                .collect::<Vec<_>>();
-            entries.sort_unstable();
-            format!("{{{}}}", entries.join(","))
+                .map(|(k, v)| format!("{k}={}", canonical_toml_value(v)))
+                .collect();
+            pairs.sort_unstable();
+            format!("{{{}}}", pairs.join(","))
         }
     }
 }
 
-fn release_intent_input_error(path: &Path, message: &str) -> ReleaseError {
-    ReleaseError::ReleaseIntentInput {
+fn invalid_input(path: &Path, message: &str) -> ReleaseError {
+    ReleaseError::InvalidInput {
         path: path.to_path_buf(),
         message: message.to_owned(),
     }

@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
+use tq_release::{ReleaseError, RuntimeDependencyChange};
 
 #[derive(Debug, Parser)]
 #[command(name = "tq-release", about = "Run tq release policy checks")]
@@ -11,18 +12,26 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    #[command(name = "check-runtime-deps")]
+    RuntimeDeps(CheckRuntimeDepsArgs),
     #[command(name = "verify-artifact-contents")]
     ArtifactContents(VerifyArtifactContentsArgs),
     #[command(name = "verify-dependabot")]
     Dependabot(VerifyDependabotArgs),
-    #[command(name = "verify-pr-release-intent")]
-    PrReleaseIntent(VerifyPrReleaseIntentArgs),
-    #[command(name = "verify-release-intent")]
-    ReleaseIntent(VerifyReleaseIntentArgs),
     #[command(name = "verify-release-policy")]
     ReleasePolicy(VerifyReleasePolicyArgs),
     #[command(name = "verify-workspace-version")]
     WorkspaceVersion(VerifyWorkspaceVersionArgs),
+}
+
+#[derive(Debug, clap::Args)]
+struct CheckRuntimeDepsArgs {
+    #[arg(long, default_value = ".")]
+    repo_root: PathBuf,
+    #[arg(long)]
+    base_ref: String,
+    #[arg(long)]
+    head_ref: String,
 }
 
 #[derive(Debug, clap::Args)]
@@ -40,32 +49,6 @@ struct VerifyDependabotArgs {
 }
 
 #[derive(Debug, clap::Args)]
-struct VerifyPrReleaseIntentArgs {
-    #[arg(long = "label")]
-    labels: Vec<String>,
-    #[arg(long, default_value = ".")]
-    repo_root: PathBuf,
-    #[arg(long)]
-    base_ref: String,
-    #[arg(long)]
-    head_ref: String,
-}
-
-#[derive(Debug, clap::Args)]
-struct VerifyReleaseIntentArgs {
-    #[arg(long = "label")]
-    labels: Vec<String>,
-    #[arg(long = "changed-file")]
-    changed_files: Vec<PathBuf>,
-    #[arg(long)]
-    version_updated: bool,
-    #[arg(long)]
-    changelog_updated: bool,
-    #[arg(long)]
-    runtime_dependency_changed: bool,
-}
-
-#[derive(Debug, clap::Args)]
 struct VerifyReleasePolicyArgs {
     #[arg(long, default_value = ".")]
     repo_root: PathBuf,
@@ -79,7 +62,9 @@ struct VerifyWorkspaceVersionArgs {
 
 fn main() {
     let cli = Cli::parse();
+
     let result = match cli.command {
+        Command::RuntimeDeps(args) => report_runtime_deps(&args),
         Command::ArtifactContents(args) => tq_release::verify_artifact_contents(
             &args.dist_dir,
             if args.forbidden_prefixes.is_empty() {
@@ -89,23 +74,6 @@ fn main() {
             },
         ),
         Command::Dependabot(args) => tq_release::verify_dependabot(&args.repo_root),
-        Command::PrReleaseIntent(args) => {
-            tq_release::verify_pr_release_intent(tq_release::PrReleaseIntentCheck {
-                repo_root: &args.repo_root,
-                base_ref: &args.base_ref,
-                head_ref: &args.head_ref,
-                labels: &args.labels,
-            })
-        }
-        Command::ReleaseIntent(args) => {
-            tq_release::verify_release_intent(tq_release::ReleaseIntentCheck {
-                labels: &args.labels,
-                changed_files: &args.changed_files,
-                version_updated: args.version_updated,
-                changelog_updated: args.changelog_updated,
-                runtime_dependency_changed: args.runtime_dependency_changed,
-            })
-        }
         Command::ReleasePolicy(args) => tq_release::verify_release_policy(&args.repo_root),
         Command::WorkspaceVersion(args) => tq_release::verify_workspace_version(&args.repo_root),
     };
@@ -114,4 +82,22 @@ fn main() {
         eprintln!("Error: {error}");
         std::process::exit(1);
     }
+}
+
+fn report_runtime_deps(args: &CheckRuntimeDepsArgs) -> Result<(), ReleaseError> {
+    let change =
+        tq_release::check_runtime_dep_changes(&args.repo_root, &args.base_ref, &args.head_ref)?;
+
+    match change {
+        RuntimeDependencyChange::Changed => println!(
+            "Runtime dependency changes detected in the shipped CLI path. \
+             Commit the update as `fix:` (or `feat:` if it widens behavior) so the next \
+             release includes it."
+        ),
+        RuntimeDependencyChange::Unchanged => {
+            println!("No runtime dependency changes in the shipped CLI path.");
+        }
+    }
+
+    Ok(())
 }

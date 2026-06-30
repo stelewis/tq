@@ -33,39 +33,34 @@ The Rust workspace uses one shared version for all internal crates.
 - `cargo run -p tq-release --locked -- verify-release-policy --repo-root .` is the release-policy gate for this policy. It must pass before packaging.
 - `cargo package --workspace --locked` is the packaging gate for this policy. If it fails because a published crate with the same version no longer matches the current internal API, the correct fix is a version bump, not compatibility code.
 
-## Pull request release intent
+## Release intent from Conventional Commits
 
-Every non-draft pull request must carry exactly one release-intent label:
+Release intent is carried by [Conventional Commit](https://www.conventionalcommits.org/) messages. CI enforces commit format with `cz check`, and Commitizen (`cz bump`) derives the next version and `CHANGELOG.md` entries from commit history at release time. Commit types are the single source of truth for release intent.
 
-- `release:none`: repository-only maintenance that does not require publishing a new `tq` artifact
-- `release:patch`: shipped change that preserves existing contract meaning
-- `release:minor`: contract-impacting change, including intentional breaking change while `tq` remains pre-`1.0`
+Map the change to a commit type:
 
-Labels are the canonical review-time signal. CI validates the declared intent against a narrow set of shipped-surface checks, but the semantic release decision remains maintainer-owned.
+- `feat:` adds a stable, contract-impacting capability and selects a `minor` bump.
+- `fix:` corrects shipped behavior while preserving contract meaning and selects a `patch` bump.
+- `feat!:`, `fix!:`, or a `BREAKING CHANGE:` footer mark an intentional contract break; pre-`1.0` these land as a `minor` bump.
+- Non-shipping types (`ci`, `build`, `chore`, `docs`, `refactor`, `test`, `style`) do not change the published artifact and do not trigger a release on their own.
 
-## Release-decision checklist
+Releases aggregate merged commits: a maintainer runs `cz bump` when ready, which reads the accumulated commits, computes the version, and writes the changelog. There is no requirement to bump the version inside each PR.
 
-Use this checklist when choosing the PR label:
+### Dependency updates
 
-1. Does the change affect the published `tq` artifact at all?
+Classify a dependency update by whether it ships in the published CLI:
 
-   If the change is only CI, release tooling, docs site, `tq-release`, `tq-docsgen`, or dev-only dependency maintenance, choose `release:none`.
+- Runtime dependency updates in the shipped Rust CLI path are shipped changes. Commit them as `fix:` (or `feat:` if they widen behavior) so the next `cz bump` releases them.
+- Tooling-only updates (`pyproject.toml`, docs toolchain, GitHub Actions, pre-commit hooks, other repo automation) are not shipped. Commit them as `chore`/`build`/`ci` so they do not force a release.
 
-2. Does the change alter a documented contract surface or an internal workspace API consumed by another crate?
+Dependabot always opens dependency PRs with a `chore(deps): ...` subject, which carries no release intent on its own. CI resolves the ambiguity: the advisory `check-runtime-deps` step runs on every pull request that touches `Cargo.lock` or `Cargo.toml`, reports in its job summary whether the shipped CLI dependency graph changed, and never blocks the merge.
 
-   If yes, choose `release:minor`. That includes CLI/config/rule/exit-code/JSON-schema contract changes and internal crate API changes that require the shared workspace version to move.
+Handle a Dependabot Cargo PR by reading that summary:
 
-3. Does the change preserve existing contract meaning but still change shipped behavior?
+1. Shipped graph changed: merge with a `fix: ...` subject (for example `fix: bump <dep> to <version>`) so `cz bump` includes it in the next release. Use `feat:` instead when the update widens shipped behavior.
+2. Shipped graph unchanged (dev- or tooling-only dependency): merge the Dependabot `chore(deps): ...` commit as-is; no release is needed.
 
-   If yes, choose `release:patch`. Typical examples are bug fixes, shipped security fixes, and shipped runtime dependency updates that do not change the contract classification above.
-
-4. Is the dependency change only for repository tooling?
-
-   Dev-only updates in `pyproject.toml`, docs toolchain files, GitHub Actions, pre-commit hooks, or other repo automation stay `release:none`. Runtime dependency changes in the shipped Rust CLI path are release-relevant and should not use `release:none`.
-
-5. If the label is `release:patch` or `release:minor`, are the version and changelog prepared in the same PR?
-
-   Release-labeled PRs must update the workspace version and add the new top `CHANGELOG.md` release heading before merge so reviewers can validate the final contract impact.
+Every other pull request carries its own Conventional Commit type, so its release intent is already explicit and needs no extra step.
 
 ## Change classification
 
