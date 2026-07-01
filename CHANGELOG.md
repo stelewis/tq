@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.11.5] - 2026-07-01
+
+### Changed
+
+- Replaced the pull-request label release-intent system with a Conventional Commits flow driven by Commitizen, so release versioning and changelog entries now derive from commit history. Removed the `verify-pr-release-intent` command and its CI label enforcement, and added an advisory `check-runtime-deps` command that flags shipped CLI dependency changes without blocking merges.
+
+### Fixed
+
+- Set the docs site Vite build target to ES2022 so documentation builds stay compatible with esbuild 0.28, which now rejects destructuring transforms for older browser targets.
+
 ## [0.11.4] - 2026-07-01
 
 ### Changed
