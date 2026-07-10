@@ -105,12 +105,7 @@ fn verify_release_policy_passes_when_workspace_and_dependabot_policies_pass() {
     );
     write(
         &temp.path().join("mise.toml"),
-        concat!(
-            "[tools]\n",
-            "node = \"26.4.0\"\n",
-            "python = \"3.14.6\"\n",
-            "uv = \"0.11.28\"\n",
-        ),
+        concat!("[tools]\n", "node = \"26.4.0\"\n",),
     );
     write(
         &temp.path().join("package.json"),
@@ -132,12 +127,14 @@ fn verify_release_policy_passes_when_workspace_and_dependabot_policies_pass() {
             "inputs:\n",
             "  python-version:\n",
             "    default: \"3.14.6\"\n",
+            "  uv-version:\n",
+            "    default: \"0.11.28\"\n",
             "runs:\n",
             "  using: composite\n",
             "  steps:\n",
             "    - uses: astral-sh/setup-uv@example\n",
             "      with:\n",
-            "        version: \"0.11.28\"\n",
+            "        version: ${{ inputs.uv-version }}\n",
         ),
     );
     write(

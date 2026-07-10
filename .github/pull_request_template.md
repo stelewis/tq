@@ -14,7 +14,7 @@ Describe what this PR changes and why.
 - [ ] `cargo run -p tq-docsgen --locked -- generate all`
 - [ ] `cargo run -p tq-release --locked -- verify-release-policy --repo-root .`
 - [ ] `cargo package --workspace --locked`
-- [ ] `mise run release-build`
+- [ ] `cargo dev release build`
 
 ## Notes
 

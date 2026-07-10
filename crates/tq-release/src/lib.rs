@@ -7,7 +7,9 @@ mod workspace_version;
 
 use std::path::Path;
 
-pub use dev_tools::{DevDoctorCheck, DevDoctorReport, DevToolStatus};
+pub use dev_tools::{
+    DevAuditCheck, DevAuditReport, DevAuditStatus, DevDoctorCheck, DevDoctorReport, DevToolStatus,
+};
 pub use error::ReleaseError;
 pub use runtime_deps::RuntimeDependencyChange;
 pub use verify::{ArtifactViolation, DEFAULT_FORBIDDEN_PREFIXES};
@@ -53,10 +55,22 @@ pub fn setup_dev_environment(repo_root: &Path) -> Result<(), ReleaseError> {
     dev_tools::setup_dev_environment(repo_root)
 }
 
+pub fn cleanup_dev_environment(repo_root: &Path) -> Result<(), ReleaseError> {
+    dev_tools::cleanup_dev_environment(repo_root)
+}
+
 pub fn update_dev_dependencies(repo_root: &Path) -> Result<(), ReleaseError> {
     dev_tools::update_dev_dependencies(repo_root)
 }
 
-pub fn audit_latest_dev_dependencies(repo_root: &Path) -> Result<(), ReleaseError> {
+pub fn audit_latest_dev_dependencies(repo_root: &Path) -> Result<DevAuditReport, ReleaseError> {
     dev_tools::audit_latest_dev_dependencies(repo_root)
+}
+
+pub fn audit_security_dev_dependencies(repo_root: &Path) -> Result<DevAuditReport, ReleaseError> {
+    dev_tools::audit_security_dev_dependencies(repo_root)
+}
+
+pub fn build_release_artifacts(repo_root: &Path) -> Result<(), ReleaseError> {
+    dev_tools::build_release_artifacts(repo_root)
 }

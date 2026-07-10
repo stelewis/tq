@@ -1,7 +1,10 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use tq_release::{DevDoctorReport, DevToolStatus, ReleaseError, RuntimeDependencyChange};
+use tq_release::{
+    DevAuditReport, DevAuditStatus, DevDoctorReport, DevToolStatus, ReleaseError,
+    RuntimeDependencyChange,
+};
 
 #[derive(Debug, Parser)]
 #[command(name = "tq-release", about = "Run tq release policy checks")]
@@ -44,16 +47,70 @@ struct DevArgs {
 
 #[derive(Debug, Subcommand)]
 enum DevCommand {
-    #[command(name = "audit-latest")]
-    AuditLatest(RepoRootArgs),
-    #[command(name = "doctor")]
-    Doctor(RepoRootArgs),
+    #[command(name = "deps")]
+    Deps(DepsArgs),
+    #[command(name = "health")]
+    Health(HealthArgs),
+    #[command(name = "policy")]
+    Policy(PolicyArgs),
+    #[command(name = "release")]
+    Release(ReleaseArgs),
     #[command(name = "setup")]
     Setup(RepoRootArgs),
+}
+
+#[derive(Debug, clap::Args)]
+struct DepsArgs {
+    #[command(subcommand)]
+    command: DepsCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum DepsCommand {
+    #[command(name = "audit-latest")]
+    AuditLatest(RepoRootArgs),
+    #[command(name = "audit-security")]
+    AuditSecurity(RepoRootArgs),
     #[command(name = "update")]
     Update(RepoRootArgs),
+}
+
+#[derive(Debug, clap::Args)]
+struct HealthArgs {
+    #[command(subcommand)]
+    command: HealthCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum HealthCommand {
+    #[command(name = "cleanup")]
+    Cleanup(RepoRootArgs),
+    #[command(name = "doctor")]
+    Doctor(RepoRootArgs),
+}
+
+#[derive(Debug, clap::Args)]
+struct PolicyArgs {
+    #[command(subcommand)]
+    command: PolicyCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum PolicyCommand {
     #[command(name = "verify-pins")]
     VerifyPins(RepoRootArgs),
+}
+
+#[derive(Debug, clap::Args)]
+struct ReleaseArgs {
+    #[command(subcommand)]
+    command: ReleaseCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum ReleaseCommand {
+    #[command(name = "build")]
+    Build(RepoRootArgs),
 }
 
 #[derive(Debug, clap::Args)]
@@ -133,8 +190,32 @@ fn report_runtime_deps(args: &CheckRuntimeDepsArgs) -> Result<(), ReleaseError> 
 
 fn run_dev_command(args: &DevArgs) -> Result<(), ReleaseError> {
     match &args.command {
-        DevCommand::AuditLatest(args) => tq_release::audit_latest_dev_dependencies(&args.repo_root),
-        DevCommand::Doctor(args) => {
+        DevCommand::Deps(args) => run_deps_command(args),
+        DevCommand::Health(args) => run_health_command(args),
+        DevCommand::Policy(args) => run_policy_command(args),
+        DevCommand::Release(args) => run_release_command(args),
+        DevCommand::Setup(args) => tq_release::setup_dev_environment(&args.repo_root),
+    }
+}
+
+fn run_deps_command(args: &DepsArgs) -> Result<(), ReleaseError> {
+    match &args.command {
+        DepsCommand::AuditLatest(args) => report_audit(
+            &tq_release::audit_latest_dev_dependencies(&args.repo_root)?,
+            "dependency freshness audit found updates or failures",
+        ),
+        DepsCommand::AuditSecurity(args) => report_audit(
+            &tq_release::audit_security_dev_dependencies(&args.repo_root)?,
+            "dependency security audit found issues or failures",
+        ),
+        DepsCommand::Update(args) => tq_release::update_dev_dependencies(&args.repo_root),
+    }
+}
+
+fn run_health_command(args: &HealthArgs) -> Result<(), ReleaseError> {
+    match &args.command {
+        HealthCommand::Cleanup(args) => tq_release::cleanup_dev_environment(&args.repo_root),
+        HealthCommand::Doctor(args) => {
             let report = tq_release::doctor_dev_environment(&args.repo_root)?;
             print_doctor_report(&report);
             if report.is_healthy() {
@@ -146,9 +227,18 @@ fn run_dev_command(args: &DevArgs) -> Result<(), ReleaseError> {
                 })
             }
         }
-        DevCommand::Setup(args) => tq_release::setup_dev_environment(&args.repo_root),
-        DevCommand::Update(args) => tq_release::update_dev_dependencies(&args.repo_root),
-        DevCommand::VerifyPins(args) => tq_release::verify_dev_tool_pins(&args.repo_root),
+    }
+}
+
+fn run_policy_command(args: &PolicyArgs) -> Result<(), ReleaseError> {
+    match &args.command {
+        PolicyCommand::VerifyPins(args) => tq_release::verify_dev_tool_pins(&args.repo_root),
+    }
+}
+
+fn run_release_command(args: &ReleaseArgs) -> Result<(), ReleaseError> {
+    match &args.command {
+        ReleaseCommand::Build(args) => tq_release::build_release_artifacts(&args.repo_root),
     }
 }
 
@@ -164,5 +254,30 @@ fn print_doctor_report(report: &DevDoctorReport) {
             "{status}: {} expected {}, found {actual}",
             check.tool, check.expected
         );
+    }
+}
+
+fn report_audit(report: &DevAuditReport, failure_message: &str) -> Result<(), ReleaseError> {
+    print_audit_report(report);
+    if report.has_findings() {
+        Err(ReleaseError::RepositoryPolicyViolation {
+            details: failure_message.to_owned(),
+        })
+    } else {
+        Ok(())
+    }
+}
+
+fn print_audit_report(report: &DevAuditReport) {
+    for check in &report.checks {
+        let status = match check.status {
+            DevAuditStatus::Clean => "clean",
+            DevAuditStatus::Findings => "findings",
+            DevAuditStatus::Failed => "failed",
+        };
+        println!("{status}: {} ({})", check.name, check.command);
+        if !check.output.is_empty() {
+            println!("{}", check.output);
+        }
     }
 }

@@ -45,7 +45,7 @@ Repository-policy and release artifact checks are enforced by `tq-release`.
 
 - `cargo run -p tq-release --locked -- verify-release-policy --repo-root .`
 - `cargo package --workspace --locked`
-- `mise run release-build`
+- `cargo dev release build`
 - `cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist`
 
 The release-policy verifier checks workspace versioning policy and the GitHub Actions Dependabot coverage policy together.
@@ -54,7 +54,7 @@ The artifact verifier inspects built wheels and sdists for repository-only paths
 
 ## Release artifact shape
 
-`mise run release-build` builds the source distribution plus a wheel for the current host platform.
+`cargo dev release build` builds the source distribution plus a wheel for the current host platform.
 
 The CI release wheel matrix builds the source distribution on Linux, then builds publishable wheels for Linux x86_64, macOS x86_64, macOS arm64, and Windows x86_64. The Linux wheel is built explicitly through `maturin build --release --locked --compatibility pypi --zig` so the platform tag is PyPI-compatible instead of a native `linux_*` tag. On SemVer tags, a separate CI attestation job promotes those validated build artifacts into the final `validated-dist` artifact that the publish workflow consumes without rebuilding.
 

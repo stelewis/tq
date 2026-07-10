@@ -17,9 +17,9 @@ Use `cargo check` as the fast compile, type, trait, and borrow-check loop before
 - `cargo build --workspace --locked`
 - `cargo build -p tq-cli --release --locked`
 - `cargo package --workspace --locked`
-- `mise run release-build`
+- `cargo dev release build`
 
-`mise run release-build` validates the source distribution plus a wheel for the current host platform. The full publishable artifact matrix is validated in CI.
+`cargo dev release build` validates the source distribution plus a wheel for the current host platform. The full publishable artifact matrix is validated in CI.
 
 ## Combined local check
 

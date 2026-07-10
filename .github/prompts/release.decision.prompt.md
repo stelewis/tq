@@ -21,7 +21,7 @@ Release intent in this repository comes from Conventional Commit types. `cz chec
 3. When the change touches repository tooling, pinned tools, Dependabot, setup actions, Python/Node/Rust lockfiles, or maintenance workflows, run the developer harness pin check and use its result as a signal:
 
    ```bash
-   cargo run -p tq-release --locked -- dev verify-pins --repo-root .
+   cargo dev policy verify-pins --repo-root .
    ```
 
 4. When you have base and head refs, run the advisory runtime dependency check and use its result as a signal:

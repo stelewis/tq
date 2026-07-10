@@ -36,6 +36,35 @@ pub enum DevToolStatus {
     Mismatched,
 }
 
+#[derive(Debug, Eq, PartialEq)]
+pub struct DevAuditReport {
+    pub checks: Vec<DevAuditCheck>,
+}
+
+impl DevAuditReport {
+    #[must_use]
+    pub fn has_findings(&self) -> bool {
+        self.checks
+            .iter()
+            .any(|check| check.status != DevAuditStatus::Clean)
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct DevAuditCheck {
+    pub name: String,
+    pub command: String,
+    pub status: DevAuditStatus,
+    pub output: String,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DevAuditStatus {
+    Clean,
+    Findings,
+    Failed,
+}
+
 #[derive(Debug)]
 struct DevToolsManifest {
     rust: String,
@@ -140,8 +169,34 @@ pub fn update_dev_dependencies(repo_root: &Path) -> Result<(), ReleaseError> {
     run_commands(repo_root, update_commands(&manifest))
 }
 
-pub fn audit_latest_dev_dependencies(repo_root: &Path) -> Result<(), ReleaseError> {
-    run_commands(repo_root, audit_commands())
+pub fn audit_latest_dev_dependencies(repo_root: &Path) -> Result<DevAuditReport, ReleaseError> {
+    audit_commands(repo_root, latest_audit_commands())
+}
+
+pub fn audit_security_dev_dependencies(repo_root: &Path) -> Result<DevAuditReport, ReleaseError> {
+    audit_commands(repo_root, security_audit_commands())
+}
+
+pub fn cleanup_dev_environment(repo_root: &Path) -> Result<(), ReleaseError> {
+    let manifest = read_manifest(repo_root)?;
+    remove_obsolete_rust_toolchains(repo_root, &manifest.rust)?;
+    remove_cargo_tools_target_dir(repo_root)
+}
+
+pub fn build_release_artifacts(repo_root: &Path) -> Result<(), ReleaseError> {
+    let dist_dir = repo_root.join("dist");
+    match std::fs::remove_dir_all(&dist_dir) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(source) => {
+            return Err(ReleaseError::Io {
+                path: dist_dir,
+                source,
+            });
+        }
+    }
+
+    run_commands(repo_root, release_build_commands())
 }
 
 fn read_manifest(repo_root: &Path) -> Result<DevToolsManifest, ReleaseError> {
@@ -272,9 +327,15 @@ fn verify_python_uv_action(
     );
     require_contains(
         violations,
-        ".github/actions/setup-python-uv/action.yml setup-uv version",
+        ".github/actions/setup-python-uv/action.yml uv-version default",
         &contents,
-        &format!("version: \"{}\"", manifest.uv),
+        &format!("default: \"{}\"", manifest.uv),
+    );
+    require_contains(
+        violations,
+        ".github/actions/setup-python-uv/action.yml setup-uv version input",
+        &contents,
+        "version: ${{ inputs.uv-version }}",
     );
     Ok(())
 }
@@ -533,7 +594,7 @@ fn update_commands(manifest: &DevToolsManifest) -> Vec<HarnessCommand> {
     ]
 }
 
-fn audit_commands() -> Vec<HarnessCommand> {
+fn latest_audit_commands() -> Vec<HarnessCommand> {
     vec![
         command(
             "cargo",
@@ -548,6 +609,42 @@ fn audit_commands() -> Vec<HarnessCommand> {
         ),
         command("npm", ["outdated"]),
         command("uv", ["tree", "--outdated"]),
+    ]
+}
+
+fn security_audit_commands() -> Vec<HarnessCommand> {
+    vec![
+        command("cargo", ["audit"]),
+        command("cargo", ["deny", "check"]),
+        command("npm", ["audit", "--audit-level", "moderate"]),
+    ]
+}
+
+fn release_build_commands() -> Vec<HarnessCommand> {
+    vec![
+        command("uv", ["build", "--sdist"]),
+        command(
+            "uv",
+            [
+                "run",
+                "--isolated",
+                "--with",
+                "maturin>=1.11,<2.0",
+                "--",
+                "maturin",
+                "build",
+                "--release",
+                "--locked",
+                "--manifest-path",
+                "crates/tq-cli/Cargo.toml",
+                "--bindings",
+                "bin",
+                "--out",
+                "dist",
+                "-i",
+                "python",
+            ],
+        ),
     ]
 }
 
@@ -572,6 +669,68 @@ fn cargo_tool_build_env(repo_root: &Path) -> Vec<(String, String)> {
         "CARGO_TARGET_DIR".to_owned(),
         repo_root.join("target/cargo-tools").display().to_string(),
     )]
+}
+
+fn audit_commands(
+    repo_root: &Path,
+    commands: Vec<HarnessCommand>,
+) -> Result<DevAuditReport, ReleaseError> {
+    let native_env = native_build_env();
+    let mut checks = Vec::new();
+
+    for command in commands {
+        let output = Command::new(&command.program)
+            .args(&command.args)
+            .current_dir(repo_root)
+            .envs(native_env.iter().map(|(key, value)| (key, value)))
+            .envs(command.env.iter().map(|(key, value)| (key, value)))
+            .output()
+            .map_err(|source| ReleaseError::CommandIo {
+                repo_root: repo_root.to_path_buf(),
+                program: command.program.clone(),
+                args: command.args.clone(),
+                source,
+            })?;
+
+        let combined_output = command_output(&output.stdout, &output.stderr);
+        let status = audit_status(
+            &command,
+            output.status.code(),
+            output.status.success(),
+            &combined_output,
+        );
+
+        checks.push(DevAuditCheck {
+            name: command.program.clone(),
+            command: command.display(),
+            status,
+            output: combined_output,
+        });
+    }
+
+    Ok(DevAuditReport { checks })
+}
+
+fn audit_status(
+    command: &HarnessCommand,
+    code: Option<i32>,
+    success: bool,
+    output: &str,
+) -> DevAuditStatus {
+    if command.program == "uv"
+        && command.args == ["tree", "--outdated"]
+        && output.contains("latest:")
+    {
+        return DevAuditStatus::Findings;
+    }
+
+    if success {
+        DevAuditStatus::Clean
+    } else if code == Some(1) {
+        DevAuditStatus::Findings
+    } else {
+        DevAuditStatus::Failed
+    }
 }
 
 fn run_commands(repo_root: &Path, commands: Vec<HarnessCommand>) -> Result<(), ReleaseError> {
@@ -599,6 +758,47 @@ fn run_commands(repo_root: &Path, commands: Vec<HarnessCommand>) -> Result<(), R
         }
     }
     Ok(())
+}
+
+impl HarnessCommand {
+    fn display(&self) -> String {
+        std::iter::once(self.program.as_str())
+            .chain(self.args.iter().map(String::as_str))
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+}
+
+fn command_output(stdout: &[u8], stderr: &[u8]) -> String {
+    let stdout = String::from_utf8_lossy(stdout).trim().to_owned();
+    let stderr = String::from_utf8_lossy(stderr).trim().to_owned();
+
+    match (stdout.is_empty(), stderr.is_empty()) {
+        (true, true) => String::new(),
+        (false, true) => stdout,
+        (true, false) => stderr,
+        (false, false) => format!("{stdout}\n{stderr}"),
+    }
+}
+
+fn remove_obsolete_rust_toolchains(repo_root: &Path, pinned: &str) -> Result<(), ReleaseError> {
+    for toolchain in obsolete_rust_toolchains(repo_root, pinned) {
+        run_commands(
+            repo_root,
+            vec![command("rustup", ["toolchain", "uninstall", &toolchain])],
+        )?;
+    }
+
+    Ok(())
+}
+
+fn remove_cargo_tools_target_dir(repo_root: &Path) -> Result<(), ReleaseError> {
+    let path = repo_root.join("target/cargo-tools");
+    match std::fs::remove_dir_all(&path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(source) => Err(ReleaseError::Io { path, source }),
+    }
 }
 
 fn native_build_env() -> Vec<(String, String)> {
