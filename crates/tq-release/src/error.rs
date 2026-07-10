@@ -19,6 +19,21 @@ pub enum ReleaseError {
         args: String,
         stderr: String,
     },
+    #[error("failed to run command in {repo_root}: {program} {args:?}: {source}")]
+    CommandIo {
+        repo_root: PathBuf,
+        program: String,
+        args: Vec<String>,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("command failed in {repo_root}: {program} {args:?} exited with {code:?}")]
+    CommandFailed {
+        repo_root: PathBuf,
+        program: String,
+        args: Vec<String>,
+        code: Option<i32>,
+    },
     #[error("I/O error for {path}: {source}")]
     Io {
         path: PathBuf,

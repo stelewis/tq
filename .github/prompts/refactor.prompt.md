@@ -42,6 +42,6 @@ Ensure all checks pass:
 - `cargo clippy --workspace --all-targets --locked -- -D warnings`
 - `cargo test --workspace --locked`
 - `cargo run -p tq-docsgen --locked -- generate all`
-- `cargo run -p tq-release --locked -- verify-dependabot --repo-root .`
+- `cargo run -p tq-release --locked -- verify-release-policy --repo-root .`
 - `cargo package --workspace --locked`
 - `mise run release-build`
