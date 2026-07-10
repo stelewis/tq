@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use tq_release::{
     DevAuditReport, DevAuditStatus, DevDoctorReport, DevToolStatus, ReleaseError,
     RuntimeDependencyChange,
@@ -68,11 +68,42 @@ struct DepsArgs {
 #[derive(Debug, Subcommand)]
 enum DepsCommand {
     #[command(name = "audit-latest")]
-    AuditLatest(RepoRootArgs),
+    AuditLatest(ReportArgs),
     #[command(name = "audit-security")]
-    AuditSecurity(RepoRootArgs),
+    AuditSecurity(ReportArgs),
     #[command(name = "update")]
-    Update(RepoRootArgs),
+    Update(UpdateArgs),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+enum UpdateMode {
+    Check,
+    Apply,
+}
+
+#[derive(Debug, clap::Args)]
+struct UpdateArgs {
+    #[arg(long, default_value = ".")]
+    repo_root: PathBuf,
+    #[arg(long, value_enum, default_value_t = UpdateMode::Check)]
+    mode: UpdateMode,
+    #[arg(long, value_enum, default_value_t = OutputMode::Human)]
+    output: OutputMode,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+enum OutputMode {
+    Human,
+    Json,
+    Agent,
+}
+
+#[derive(Debug, clap::Args)]
+struct ReportArgs {
+    #[arg(long, default_value = ".")]
+    repo_root: PathBuf,
+    #[arg(long, value_enum, default_value_t = OutputMode::Human)]
+    output: OutputMode,
 }
 
 #[derive(Debug, clap::Args)]
@@ -86,7 +117,7 @@ enum HealthCommand {
     #[command(name = "cleanup")]
     Cleanup(RepoRootArgs),
     #[command(name = "doctor")]
-    Doctor(RepoRootArgs),
+    Doctor(ReportArgs),
 }
 
 #[derive(Debug, clap::Args)]
@@ -203,12 +234,21 @@ fn run_deps_command(args: &DepsArgs) -> Result<(), ReleaseError> {
         DepsCommand::AuditLatest(args) => report_audit(
             &tq_release::audit_latest_dev_dependencies(&args.repo_root)?,
             "dependency freshness audit found updates or failures",
+            args.output,
         ),
         DepsCommand::AuditSecurity(args) => report_audit(
             &tq_release::audit_security_dev_dependencies(&args.repo_root)?,
             "dependency security audit found issues or failures",
+            args.output,
         ),
-        DepsCommand::Update(args) => tq_release::update_dev_dependencies(&args.repo_root),
+        DepsCommand::Update(args) => match args.mode {
+            UpdateMode::Check => report_audit(
+                &tq_release::audit_latest_dev_dependencies(&args.repo_root)?,
+                "dependency freshness audit found updates or failures",
+                args.output,
+            ),
+            UpdateMode::Apply => tq_release::update_dev_dependencies(&args.repo_root),
+        },
     }
 }
 
@@ -217,7 +257,7 @@ fn run_health_command(args: &HealthArgs) -> Result<(), ReleaseError> {
         HealthCommand::Cleanup(args) => tq_release::cleanup_dev_environment(&args.repo_root),
         HealthCommand::Doctor(args) => {
             let report = tq_release::doctor_dev_environment(&args.repo_root)?;
-            print_doctor_report(&report);
+            print_doctor_report(&report, args.output)?;
             if report.is_healthy() {
                 Ok(())
             } else {
@@ -242,23 +282,45 @@ fn run_release_command(args: &ReleaseArgs) -> Result<(), ReleaseError> {
     }
 }
 
-fn print_doctor_report(report: &DevDoctorReport) {
-    for check in &report.checks {
-        let status = match check.status {
-            DevToolStatus::Ok => "ok",
-            DevToolStatus::Missing => "missing",
-            DevToolStatus::Mismatched => "mismatch",
-        };
-        let actual = check.actual.as_deref().unwrap_or("not found");
-        println!(
-            "{status}: {} expected {}, found {actual}",
-            check.tool, check.expected
-        );
+fn print_doctor_report(report: &DevDoctorReport, output: OutputMode) -> Result<(), ReleaseError> {
+    match output {
+        OutputMode::Human => {
+            for check in &report.checks {
+                let status = match check.status {
+                    DevToolStatus::Ok => "ok",
+                    DevToolStatus::Missing => "missing",
+                    DevToolStatus::Mismatched => "mismatch",
+                };
+                let actual = check.actual.as_deref().unwrap_or("not found");
+                println!(
+                    "{status}: {} expected {}, found {actual}",
+                    check.tool, check.expected
+                );
+            }
+        }
+        OutputMode::Json => print_json(report)?,
+        OutputMode::Agent => {
+            for check in &report.checks {
+                println!(
+                    "status={} tool={} expected={} actual={}",
+                    tool_status_label(check.status),
+                    check.tool,
+                    check.expected,
+                    check.actual.as_deref().unwrap_or("not-found")
+                );
+            }
+        }
     }
+
+    Ok(())
 }
 
-fn report_audit(report: &DevAuditReport, failure_message: &str) -> Result<(), ReleaseError> {
-    print_audit_report(report);
+fn report_audit(
+    report: &DevAuditReport,
+    failure_message: &str,
+    output: OutputMode,
+) -> Result<(), ReleaseError> {
+    print_audit_report(report, output)?;
     if report.has_findings() {
         Err(ReleaseError::RepositoryPolicyViolation {
             details: failure_message.to_owned(),
@@ -268,16 +330,62 @@ fn report_audit(report: &DevAuditReport, failure_message: &str) -> Result<(), Re
     }
 }
 
-fn print_audit_report(report: &DevAuditReport) {
-    for check in &report.checks {
-        let status = match check.status {
-            DevAuditStatus::Clean => "clean",
-            DevAuditStatus::Findings => "findings",
-            DevAuditStatus::Failed => "failed",
-        };
-        println!("{status}: {} ({})", check.name, check.command);
-        if !check.output.is_empty() {
-            println!("{}", check.output);
+fn print_audit_report(report: &DevAuditReport, output: OutputMode) -> Result<(), ReleaseError> {
+    match output {
+        OutputMode::Human => {
+            for check in &report.checks {
+                let status = match check.status {
+                    DevAuditStatus::Clean => "clean",
+                    DevAuditStatus::Findings => "findings",
+                    DevAuditStatus::Failed => "failed",
+                };
+                println!("{status}: {} ({})", check.name, check.command);
+                if !check.output.is_empty() {
+                    println!("{}", check.output);
+                }
+            }
+        }
+        OutputMode::Json => print_json(report)?,
+        OutputMode::Agent => {
+            for check in &report.checks {
+                println!(
+                    "status={} name={} command={}",
+                    audit_status_label(check.status),
+                    check.name,
+                    check.command
+                );
+                if !check.output.is_empty() {
+                    println!("output<<EOF\n{}\nEOF", check.output);
+                }
+            }
         }
     }
+
+    Ok(())
+}
+
+const fn tool_status_label(status: DevToolStatus) -> &'static str {
+    match status {
+        DevToolStatus::Ok => "ok",
+        DevToolStatus::Missing => "missing",
+        DevToolStatus::Mismatched => "mismatched",
+    }
+}
+
+const fn audit_status_label(status: DevAuditStatus) -> &'static str {
+    match status {
+        DevAuditStatus::Clean => "clean",
+        DevAuditStatus::Findings => "findings",
+        DevAuditStatus::Failed => "failed",
+    }
+}
+
+fn print_json<T: serde::Serialize>(value: &T) -> Result<(), ReleaseError> {
+    let output =
+        serde_json::to_string_pretty(value).map_err(|source| ReleaseError::InvalidInput {
+            path: PathBuf::from("<json-output>"),
+            message: source.to_string(),
+        })?;
+    println!("{output}");
+    Ok(())
 }

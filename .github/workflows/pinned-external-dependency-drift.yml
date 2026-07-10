@@ -29,6 +29,12 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Verify centralized developer tool pins
+        run: cargo dev policy verify-pins --repo-root .
+
       - name: Check upstream drift for pinned action and pre-commit refs
         id: drift
         shell: bash

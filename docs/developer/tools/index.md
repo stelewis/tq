@@ -10,10 +10,11 @@ Distribution is through PyPI: the package name is `tqlint` and the installed com
 
 Artifacts are built from the workspace CLI crate through `maturin`.
 
-The product MSRV is Rust 1.94.0. Local and CI commands should use the pinned workspace toolchain unless a workflow explicitly documents a different bootstrap boundary.
+The product MSRV is Rust 1.96. Local and CI commands should use the pinned workspace toolchain unless a workflow explicitly documents a different bootstrap boundary.
 
 ## Guides
 
+- [Developer harness](./dev-harness.md)
 - [Local workflows](./local-workflows.md)
 - [Docs and release tooling](./docs-and-release.md)
 - [CI and automation](./ci.md)

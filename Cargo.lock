@@ -592,6 +592,8 @@ dependencies = [
  "assert_cmd",
  "clap",
  "flate2",
+ "serde",
+ "serde_json",
  "tar",
  "tempfile",
  "thiserror",

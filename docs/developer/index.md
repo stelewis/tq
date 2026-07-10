@@ -21,6 +21,7 @@ This section contains documentation for contributors and maintainers.
 ## Developer tools
 
 - [Developer tools overview](./tools/index.md)
+- [Developer harness](./tools/dev-harness.md)
 - [Local workflows](./tools/local-workflows.md)
 - [CI and automation](./tools/ci.md)
 - [Pin maintenance](./tools/pin-maintenance.md)

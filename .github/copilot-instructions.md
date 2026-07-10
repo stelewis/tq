@@ -22,6 +22,13 @@ Use the Rust workspace for product code and `uv` for packaging and repository au
 - Rust CLI: `cargo run -p tq-cli --locked -- <args>`
 - Docs generator: `cargo run -p tq-docsgen --locked -- <args>`
 - Release tooling: `cargo run -p tq-release --locked -- <args>`
+- Developer harness: `cargo dev <group> <command>`
+  - Repo policy: `cargo dev policy verify-pins --repo-root .`
+  - Local health: `cargo dev health doctor --repo-root .`
+  - Dependency freshness check: `cargo dev deps update --mode check --output human --repo-root .`
+  - Dependency update apply: `cargo dev deps update --mode apply --repo-root .`
+  - Security audit: `cargo dev deps audit-security --repo-root .`
+  - Release build: `cargo dev release build --repo-root .`
 - Python: `uv run python <args>`
 - File system operations: `git mv`, `git rm`, `mv`, `rm`
 - For complex multiline shell input that causes terminal wrapping issues, write a temporary script in `tmp/` instead.
@@ -53,6 +60,7 @@ cargo fmt --all --check && cargo clippy --workspace --all-targets --locked -- -D
 - MUST develop clean, maintainable, well factored, and elegant code.
 - MUST NOT blindly comply with lint rules or contort otherwise clear code to satisfy linting heuristics.
 - MUST use the repository's dependency and security tooling when dependency changes are involved, including `cargo audit`, `cargo deny check`, and relevant lockfile review.
+- MUST improve `cargo dev` when recurring local friction, security maintenance, dependency drift, release validation, or setup cleanup can be made deterministic instead of documented as manual process.
 
 ## Security
 

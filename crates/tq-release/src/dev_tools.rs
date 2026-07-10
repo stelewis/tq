@@ -1,13 +1,14 @@
 use std::path::Path;
 use std::process::Command;
 
+use serde::Serialize;
 use toml::Value;
 
 use crate::ReleaseError;
 
 const DEV_TOOLS_PATH: &str = ".github/dev-tools.toml";
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct DevDoctorReport {
     pub checks: Vec<DevDoctorCheck>,
 }
@@ -21,7 +22,7 @@ impl DevDoctorReport {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct DevDoctorCheck {
     pub tool: String,
     pub expected: String,
@@ -29,14 +30,15 @@ pub struct DevDoctorCheck {
     pub status: DevToolStatus,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum DevToolStatus {
     Ok,
     Missing,
     Mismatched,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct DevAuditReport {
     pub checks: Vec<DevAuditCheck>,
 }
@@ -50,7 +52,7 @@ impl DevAuditReport {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct DevAuditCheck {
     pub name: String,
     pub command: String,
@@ -58,7 +60,8 @@ pub struct DevAuditCheck {
     pub output: String,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum DevAuditStatus {
     Clean,
     Findings,
@@ -166,11 +169,17 @@ pub fn setup_dev_environment(repo_root: &Path) -> Result<(), ReleaseError> {
 
 pub fn update_dev_dependencies(repo_root: &Path) -> Result<(), ReleaseError> {
     let manifest = read_manifest(repo_root)?;
+    update_rust_toolchain_pin(repo_root, &manifest)?;
     run_commands(repo_root, update_commands(&manifest))
 }
 
 pub fn audit_latest_dev_dependencies(repo_root: &Path) -> Result<DevAuditReport, ReleaseError> {
-    audit_commands(repo_root, latest_audit_commands())
+    let manifest = read_manifest(repo_root)?;
+    let mut report = audit_commands(repo_root, latest_audit_commands())?;
+    report
+        .checks
+        .insert(0, rust_toolchain_latest_check(&manifest));
+    Ok(report)
 }
 
 pub fn audit_security_dev_dependencies(repo_root: &Path) -> Result<DevAuditReport, ReleaseError> {
@@ -592,6 +601,90 @@ fn update_commands(manifest: &DevToolsManifest) -> Vec<HarnessCommand> {
         command("npm", ["update"]),
         command("uv", ["run", "prek", "autoupdate", "--freeze"]),
     ]
+}
+
+fn update_rust_toolchain_pin(
+    repo_root: &Path,
+    manifest: &DevToolsManifest,
+) -> Result<(), ReleaseError> {
+    let Some(latest) = latest_stable_rust() else {
+        return Ok(());
+    };
+    if latest == manifest.rust {
+        return Ok(());
+    }
+
+    replace_once(
+        &repo_root.join(DEV_TOOLS_PATH),
+        &format!("rust = \"{}\"", manifest.rust),
+        &format!("rust = \"{latest}\""),
+    )?;
+    replace_once(
+        &repo_root.join("rust-toolchain.toml"),
+        &format!("channel = \"{}\"", manifest.rust),
+        &format!("channel = \"{latest}\""),
+    )?;
+    replace_once(
+        &repo_root.join("Cargo.toml"),
+        &format!("rust-version = \"{}\"", minor_version(&manifest.rust)),
+        &format!("rust-version = \"{}\"", minor_version(&latest)),
+    )
+}
+
+fn rust_toolchain_latest_check(manifest: &DevToolsManifest) -> DevAuditCheck {
+    let Some(latest) = latest_stable_rust() else {
+        return DevAuditCheck {
+            name: "rust".to_owned(),
+            command: "rustup check".to_owned(),
+            status: DevAuditStatus::Failed,
+            output: "unable to determine latest stable Rust toolchain".to_owned(),
+        };
+    };
+
+    let status = if latest == manifest.rust {
+        DevAuditStatus::Clean
+    } else {
+        DevAuditStatus::Findings
+    };
+    DevAuditCheck {
+        name: "rust".to_owned(),
+        command: "rustup check".to_owned(),
+        status,
+        output: format!("pinned: {}, latest stable: {latest}", manifest.rust),
+    }
+}
+
+fn latest_stable_rust() -> Option<String> {
+    let output = Command::new("rustup").arg("check").output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .find_map(parse_stable_rustup_check_line)
+}
+
+fn parse_stable_rustup_check_line(line: &str) -> Option<String> {
+    let line = line.strip_prefix("stable-")?;
+    let (_, version) = line.split_once("up to date:")?;
+    version.split_whitespace().next().map(ToOwned::to_owned)
+}
+
+fn replace_once(path: &Path, old: &str, new: &str) -> Result<(), ReleaseError> {
+    let contents = read_to_string(path)?;
+    let count = contents.matches(old).count();
+    if count != 1 {
+        return Err(ReleaseError::InvalidInput {
+            path: path.to_path_buf(),
+            message: format!("expected exactly one occurrence of {old:?}, found {count}"),
+        });
+    }
+
+    std::fs::write(path, contents.replace(old, new)).map_err(|source| ReleaseError::Io {
+        path: path.to_path_buf(),
+        source,
+    })
 }
 
 fn latest_audit_commands() -> Vec<HarnessCommand> {

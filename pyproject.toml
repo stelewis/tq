@@ -51,9 +51,6 @@ exclude = [
     "tmp/**",
 ]
 
-[tool.uv.build-backend]
-module-name = "tq"
-
 [dependency-groups]
 dev = [
     "commitizen>=4.16.4",
