@@ -15,13 +15,13 @@ inputs:
     required: false
     default: "0.17.0"
   install-cargo-audit:
-    description: Install cargo-audit from the pinned RustSec revision
+    description: Install cargo-audit from the pinned crates.io release
     required: false
     default: "false"
-  cargo-audit-rev:
-    description: RustSec repository revision to install cargo-audit from
+  cargo-audit-version:
+    description: cargo-audit release to install with the stable toolchain
     required: false
-    default: "c9f8506963a0050a7b53ce4d3781baa9485c7a89"  # pragma: allowlist secret
+    default: "0.22.1"
   install-cargo-deny:
     description: Install cargo-deny from the pinned stable release
     required: false
@@ -75,7 +75,7 @@ runs:
       run: |
         set -euo pipefail
 
-        cache_key_prefix="rust-maintenance-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.cache-suffix }}-outdated-${{ inputs.install-cargo-outdated }}-${{ inputs.cargo-outdated-version }}-audit-${{ inputs.install-cargo-audit }}-${{ inputs.cargo-audit-rev }}-deny-${{ inputs.install-cargo-deny }}-${{ inputs.cargo-deny-version }}"
+        cache_key_prefix="rust-maintenance-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.cache-suffix }}-outdated-${{ inputs.install-cargo-outdated }}-${{ inputs.cargo-outdated-version }}-audit-${{ inputs.install-cargo-audit }}-${{ inputs.cargo-audit-version }}-deny-${{ inputs.install-cargo-deny }}-${{ inputs.cargo-deny-version }}"
 
         echo "exact=${cache_key_prefix}-${{ hashFiles('.github/actions/setup-rust-maintenance-tools/action.yml') }}" >> "$GITHUB_OUTPUT"
         echo "prefix=${cache_key_prefix}-" >> "$GITHUB_OUTPUT"
@@ -129,10 +129,8 @@ runs:
 
         cargo +stable install \
           --root "$tool_root" \
-          --git https://github.com/RustSec/rustsec.git \
-          --rev "${{ inputs.cargo-audit-rev }}" \
           --locked \
-          cargo-audit
+          "cargo-audit@${{ inputs.cargo-audit-version }}"
 
     - name: Install cargo-deny
       if: ${{ inputs.install-cargo-deny == 'true' }}

@@ -45,7 +45,7 @@ struct DevToolsManifest {
     npm: String,
     mise: String,
     cargo_outdated: String,
-    cargo_audit_rev: String,
+    cargo_audit: String,
     cargo_deny: String,
 }
 
@@ -53,6 +53,7 @@ struct DevToolsManifest {
 struct HarnessCommand {
     program: String,
     args: Vec<String>,
+    env: Vec<(String, String)>,
 }
 
 pub fn verify_dev_tool_pins(repo_root: &Path) -> Result<(), ReleaseError> {
@@ -100,10 +101,12 @@ pub fn doctor_dev_environment(repo_root: &Path) -> Result<DevDoctorReport, Relea
         ),
         check_version(
             "cargo-audit",
-            "cargo-audit",
+            &manifest.cargo_audit,
             "cargo",
             &["audit", "--version"],
         ),
+        check_pkg_config(),
+        check_homebrew_openssl(),
     ];
 
     let report = DevDoctorReport { checks };
@@ -127,13 +130,9 @@ pub fn doctor_dev_environment(repo_root: &Path) -> Result<DevDoctorReport, Relea
 
 pub fn setup_dev_environment(repo_root: &Path) -> Result<(), ReleaseError> {
     let manifest = read_manifest(repo_root)?;
-    remove_stale_cargo_binaries(&[
-        "cargo-outdated",
-        "cargo-deny",
-        "cargo-audit",
-        "cargo-audit-audit",
-    ])?;
-    run_commands(repo_root, setup_commands(&manifest))
+    verify_native_build_prerequisites()?;
+    run_commands(repo_root, setup_commands(&manifest))?;
+    install_missing_cargo_tools(repo_root, &manifest)
 }
 
 pub fn update_dev_dependencies(repo_root: &Path) -> Result<(), ReleaseError> {
@@ -165,11 +164,7 @@ fn read_manifest(repo_root: &Path) -> Result<DevToolsManifest, ReleaseError> {
         npm: required_string(&document, &["tools", "npm"], &path)?,
         mise: required_string(&document, &["tools", "mise"], &path)?,
         cargo_outdated: required_string(&document, &["rust-maintenance", "cargo-outdated"], &path)?,
-        cargo_audit_rev: required_string(
-            &document,
-            &["rust-maintenance", "cargo-audit-rev"],
-            &path,
-        )?,
+        cargo_audit: required_string(&document, &["rust-maintenance", "cargo-audit"], &path)?,
         cargo_deny: required_string(&document, &["rust-maintenance", "cargo-deny"], &path)?,
     })
 }
@@ -299,9 +294,9 @@ fn verify_rust_maintenance_action(
     );
     require_contains(
         violations,
-        ".github/actions/setup-rust-maintenance-tools/action.yml cargo-audit-rev",
+        ".github/actions/setup-rust-maintenance-tools/action.yml cargo-audit-version",
         &contents,
-        &format!("default: \"{}\"", manifest.cargo_audit_rev),
+        &format!("default: \"{}\"", manifest.cargo_audit),
     );
     require_contains(
         violations,
@@ -435,38 +430,72 @@ fn setup_commands(manifest: &DevToolsManifest) -> Vec<HarnessCommand> {
         command("uv", ["sync", "--locked"]),
         command("npm", ["ci"]),
         command("uv", ["run", "prek", "install", "--install-hooks"]),
-        command(
-            "cargo",
-            [
-                "install",
-                "--force",
-                "--locked",
-                &format!("cargo-outdated@{}", manifest.cargo_outdated),
-            ],
-        ),
-        command(
-            "cargo",
-            [
-                "install",
-                "--force",
-                "--locked",
-                &format!("cargo-deny@{}", manifest.cargo_deny),
-            ],
-        ),
-        command(
-            "cargo",
-            [
-                "install",
-                "--force",
-                "--git",
-                "https://github.com/RustSec/rustsec.git",
-                "--rev",
-                &manifest.cargo_audit_rev,
-                "--locked",
-                "cargo-audit",
-            ],
-        ),
     ]
+}
+
+fn install_missing_cargo_tools(
+    repo_root: &Path,
+    manifest: &DevToolsManifest,
+) -> Result<(), ReleaseError> {
+    if !cargo_subcommand_matches("outdated", &manifest.cargo_outdated) {
+        remove_stale_cargo_binaries(&["cargo-outdated"])?;
+        run_commands(
+            repo_root,
+            vec![cargo_install_command(
+                repo_root,
+                [
+                    "install",
+                    "--force",
+                    "--locked",
+                    &format!("cargo-outdated@{}", manifest.cargo_outdated),
+                ],
+            )],
+        )?;
+    }
+
+    if !cargo_subcommand_matches("deny", &manifest.cargo_deny) {
+        remove_stale_cargo_binaries(&["cargo-deny"])?;
+        run_commands(
+            repo_root,
+            vec![cargo_install_command(
+                repo_root,
+                [
+                    "install",
+                    "--force",
+                    "--locked",
+                    &format!("cargo-deny@{}", manifest.cargo_deny),
+                ],
+            )],
+        )?;
+    }
+
+    if !cargo_subcommand_matches("audit", &manifest.cargo_audit) {
+        remove_stale_cargo_binaries(&["cargo-audit", "cargo-audit-audit"])?;
+        run_commands(
+            repo_root,
+            vec![cargo_install_command(
+                repo_root,
+                [
+                    "install",
+                    "--force",
+                    "--locked",
+                    &format!("cargo-audit@{}", manifest.cargo_audit),
+                ],
+            )],
+        )?;
+    }
+
+    Ok(())
+}
+
+fn cargo_subcommand_matches(subcommand: &str, expected: &str) -> bool {
+    Command::new("cargo")
+        .args([subcommand, "--version"])
+        .envs(native_build_env().iter().map(|(key, value)| (key, value)))
+        .output()
+        .is_ok_and(|output| {
+            output.status.success() && String::from_utf8_lossy(&output.stdout).contains(expected)
+        })
 }
 
 fn remove_stale_cargo_binaries(names: &[&str]) -> Result<(), ReleaseError> {
@@ -526,14 +555,33 @@ fn command<const N: usize>(program: &str, args: [&str; N]) -> HarnessCommand {
     HarnessCommand {
         program: program.to_owned(),
         args: args.into_iter().map(ToOwned::to_owned).collect(),
+        env: Vec::new(),
     }
 }
 
+fn cargo_install_command<const N: usize>(repo_root: &Path, args: [&str; N]) -> HarnessCommand {
+    HarnessCommand {
+        program: "cargo".to_owned(),
+        args: args.into_iter().map(ToOwned::to_owned).collect(),
+        env: cargo_tool_build_env(repo_root),
+    }
+}
+
+fn cargo_tool_build_env(repo_root: &Path) -> Vec<(String, String)> {
+    vec![(
+        "CARGO_TARGET_DIR".to_owned(),
+        repo_root.join("target/cargo-tools").display().to_string(),
+    )]
+}
+
 fn run_commands(repo_root: &Path, commands: Vec<HarnessCommand>) -> Result<(), ReleaseError> {
+    let native_env = native_build_env();
     for command in commands {
         let status = Command::new(&command.program)
             .args(&command.args)
             .current_dir(repo_root)
+            .envs(native_env.iter().map(|(key, value)| (key, value)))
+            .envs(command.env.iter().map(|(key, value)| (key, value)))
             .status()
             .map_err(|source| ReleaseError::CommandIo {
                 repo_root: repo_root.to_path_buf(),
@@ -551,6 +599,118 @@ fn run_commands(repo_root: &Path, commands: Vec<HarnessCommand>) -> Result<(), R
         }
     }
     Ok(())
+}
+
+fn native_build_env() -> Vec<(String, String)> {
+    let mut env = Vec::new();
+
+    if std::env::var_os("PKG_CONFIG").is_none()
+        && let Some(pkg_config) = pkg_config_path()
+    {
+        env.push(("PKG_CONFIG".to_owned(), pkg_config));
+    }
+
+    if std::env::var_os("OPENSSL_DIR").is_none()
+        && let Some(openssl_dir) = brew_prefix("openssl@3")
+    {
+        env.push(("OPENSSL_DIR".to_owned(), openssl_dir));
+    }
+
+    env
+}
+
+fn verify_native_build_prerequisites() -> Result<(), ReleaseError> {
+    let mut missing = Vec::new();
+    if pkg_config_path().is_none() {
+        missing.push("pkg-config/pkgconf is required to build pinned Cargo maintenance tools; install it with `brew install pkgconf` on macOS".to_owned());
+    }
+
+    if cfg!(target_os = "macos") && brew_prefix("openssl@3").is_none() {
+        missing.push("OpenSSL is required to build pinned Cargo maintenance tools; install it with `brew install openssl@3` on macOS".to_owned());
+    }
+
+    if missing.is_empty() {
+        return Ok(());
+    }
+
+    Err(ReleaseError::RepositoryPolicyViolation {
+        details: missing.join("\n"),
+    })
+}
+
+fn pkg_config_path() -> Option<String> {
+    executable_path("pkg-config")
+        .or_else(|| executable_path("pkgconf"))
+        .or_else(|| brew_executable("pkgconf", "pkgconf"))
+        .or_else(|| brew_executable("pkg-config", "pkgconf"))
+}
+
+fn executable_path(name: &str) -> Option<String> {
+    let path = std::env::var_os("PATH")?;
+    std::env::split_paths(&path)
+        .map(|directory| directory.join(name))
+        .find(|candidate| candidate.is_file())
+        .map(|candidate| candidate.display().to_string())
+}
+
+fn brew_executable(formula: &str, name: &str) -> Option<String> {
+    let path = Path::new(&brew_prefix(formula)?).join("bin").join(name);
+    if path.is_file() {
+        return Some(path.display().to_string());
+    }
+    None
+}
+
+fn brew_prefix(formula: &str) -> Option<String> {
+    let output = Command::new("brew")
+        .args(["--prefix", formula])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let path = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    if path.is_empty() || !Path::new(&path).exists() {
+        None
+    } else {
+        Some(path)
+    }
+}
+
+fn check_pkg_config() -> DevDoctorCheck {
+    if let Some(path) = pkg_config_path() {
+        return DevDoctorCheck {
+            tool: "pkg-config".to_owned(),
+            expected: "pkg-config or pkgconf on PATH".to_owned(),
+            actual: Some(path),
+            status: DevToolStatus::Ok,
+        };
+    }
+
+    DevDoctorCheck {
+        tool: "pkg-config".to_owned(),
+        expected: "pkg-config or pkgconf on PATH".to_owned(),
+        actual: None,
+        status: DevToolStatus::Missing,
+    }
+}
+
+fn check_homebrew_openssl() -> DevDoctorCheck {
+    if let Some(path) = brew_prefix("openssl@3") {
+        return DevDoctorCheck {
+            tool: "openssl@3".to_owned(),
+            expected: "Homebrew openssl@3".to_owned(),
+            actual: Some(path),
+            status: DevToolStatus::Ok,
+        };
+    }
+
+    DevDoctorCheck {
+        tool: "openssl@3".to_owned(),
+        expected: "Homebrew openssl@3".to_owned(),
+        actual: None,
+        status: DevToolStatus::Missing,
+    }
 }
 
 fn read_toml(path: &Path) -> Result<Value, ReleaseError> {
