@@ -13,39 +13,6 @@ pub struct ExternalPinReport {
     pub results: Vec<ExternalPinResult>,
 }
 
-impl ExternalPinReport {
-    #[must_use]
-    pub fn to_markdown(&self) -> String {
-        let mut lines = vec![
-            format!("## {}", self.title),
-            String::new(),
-            "| Surface | Source | Dependency | Pinned | Latest | Status |".to_owned(),
-            "| --- | --- | --- | --- | --- | --- |".to_owned(),
-        ];
-
-        for result in &self.results {
-            lines.push(format!(
-                "| {} | {} | {} | {} | {} | {} |",
-                result.surface,
-                result.source,
-                result.name,
-                result.pinned.as_deref().unwrap_or("unavailable"),
-                result.latest.as_deref().unwrap_or("unavailable"),
-                result.status.label(),
-            ));
-        }
-
-        lines.push(String::new());
-        lines.push(if self.drift_detected {
-            "One or more frozen external pins need review.".to_owned()
-        } else {
-            "All frozen external pins are current.".to_owned()
-        });
-        lines.push(String::new());
-        lines.join("\n")
-    }
-}
-
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ExternalPinResult {
     pub surface: ExternalPinSurface,
@@ -84,7 +51,8 @@ pub enum ExternalPinStatus {
 }
 
 impl ExternalPinStatus {
-    const fn label(self) -> &'static str {
+    #[must_use]
+    pub const fn label(self) -> &'static str {
         match self {
             Self::UpToDate => "up to date",
             Self::UpdateRequired => "update required",

@@ -1,10 +1,15 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
-use tq_release::{
-    DevAuditReport, DevAuditStatus, DevDoctorReport, DevToolStatus, ExternalPinReport,
-    ReleaseError, RuntimeDependencyChange,
+use dev_output::{
+    render_audit_agent, render_audit_human, render_doctor_agent, render_doctor_human,
+    render_external_pin_agent, render_external_pin_human,
 };
+use tq_release::{
+    DevAuditReport, DevDoctorReport, ExternalPinReport, ReleaseError, RuntimeDependencyChange,
+};
+
+mod dev_output;
 
 #[derive(Debug, Parser)]
 #[command(name = "tq-release", about = "Run tq release policy checks")]
@@ -274,32 +279,9 @@ fn run_release_command(args: &ReleaseArgs) -> Result<(), ReleaseError> {
 
 fn print_doctor_report(report: &DevDoctorReport, output: OutputMode) -> Result<(), ReleaseError> {
     match output {
-        OutputMode::Human => {
-            for check in &report.checks {
-                let status = match check.status {
-                    DevToolStatus::Ok => "ok",
-                    DevToolStatus::Missing => "missing",
-                    DevToolStatus::Mismatched => "mismatch",
-                };
-                let actual = check.actual.as_deref().unwrap_or("not found");
-                println!(
-                    "{status}: {} expected {}, found {actual}",
-                    check.tool, check.expected
-                );
-            }
-        }
+        OutputMode::Human => print!("{}", render_doctor_human(report)),
         OutputMode::Json => print_json(report)?,
-        OutputMode::Agent => {
-            for check in &report.checks {
-                println!(
-                    "status={} tool={} expected={} actual={}",
-                    tool_status_label(check.status),
-                    check.tool,
-                    check.expected,
-                    check.actual.as_deref().unwrap_or("not-found")
-                );
-            }
-        }
+        OutputMode::Agent => print!("{}", render_doctor_agent(report)),
     }
 
     Ok(())
@@ -325,33 +307,9 @@ fn report_audit(
 
 fn print_audit_report(report: &DevAuditReport, output: OutputMode) -> Result<(), ReleaseError> {
     match output {
-        OutputMode::Human => {
-            for check in &report.checks {
-                let status = match check.status {
-                    DevAuditStatus::Clean => "clean",
-                    DevAuditStatus::Findings => "findings",
-                    DevAuditStatus::Failed => "failed",
-                };
-                println!("{status}: {} ({})", check.name, check.command);
-                if !check.output.is_empty() {
-                    println!("{}", check.output);
-                }
-            }
-        }
+        OutputMode::Human => print!("{}", render_audit_human(report)),
         OutputMode::Json => print_json(report)?,
-        OutputMode::Agent => {
-            for check in &report.checks {
-                println!(
-                    "status={} name={} command={}",
-                    audit_status_label(check.status),
-                    check.name,
-                    check.command
-                );
-                if !check.output.is_empty() {
-                    println!("output<<EOF\n{}\nEOF", check.output);
-                }
-            }
-        }
+        OutputMode::Agent => print!("{}", render_audit_agent(report)),
     }
 
     Ok(())
@@ -379,40 +337,12 @@ fn print_external_pin_report(
     output: OutputMode,
 ) -> Result<(), ReleaseError> {
     match output {
-        OutputMode::Human => print!("{}", report.to_markdown()),
+        OutputMode::Human => print!("{}", render_external_pin_human(report)),
         OutputMode::Json => print_json(report)?,
-        OutputMode::Agent => {
-            for result in &report.results {
-                println!(
-                    "status={} surface={} source={} name={} pinned={} latest={}",
-                    result.status,
-                    result.surface,
-                    result.source,
-                    result.name,
-                    result.pinned.as_deref().unwrap_or("unavailable"),
-                    result.latest.as_deref().unwrap_or("unavailable")
-                );
-            }
-        }
+        OutputMode::Agent => print!("{}", render_external_pin_agent(report)),
     }
 
     Ok(())
-}
-
-const fn tool_status_label(status: DevToolStatus) -> &'static str {
-    match status {
-        DevToolStatus::Ok => "ok",
-        DevToolStatus::Missing => "missing",
-        DevToolStatus::Mismatched => "mismatched",
-    }
-}
-
-const fn audit_status_label(status: DevAuditStatus) -> &'static str {
-    match status {
-        DevAuditStatus::Clean => "clean",
-        DevAuditStatus::Findings => "findings",
-        DevAuditStatus::Failed => "failed",
-    }
 }
 
 fn print_json<T: serde::Serialize>(value: &T) -> Result<(), ReleaseError> {

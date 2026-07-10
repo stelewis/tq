@@ -24,9 +24,9 @@ cargo dev <group> <command>
 Reporting commands support `--output human`, `--output json`, `--output agent`, and `--quiet`.
 
 - `human` is the default terminal UI.
-- `json` is for automation that needs a stable machine-readable report.
-- `agent` is compact structured text for coding agents and issue summaries.
-- `quiet` suppresses success output while preserving findings, stderr errors, and non-zero exit codes.
+- `json` is for automation that needs a stable machine-readable report. Report payloads include a typed `summary` plus the ordered check results.
+- `agent` is Markdown structured for coding agents, issue comments, and PR summaries.
+- `quiet` suppresses clean success output while preserving findings, stderr errors, and non-zero exit codes.
 
 ## Design rule
 

@@ -10,15 +10,76 @@ const DEV_TOOLS_PATH: &str = ".github/dev-tools.toml";
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct DevDoctorReport {
+    pub summary: DevDoctorSummary,
     pub checks: Vec<DevDoctorCheck>,
 }
 
 impl DevDoctorReport {
     #[must_use]
     pub fn is_healthy(&self) -> bool {
-        self.checks
+        self.summary.status == DevDoctorStatus::Healthy
+    }
+
+    fn new(checks: Vec<DevDoctorCheck>) -> Self {
+        Self {
+            summary: DevDoctorSummary::from_checks(&checks),
+            checks,
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct DevDoctorSummary {
+    pub status: DevDoctorStatus,
+    pub total: usize,
+    pub ok: usize,
+    pub missing: usize,
+    pub mismatched: usize,
+}
+
+impl DevDoctorSummary {
+    fn from_checks(checks: &[DevDoctorCheck]) -> Self {
+        let ok = checks
             .iter()
-            .all(|check| check.status == DevToolStatus::Ok)
+            .filter(|check| check.status == DevToolStatus::Ok)
+            .count();
+        let missing = checks
+            .iter()
+            .filter(|check| check.status == DevToolStatus::Missing)
+            .count();
+        let mismatched = checks
+            .iter()
+            .filter(|check| check.status == DevToolStatus::Mismatched)
+            .count();
+
+        Self {
+            status: if missing == 0 && mismatched == 0 {
+                DevDoctorStatus::Healthy
+            } else {
+                DevDoctorStatus::Unhealthy
+            },
+            total: checks.len(),
+            ok,
+            missing,
+            mismatched,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DevDoctorStatus {
+    Healthy,
+    Unhealthy,
+}
+
+impl DevDoctorStatus {
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Healthy => "healthy",
+            Self::Unhealthy => "unhealthy",
+        }
     }
 }
 
@@ -38,17 +99,95 @@ pub enum DevToolStatus {
     Mismatched,
 }
 
+impl DevToolStatus {
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Ok => "ok",
+            Self::Missing => "missing",
+            Self::Mismatched => "mismatched",
+        }
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct DevAuditReport {
+    pub summary: DevAuditSummary,
     pub checks: Vec<DevAuditCheck>,
 }
 
 impl DevAuditReport {
     #[must_use]
     pub fn has_findings(&self) -> bool {
-        self.checks
+        self.summary.status != DevAuditReportStatus::Clean
+    }
+
+    fn new(checks: Vec<DevAuditCheck>) -> Self {
+        Self {
+            summary: DevAuditSummary::from_checks(&checks),
+            checks,
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct DevAuditSummary {
+    pub status: DevAuditReportStatus,
+    pub total: usize,
+    pub clean: usize,
+    pub findings: usize,
+    pub failed: usize,
+}
+
+impl DevAuditSummary {
+    fn from_checks(checks: &[DevAuditCheck]) -> Self {
+        let clean = checks
             .iter()
-            .any(|check| check.status != DevAuditStatus::Clean)
+            .filter(|check| check.status == DevAuditStatus::Clean)
+            .count();
+        let findings = checks
+            .iter()
+            .filter(|check| check.status == DevAuditStatus::Findings)
+            .count();
+        let failed = checks
+            .iter()
+            .filter(|check| check.status == DevAuditStatus::Failed)
+            .count();
+
+        let status = if failed > 0 {
+            DevAuditReportStatus::Failed
+        } else if findings > 0 {
+            DevAuditReportStatus::Findings
+        } else {
+            DevAuditReportStatus::Clean
+        };
+
+        Self {
+            status,
+            total: checks.len(),
+            clean,
+            findings,
+            failed,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DevAuditReportStatus {
+    Clean,
+    Findings,
+    Failed,
+}
+
+impl DevAuditReportStatus {
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Clean => "clean",
+            Self::Findings => "findings",
+            Self::Failed => "failed",
+        }
     }
 }
 
@@ -66,6 +205,17 @@ pub enum DevAuditStatus {
     Clean,
     Findings,
     Failed,
+}
+
+impl DevAuditStatus {
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Clean => "clean",
+            Self::Findings => "findings",
+            Self::Failed => "failed",
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -111,7 +261,7 @@ pub fn verify_dev_tool_pins(repo_root: &Path) -> Result<(), ReleaseError> {
 
 pub fn doctor_dev_environment(repo_root: &Path) -> Result<DevDoctorReport, ReleaseError> {
     let manifest = read_manifest(repo_root)?;
-    let checks = vec![
+    let mut checks = vec![
         check_version("rustc", &manifest.rust, "rustc", &["--version"]),
         check_version("cargo", &manifest.rust, "cargo", &["--version"]),
         check_version("uv", &manifest.uv, "uv", &["--version"]),
@@ -141,13 +291,11 @@ pub fn doctor_dev_environment(repo_root: &Path) -> Result<DevDoctorReport, Relea
         check_homebrew_openssl(),
     ];
 
-    let report = DevDoctorReport { checks };
     let cleanup = obsolete_rust_toolchains(repo_root, &manifest.rust);
     if cleanup.is_empty() {
-        return Ok(report);
+        return Ok(DevDoctorReport::new(checks));
     }
 
-    let mut checks = report.checks;
     checks.push(DevDoctorCheck {
         tool: "rustup cleanup".to_owned(),
         expected: format!(
@@ -157,7 +305,7 @@ pub fn doctor_dev_environment(repo_root: &Path) -> Result<DevDoctorReport, Relea
         actual: Some(cleanup.join(", ")),
         status: DevToolStatus::Mismatched,
     });
-    Ok(DevDoctorReport { checks })
+    Ok(DevDoctorReport::new(checks))
 }
 
 pub fn setup_dev_environment(repo_root: &Path) -> Result<(), ReleaseError> {
@@ -801,7 +949,7 @@ fn audit_commands(
         });
     }
 
-    Ok(DevAuditReport { checks })
+    Ok(DevAuditReport::new(checks))
 }
 
 fn audit_status(

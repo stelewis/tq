@@ -9,7 +9,8 @@ mod workspace_version;
 use std::path::Path;
 
 pub use dev_tools::{
-    DevAuditCheck, DevAuditReport, DevAuditStatus, DevDoctorCheck, DevDoctorReport, DevToolStatus,
+    DevAuditCheck, DevAuditReport, DevAuditReportStatus, DevAuditStatus, DevAuditSummary,
+    DevDoctorCheck, DevDoctorReport, DevDoctorStatus, DevDoctorSummary, DevToolStatus,
 };
 pub use error::ReleaseError;
 pub use external_pins::{
