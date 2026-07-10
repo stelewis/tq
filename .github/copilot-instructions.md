@@ -24,9 +24,10 @@ Use the Rust workspace for product code and `uv` for packaging and repository au
 - Release tooling: `cargo run -p tq-release --locked -- <args>`
 - Developer harness: `cargo dev <group> <command>`
   - Repo policy: `cargo dev policy verify-pins --repo-root .`
+  - External pin drift: `cargo dev policy audit-external-pins --repo-root .`
   - Local health: `cargo dev health doctor --repo-root .`
-  - Dependency freshness check: `cargo dev deps update --mode check --output human --repo-root .`
-  - Dependency update apply: `cargo dev deps update --mode apply --repo-root .`
+  - Dependency freshness check: `cargo dev deps audit-latest --output agent --repo-root .`
+  - Dependency update apply: `cargo dev deps update --repo-root .`
   - Security audit: `cargo dev deps audit-security --repo-root .`
   - Release build: `cargo dev release build --repo-root .`
 - Python: `uv run python <args>`

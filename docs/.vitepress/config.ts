@@ -61,6 +61,7 @@ const developerSidebar = [
     collapsed: false,
     items: [
       { text: "Overview", link: "/developer/tools/" },
+      { text: "Developer Harness", link: "/developer/tools/dev-harness" },
       { text: "Local Workflows", link: "/developer/tools/local-workflows" },
       { text: "CI and Automation", link: "/developer/tools/ci" },
       {

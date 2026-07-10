@@ -44,272 +44,60 @@ jobs:
           report_file="$(mktemp)"
           issue_body_file="$(mktemp)"
 
-          ruby <<'RUBY' "$report_file" "$issue_body_file" >> "$GITHUB_OUTPUT"
-          require "open3"
-          require "rubygems"
-          require "uri"
-          require "yaml"
+          set +e
+          cargo dev policy audit-external-pins --output json --repo-root . > "$report_file"
+          status="$?"
+          set -e
 
-          report_file = ARGV.fetch(0)
-          issue_body_file = ARGV.fetch(1)
+          python <<'PY' "$report_file" "$issue_body_file" "$status" >> "$GITHUB_OUTPUT"
+          import json
+          import os
+          import sys
 
-          Ref = Struct.new(
-            :surface,
-            :name,
-            :remote,
-            :pinned,
-            :source,
-            :valid_pin,
-            :lookup_supported,
-            :lookup_message,
-            keyword_init: true
-          )
-          Result = Struct.new(:ref, :latest_tag, :latest_sha, :status, :message, keyword_init: true)
+          report_path, issue_body_path, status = sys.argv[1:]
+          report = json.loads(open(report_path, encoding="utf-8").read())
 
-          def capture_lines(*command)
-            stdout, status = Open3.capture2(*command)
-            raise "command failed: #{command.join(" ")}" unless status.success?
-
-            stdout.lines(chomp: true)
-          end
-
-          def release_sort_key(tag)
-            Gem::Version.new(tag.delete_prefix("v"))
-          rescue ArgumentError
-            Gem::Version.new("0")
-          end
-
-          def semver_tag?(tag)
-            tag.match?(/\Av?\d+\.\d+\.\d+\z/)
-          end
-
-          def latest_release(remote, cache)
-            return cache.fetch(remote) if cache.key?(remote)
-
-            tags = {}
-
-            capture_lines("git", "ls-remote", "--tags", remote).each do |line|
-              sha, ref = line.split(/\s+/, 2)
-              next if sha.nil? || ref.nil?
-              next unless ref.start_with?("refs/tags/")
-
-              tag = ref.delete_prefix("refs/tags/").sub(/\^\{\}\z/, "")
-              next unless semver_tag?(tag)
-
-              tags[tag] ||= {}
-              if ref.end_with?("^{}")
-                tags[tag][:peeled_sha] = sha
-              else
-                tags[tag][:sha] = sha
-              end
-            end
-
-            releases = tags.filter_map do |tag, entry|
-              sha = entry[:peeled_sha] || entry[:sha]
-              next if sha.nil?
-
-              [tag, sha]
-            end
-
-            cache[remote] = releases.max_by { |tag, _sha| release_sort_key(tag) }
-          rescue StandardError => error
-            cache[remote] = [:error, error.message]
-          end
-
-          def action_refs
-            refs = []
-            files = capture_lines(
-              "git",
-              "ls-files",
-              ".github/workflows/*.yml",
-              ".github/workflows/*.yaml",
-              ".github/actions/**/action.yml",
-              ".github/actions/**/action.yaml"
-            )
-
-            files.each do |file|
-              File.foreach(file) do |line|
-                next unless line =~ /^\s*-?\s*uses:\s*/
-
-                ref = line.sub(/^\s*-?\s*uses:\s*/, "").strip
-                ref = ref.sub(/\s+#.*\z/, "")
-                ref = ref.gsub(/\A['"]|['"]\z/, "")
-
-                next if ref.start_with?("./", "docker://")
-
-                repo, pinned = ref.split("@", 2)
-                valid_pin = pinned.is_a?(String) && pinned.match?(/\A[a-f0-9]{40}\z/)
-
-                refs << Ref.new(
-                  surface: "GitHub Action",
-                  name: repo,
-                  remote: "https://github.com/#{repo}.git",
-                  pinned: pinned,
-                  source: file,
-                  valid_pin: valid_pin,
-                  lookup_supported: true,
-                  lookup_message: nil
-                )
-              end
-            end
-
-            refs
-          end
-
-          def github_remote_from_pre_commit(repo)
-            return nil if repo.nil? || repo == "local"
-
-            case repo
-            when %r{\Ahttps://github\.com/[^/]+/[^/]+(?:\.git)?/?\z}
-              path = URI(repo).path.delete_prefix("/").sub(/\.git\z/, "")
-              "https://github.com/#{path}.git"
-            when %r{\Agit@github\.com:[^/]+/[^/]+(?:\.git)?\z}
-              path = repo.delete_prefix("git@github.com:").sub(/\.git\z/, "")
-              "https://github.com/#{path}.git"
-            else
-              nil
-            end
-          rescue URI::InvalidURIError
-            nil
-          end
-
-          def pre_commit_refs
-            config = YAML.safe_load(
-              File.read(".pre-commit-config.yaml"),
-              permitted_classes: [],
-              aliases: false
-            ) || {}
-
-            config.fetch("repos", []).filter_map do |repo_entry|
-              repo = repo_entry["repo"]
-              next if repo.nil? || repo == "local"
-
-              rev = repo_entry["rev"]
-              remote = github_remote_from_pre_commit(repo)
-
-              if remote.nil?
-                next Ref.new(
-                  surface: "pre-commit hook",
-                  name: repo,
-                  remote: nil,
-                  pinned: rev,
-                  source: ".pre-commit-config.yaml",
-                  valid_pin: rev.is_a?(String) && rev.match?(/\A[a-f0-9]{40}\z/),
-                  lookup_supported: false,
-                  lookup_message: "Unsupported pre-commit repository URL for automated drift lookup; manual review required"
-                )
-              end
-
-              Ref.new(
-                surface: "pre-commit hook",
-                name: repo,
-                remote: remote,
-                pinned: rev,
-                source: ".pre-commit-config.yaml",
-                valid_pin: rev.is_a?(String) && rev.match?(/\A[a-f0-9]{40}\z/),
-                lookup_supported: true,
-                lookup_message: nil
+          lines = [
+              f"## {report['title']}",
+              "",
+              "| Surface | Source | Dependency | Pinned | Latest | Status |",
+              "| --- | --- | --- | --- | --- | --- |",
+          ]
+          for result in report["results"]:
+              lines.append(
+                  "| {surface} | {source} | {name} | {pinned} | {latest} | {status} |".format(
+                      surface=result["surface"],
+                      source=result["source"],
+                      name=result["name"],
+                      pinned=result.get("pinned") or "unavailable",
+                      latest=result.get("latest") or "unavailable",
+                      status=result["status"],
+                  )
               )
-            end
-          end
-
-          cache = {}
-          refs = action_refs + pre_commit_refs
-          results = refs.map do |ref|
-            unless ref.valid_pin
-              next Result.new(
-                ref: ref,
-                latest_tag: nil,
-                latest_sha: nil,
-                status: "invalid pin",
-                message: "Pinned ref is not a full 40-character commit SHA"
-              )
-            end
-
-            unless ref.lookup_supported
-              next Result.new(
-                ref: ref,
-                latest_tag: nil,
-                latest_sha: nil,
-                status: "lookup failed",
-                message: ref.lookup_message
-              )
-            end
-
-            latest = latest_release(ref.remote, cache)
-            if latest.nil?
-              next Result.new(
-                ref: ref,
-                latest_tag: nil,
-                latest_sha: nil,
-                status: "lookup failed",
-                message: "No SemVer release tags were found for #{ref.remote}"
-              )
-            end
-
-            if latest.first == :error
-              next Result.new(
-                ref: ref,
-                latest_tag: nil,
-                latest_sha: nil,
-                status: "lookup failed",
-                message: latest.last
-              )
-            end
-
-            latest_tag, latest_sha = latest
-            status = latest_sha == ref.pinned ? "up to date" : "update required"
-            Result.new(
-              ref: ref,
-              latest_tag: latest_tag,
-              latest_sha: latest_sha,
-              status: status,
-              message: nil
-            )
-          end
-
-          drift_detected = results.any? { |result| result.status != "up to date" }
-
-          report_lines = []
-          report_lines << "## Frozen external pin review"
-          report_lines << ""
-          report_lines << "| Surface | Source | Dependency | Pinned | Latest | Status |"
-          report_lines << "| --- | --- | --- | --- | --- | --- |"
-          results.each do |result|
-            latest = if result.latest_tag && result.latest_sha
-              "#{result.latest_tag} (#{result.latest_sha})"
-            elsif result.message
-              result.message
-            else
-              "unavailable"
-            end
-
-            report_lines << "| #{result.ref.surface} | #{result.ref.source} | #{result.ref.name} | #{result.ref.pinned.inspect} | #{latest} | #{result.status} |"
-          end
-          report_lines << ""
-          report_lines << if drift_detected
-            "One or more frozen external pins need review."
-          else
-            "All frozen external pins are current."
-          end
-
-          File.write(report_file, report_lines.join("\n") + "\n")
-          File.write(
-            issue_body_file,
-            report_lines.join("\n") + "\n\nDetected by workflow run: https://github.com/#{ENV.fetch("GITHUB_REPOSITORY")}/actions/runs/#{ENV.fetch("GITHUB_RUN_ID")}\n"
+          lines.extend([
+              "",
+              "One or more frozen external pins need review."
+              if report["drift_detected"]
+              else "All frozen external pins are current.",
+          ])
+          body = "\n".join(lines) + "\n"
+          issue_body = (
+              body
+              + f"\nDetected by workflow run: https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}\n"
           )
 
-          puts "title=chore: review frozen external pins"
-          puts "drift_detected=#{drift_detected}"
-          RUBY
+          open(issue_body_path, "w", encoding="utf-8").write(issue_body)
+          open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8").write(body)
 
-          cat "$report_file" >> "$GITHUB_STEP_SUMMARY"
+          if status != "0" and not report["drift_detected"]:
+              raise SystemExit(f"external pin audit failed without drift: exit {status}")
 
-          {
-            echo 'issue_body<<__ISSUE_BODY__'
-            cat "$issue_body_file"
-            echo '__ISSUE_BODY__'
-          } >> "$GITHUB_OUTPUT"
+          print("title=chore: review frozen external pins")
+          print(f"drift_detected={str(report['drift_detected']).lower()}")
+          print("issue_body<<__ISSUE_BODY__")
+          print(issue_body, end="")
+          print("__ISSUE_BODY__")
+          PY
 
   sync-drift-issue:
     name: Sync pin drift issue
@@ -330,7 +118,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          existing_issue_number="$(gh issue list --repo "$GH_REPO" --state open --limit 100 --search "$ISSUE_TITLE in:title" --json number,title | ruby -rjson -e 'issues = JSON.parse(STDIN.read); match = issues.find { |issue| issue.fetch("title") == ENV.fetch("ISSUE_TITLE") }; print(match ? match.fetch("number") : "")')"
+          existing_issue_number="$(gh issue list --repo "$GH_REPO" --state open --limit 100 --search "$ISSUE_TITLE in:title" --json number,title --jq '.[] | select(.title == env.ISSUE_TITLE) | .number' | head -n 1)"
 
           if [[ "$DRIFT_DETECTED" == 'true' ]]; then
             issue_body_file="$(mktemp)"

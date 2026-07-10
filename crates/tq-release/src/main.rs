@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use tq_release::{
-    DevAuditReport, DevAuditStatus, DevDoctorReport, DevToolStatus, ReleaseError,
-    RuntimeDependencyChange,
+    DevAuditReport, DevAuditStatus, DevDoctorReport, DevToolStatus, ExternalPinReport,
+    ReleaseError, RuntimeDependencyChange,
 };
 
 #[derive(Debug, Parser)]
@@ -72,23 +72,7 @@ enum DepsCommand {
     #[command(name = "audit-security")]
     AuditSecurity(ReportArgs),
     #[command(name = "update")]
-    Update(UpdateArgs),
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
-enum UpdateMode {
-    Check,
-    Apply,
-}
-
-#[derive(Debug, clap::Args)]
-struct UpdateArgs {
-    #[arg(long, default_value = ".")]
-    repo_root: PathBuf,
-    #[arg(long, value_enum, default_value_t = UpdateMode::Check)]
-    mode: UpdateMode,
-    #[arg(long, value_enum, default_value_t = OutputMode::Human)]
-    output: OutputMode,
+    Update(RepoRootArgs),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
@@ -104,6 +88,8 @@ struct ReportArgs {
     repo_root: PathBuf,
     #[arg(long, value_enum, default_value_t = OutputMode::Human)]
     output: OutputMode,
+    #[arg(long)]
+    quiet: bool,
 }
 
 #[derive(Debug, clap::Args)]
@@ -128,6 +114,8 @@ struct PolicyArgs {
 
 #[derive(Debug, Subcommand)]
 enum PolicyCommand {
+    #[command(name = "audit-external-pins")]
+    AuditExternalPins(ReportArgs),
     #[command(name = "verify-pins")]
     VerifyPins(RepoRootArgs),
 }
@@ -235,20 +223,15 @@ fn run_deps_command(args: &DepsArgs) -> Result<(), ReleaseError> {
             &tq_release::audit_latest_dev_dependencies(&args.repo_root)?,
             "dependency freshness audit found updates or failures",
             args.output,
+            args.quiet,
         ),
         DepsCommand::AuditSecurity(args) => report_audit(
             &tq_release::audit_security_dev_dependencies(&args.repo_root)?,
             "dependency security audit found issues or failures",
             args.output,
+            args.quiet,
         ),
-        DepsCommand::Update(args) => match args.mode {
-            UpdateMode::Check => report_audit(
-                &tq_release::audit_latest_dev_dependencies(&args.repo_root)?,
-                "dependency freshness audit found updates or failures",
-                args.output,
-            ),
-            UpdateMode::Apply => tq_release::update_dev_dependencies(&args.repo_root),
-        },
+        DepsCommand::Update(args) => tq_release::update_dev_dependencies(&args.repo_root),
     }
 }
 
@@ -257,7 +240,9 @@ fn run_health_command(args: &HealthArgs) -> Result<(), ReleaseError> {
         HealthCommand::Cleanup(args) => tq_release::cleanup_dev_environment(&args.repo_root),
         HealthCommand::Doctor(args) => {
             let report = tq_release::doctor_dev_environment(&args.repo_root)?;
-            print_doctor_report(&report, args.output)?;
+            if !args.quiet || !report.is_healthy() {
+                print_doctor_report(&report, args.output)?;
+            }
             if report.is_healthy() {
                 Ok(())
             } else {
@@ -272,6 +257,11 @@ fn run_health_command(args: &HealthArgs) -> Result<(), ReleaseError> {
 
 fn run_policy_command(args: &PolicyArgs) -> Result<(), ReleaseError> {
     match &args.command {
+        PolicyCommand::AuditExternalPins(args) => report_external_pins(
+            &tq_release::audit_external_pin_drift(&args.repo_root)?,
+            args.output,
+            args.quiet,
+        ),
         PolicyCommand::VerifyPins(args) => tq_release::verify_dev_tool_pins(&args.repo_root),
     }
 }
@@ -319,8 +309,11 @@ fn report_audit(
     report: &DevAuditReport,
     failure_message: &str,
     output: OutputMode,
+    quiet: bool,
 ) -> Result<(), ReleaseError> {
-    print_audit_report(report, output)?;
+    if !quiet || report.has_findings() {
+        print_audit_report(report, output)?;
+    }
     if report.has_findings() {
         Err(ReleaseError::RepositoryPolicyViolation {
             details: failure_message.to_owned(),
@@ -357,6 +350,48 @@ fn print_audit_report(report: &DevAuditReport, output: OutputMode) -> Result<(),
                 if !check.output.is_empty() {
                     println!("output<<EOF\n{}\nEOF", check.output);
                 }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn report_external_pins(
+    report: &ExternalPinReport,
+    output: OutputMode,
+    quiet: bool,
+) -> Result<(), ReleaseError> {
+    if !quiet || report.drift_detected {
+        print_external_pin_report(report, output)?;
+    }
+    if report.drift_detected {
+        Err(ReleaseError::RepositoryPolicyViolation {
+            details: "frozen external pins need review".to_owned(),
+        })
+    } else {
+        Ok(())
+    }
+}
+
+fn print_external_pin_report(
+    report: &ExternalPinReport,
+    output: OutputMode,
+) -> Result<(), ReleaseError> {
+    match output {
+        OutputMode::Human => print!("{}", report.to_markdown()),
+        OutputMode::Json => print_json(report)?,
+        OutputMode::Agent => {
+            for result in &report.results {
+                println!(
+                    "status={} surface={} source={} name={} pinned={} latest={}",
+                    result.status,
+                    result.surface,
+                    result.source,
+                    result.name,
+                    result.pinned.as_deref().unwrap_or("unavailable"),
+                    result.latest.as_deref().unwrap_or("unavailable")
+                );
             }
         }
     }

@@ -1,6 +1,7 @@
 mod dependabot;
 mod dev_tools;
 mod error;
+mod external_pins;
 mod runtime_deps;
 mod verify;
 mod workspace_version;
@@ -11,6 +12,9 @@ pub use dev_tools::{
     DevAuditCheck, DevAuditReport, DevAuditStatus, DevDoctorCheck, DevDoctorReport, DevToolStatus,
 };
 pub use error::ReleaseError;
+pub use external_pins::{
+    ExternalPinReport, ExternalPinResult, ExternalPinStatus, ExternalPinSurface,
+};
 pub use runtime_deps::RuntimeDependencyChange;
 pub use verify::{ArtifactViolation, DEFAULT_FORBIDDEN_PREFIXES};
 
@@ -45,6 +49,10 @@ pub fn check_runtime_dep_changes(
 
 pub fn verify_dev_tool_pins(repo_root: &Path) -> Result<(), ReleaseError> {
     dev_tools::verify_dev_tool_pins(repo_root)
+}
+
+pub fn audit_external_pin_drift(repo_root: &Path) -> Result<ExternalPinReport, ReleaseError> {
+    external_pins::audit_external_pin_drift(repo_root)
 }
 
 pub fn doctor_dev_environment(repo_root: &Path) -> Result<DevDoctorReport, ReleaseError> {
