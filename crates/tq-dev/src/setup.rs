@@ -4,12 +4,12 @@ use std::path::{Path, PathBuf};
 
 use crate::action::{ActionPlan, PlannedAction};
 use crate::error::DevError;
+use crate::invocation;
 use crate::invocation::Invocation;
 use crate::manifest::{DevToolsManifest, ToolVersion};
-use crate::{invocation, native_env};
 
-/// The plan is the single source of truth: `run` verifies prerequisites and
-/// applies exactly this plan.
+/// The developer setup plan: the single source of truth for what setup
+/// installs. Callers verify native build prerequisites before applying.
 pub fn plan(repo_root: &Path) -> Result<ActionPlan, DevError> {
     let manifest = DevToolsManifest::load(repo_root)?;
     let mut actions = vec![
@@ -53,11 +53,6 @@ pub fn plan(repo_root: &Path) -> Result<ActionPlan, DevError> {
     ];
     actions.extend(cargo_tool_install_actions(repo_root, &manifest));
     Ok(ActionPlan::new("Developer setup", actions))
-}
-
-pub fn run(repo_root: &Path) -> Result<(), DevError> {
-    native_env::verify_build_prerequisites()?;
-    plan(repo_root)?.apply(repo_root)
 }
 
 /// Removal of the local Cargo maintenance-tool build cache.

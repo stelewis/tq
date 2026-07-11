@@ -233,7 +233,7 @@ fn result(
         name: pin.name.clone(),
         remote: pin.remote.clone(),
         pinned: pin.pinned.clone(),
-        latest: latest.or_else(|| message.clone()),
+        latest,
         status,
         message,
     }

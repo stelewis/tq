@@ -84,10 +84,7 @@ impl Document {
 }
 
 fn to_json<T: Serialize>(report: &T) -> Result<String, DevError> {
-    serde_json::to_string_pretty(report).map_err(|source| DevError::InvalidInput {
-        path: std::path::PathBuf::from("<json-output>"),
-        message: source.to_string(),
-    })
+    serde_json::to_string_pretty(report).map_err(|source| DevError::ReportSerialization { source })
 }
 
 impl Table {
@@ -374,7 +371,16 @@ pub fn external_pin_document(report: &ExternalPinReport) -> Document {
                 })
                 .collect(),
         },
-        sections: Vec::new(),
+        sections: report
+            .results
+            .iter()
+            .filter_map(|result| {
+                result.message.as_ref().map(|message| Section {
+                    heading: format!("{} detail", result.name),
+                    body: message.clone(),
+                })
+            })
+            .collect(),
     }
 }
 

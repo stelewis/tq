@@ -7,7 +7,8 @@ use crate::error::DevError;
 use crate::invocation::Invocation;
 use crate::manifest::{DevToolsManifest, ToolVersion};
 
-/// The plan is the single source of truth: `run` applies exactly this plan.
+/// The dependency update plan: the single source of truth for what an update
+/// applies.
 pub fn plan(repo_root: &Path) -> Result<ActionPlan, DevError> {
     let manifest = DevToolsManifest::load(repo_root)?;
     let latest_rust = latest_stable_rust(repo_root)?;
@@ -58,10 +59,6 @@ pub fn plan(repo_root: &Path) -> Result<ActionPlan, DevError> {
         ),
     ]);
     Ok(ActionPlan::new("Dependency update", actions))
-}
-
-pub fn run(repo_root: &Path) -> Result<(), DevError> {
-    plan(repo_root)?.apply(repo_root)
 }
 
 pub fn latest_stable_rust(repo_root: &Path) -> Result<ToolVersion, DevError> {

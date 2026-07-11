@@ -168,7 +168,7 @@ impl AuditSummary {
 pub fn run_audit_commands(
     repo_root: &Path,
     commands: Vec<AuditCommand>,
-) -> Result<AuditReport, DevError> {
+) -> Result<Vec<AuditCheck>, DevError> {
     let mut checks = Vec::new();
 
     for command in commands {
@@ -187,7 +187,7 @@ pub fn run_audit_commands(
         });
     }
 
-    Ok(AuditReport::new(checks))
+    Ok(checks)
 }
 
 #[cfg(test)]

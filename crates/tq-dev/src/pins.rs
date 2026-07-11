@@ -11,7 +11,8 @@ use crate::update;
 /// Reports available updates for Rust, Cargo, npm, and Python dependencies.
 pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
     let manifest = DevToolsManifest::load(repo_root)?;
-    let mut report = run_audit_commands(
+    let mut checks = vec![rust_toolchain_check(repo_root, &manifest.rust)];
+    checks.extend(run_audit_commands(
         repo_root,
         vec![
             AuditCommand {
@@ -40,16 +41,13 @@ pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
                 signal: FindingsSignal::OutputContains("latest:"),
             },
         ],
-    )?;
-    report
-        .checks
-        .insert(0, rust_toolchain_check(repo_root, &manifest.rust));
-    Ok(AuditReport::new(report.checks))
+    )?);
+    Ok(AuditReport::new(checks))
 }
 
 /// Runs the pinned security audit tools.
 pub fn audit_security(repo_root: &Path) -> Result<AuditReport, DevError> {
-    run_audit_commands(
+    let checks = run_audit_commands(
         repo_root,
         vec![
             AuditCommand {
@@ -68,7 +66,8 @@ pub fn audit_security(repo_root: &Path) -> Result<AuditReport, DevError> {
                 signal: FindingsSignal::ExitCodeOne,
             },
         ],
-    )
+    )?;
+    Ok(AuditReport::new(checks))
 }
 
 /// Compares pinned Rust maintenance tools against the latest crates.io

@@ -37,6 +37,11 @@ pub enum DevError {
     },
     #[error("invalid input {path}: {message}")]
     InvalidInput { path: PathBuf, message: String },
+    #[error("failed to serialize report to JSON: {source}")]
+    ReportSerialization {
+        #[source]
+        source: serde_json::Error,
+    },
     #[error("failed to read zip archive {path}: {source}")]
     Zip {
         path: PathBuf,

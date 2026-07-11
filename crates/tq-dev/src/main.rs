@@ -9,13 +9,15 @@ use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 
+use tq_dev::action::ActionPlan;
+use tq_dev::audit::AuditReport;
 use tq_dev::check::{CheckProfile, CheckTarget};
 use tq_dev::error::DevError;
 use tq_dev::render::{self, OutputMode};
 use tq_dev::runtime_deps::RuntimeDependencyChange;
 use tq_dev::{
-    artifacts, check, dependabot, doctor, external_pins, pins, policy, release, runtime_deps,
-    setup, update, workspace_version,
+    artifacts, check, dependabot, doctor, external_pins, native_env, pins, policy, release,
+    runtime_deps, setup, update, workspace_version,
 };
 
 const EXIT_FINDINGS: u8 = 1;
@@ -216,7 +218,10 @@ fn run(cli: Cli) -> Result<Outcome, DevError> {
         Command::Release { command } => run_release(&command),
         Command::RuntimeDeps(args) => run_runtime_deps(&args),
         Command::Setup(args) => {
-            run_mutation(&args, &setup::plan(&args.common.repo_root)?, setup::run)
+            if !args.dry_run {
+                native_env::verify_build_prerequisites()?;
+            }
+            run_mutation(&args, &setup::plan(&args.common.repo_root)?)
         }
     }
 }
@@ -256,9 +261,7 @@ fn run_deps(command: &DepsCommand) -> Result<Outcome, DevError> {
             "Rust Maintenance Tool Pin Review",
             &pins::audit_maintenance_tools(&args.common.repo_root)?,
         ),
-        DepsCommand::Update(args) => {
-            run_mutation(args, &update::plan(&args.common.repo_root)?, update::run)
-        }
+        DepsCommand::Update(args) => run_mutation(args, &update::plan(&args.common.repo_root)?),
     }
 }
 
@@ -276,10 +279,7 @@ fn run_health(command: &HealthCommand) -> Result<Outcome, DevError> {
             })
         }
         HealthCommand::Cleanup(args) => {
-            let plan = setup::cleanup_plan(&args.common.repo_root);
-            run_mutation(args, &plan, |repo_root| {
-                setup::cleanup_plan(repo_root).apply(repo_root)
-            })
+            run_mutation(args, &setup::cleanup_plan(&args.common.repo_root))
         }
     }
 }
@@ -314,9 +314,7 @@ fn run_policy(command: &PolicyCommand) -> Result<Outcome, DevError> {
 
 fn run_release(command: &ReleaseCommand) -> Result<Outcome, DevError> {
     match command {
-        ReleaseCommand::Build(args) => {
-            run_mutation(args, &release::plan(&args.common.repo_root), release::run)
-        }
+        ReleaseCommand::Build(args) => run_mutation(args, &release::plan(&args.common.repo_root)),
         ReleaseCommand::VerifyArtifacts(args) => artifacts::verify_artifact_contents(
             &args.dist_dir,
             if args.forbidden_prefixes.is_empty() {
@@ -347,23 +345,15 @@ fn run_runtime_deps(args: &RuntimeDepsArgs) -> Result<Outcome, DevError> {
     Ok(Outcome::Clean)
 }
 
-fn run_mutation(
-    args: &MutationArgs,
-    plan: &tq_dev::action::ActionPlan,
-    apply: impl FnOnce(&std::path::Path) -> Result<(), DevError>,
-) -> Result<Outcome, DevError> {
+fn run_mutation(args: &MutationArgs, plan: &ActionPlan) -> Result<Outcome, DevError> {
     if args.dry_run {
         render::action_plan_document(plan).print(args.common.output, plan)?;
         return Ok(Outcome::Clean);
     }
-    apply(&args.common.repo_root).map(|()| Outcome::Clean)
+    plan.apply(&args.common.repo_root).map(|()| Outcome::Clean)
 }
 
-fn report_audit(
-    args: &ReportArgs,
-    title: &str,
-    report: &tq_dev::audit::AuditReport,
-) -> Result<Outcome, DevError> {
+fn report_audit(args: &ReportArgs, title: &str, report: &AuditReport) -> Result<Outcome, DevError> {
     if !args.quiet || report.has_findings() {
         render::audit_document(title, report).print(args.common.output, report)?;
     }

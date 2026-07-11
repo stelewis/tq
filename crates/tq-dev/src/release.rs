@@ -3,11 +3,10 @@
 use std::path::Path;
 
 use crate::action::{ActionPlan, PlannedAction};
-use crate::error::DevError;
 use crate::invocation::Invocation;
 
-/// The plan is the single source of truth: `run` clears `dist/` and applies
-/// exactly this plan.
+/// The release artifact build plan: clear `dist/`, then build the sdist and
+/// host wheel.
 #[must_use]
 pub fn plan(repo_root: &Path) -> ActionPlan {
     ActionPlan::new(
@@ -45,8 +44,4 @@ pub fn plan(repo_root: &Path) -> ActionPlan {
             ),
         ],
     )
-}
-
-pub fn run(repo_root: &Path) -> Result<(), DevError> {
-    plan(repo_root).apply(repo_root)
 }
