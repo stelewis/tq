@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
@@ -459,6 +460,11 @@ struct DevToolsManifest {
     cargo_deny: String,
 }
 
+#[derive(Debug, Eq, PartialEq)]
+struct ActionInput {
+    default: Option<String>,
+}
+
 #[derive(Debug)]
 struct HarnessCommand {
     program: String,
@@ -489,7 +495,7 @@ pub fn verify_dev_tool_pins(repo_root: &Path) -> Result<(), ReleaseError> {
 
 pub fn doctor_dev_environment(repo_root: &Path) -> Result<DevDoctorReport, ReleaseError> {
     let manifest = read_manifest(repo_root)?;
-    let mut checks = vec![
+    let checks = vec![
         check_version("rustc", &manifest.rust, "rustc", &["--version"]),
         check_version("cargo", &manifest.rust, "cargo", &["--version"]),
         check_version("uv", &manifest.uv, "uv", &["--version"]),
@@ -519,20 +525,6 @@ pub fn doctor_dev_environment(repo_root: &Path) -> Result<DevDoctorReport, Relea
         check_homebrew_openssl(),
     ];
 
-    let cleanup = obsolete_rust_toolchains(repo_root, &manifest.rust);
-    if cleanup.is_empty() {
-        return Ok(DevDoctorReport::new(checks));
-    }
-
-    checks.push(DevDoctorCheck {
-        tool: "rustup cleanup".to_owned(),
-        expected: format!(
-            "only {} and explicitly installed non-project toolchains",
-            manifest.rust
-        ),
-        actual: Some(cleanup.join(", ")),
-        status: DevToolStatus::Mismatched,
-    });
     Ok(DevDoctorReport::new(checks))
 }
 
@@ -570,14 +562,14 @@ pub fn run_dev_checks(
 
 pub fn update_dev_dependencies(repo_root: &Path) -> Result<(), ReleaseError> {
     let manifest = read_manifest(repo_root)?;
-    let rust = rust_update_version(&manifest);
+    let rust = rust_update_version(repo_root, &manifest)?;
     update_rust_toolchain_pin(repo_root, &manifest, &rust)?;
     run_commands(repo_root, update_commands(&rust))
 }
 
 pub fn plan_update_dev_dependencies(repo_root: &Path) -> Result<DevActionPlan, ReleaseError> {
     let manifest = read_manifest(repo_root)?;
-    let rust = rust_update_version(&manifest);
+    let rust = rust_update_version(repo_root, &manifest)?;
     let mut actions = rust_toolchain_update_actions(repo_root, &manifest, &rust);
     actions.extend(
         update_commands(&rust)
@@ -592,8 +584,17 @@ pub fn audit_latest_dev_dependencies(repo_root: &Path) -> Result<DevAuditReport,
     let mut report = audit_commands(repo_root, latest_audit_commands())?;
     report
         .checks
-        .insert(0, rust_toolchain_latest_check(&manifest));
+        .insert(0, rust_toolchain_latest_check(repo_root, &manifest));
     Ok(report)
+}
+
+pub fn audit_maintenance_tool_pins(repo_root: &Path) -> Result<DevAuditReport, ReleaseError> {
+    let manifest = read_manifest(repo_root)?;
+    Ok(DevAuditReport::new(vec![
+        maintenance_tool_pin_check(repo_root, "cargo-outdated", &manifest.cargo_outdated),
+        maintenance_tool_pin_check(repo_root, "cargo-audit", &manifest.cargo_audit),
+        maintenance_tool_pin_check(repo_root, "cargo-deny", &manifest.cargo_deny),
+    ]))
 }
 
 pub fn audit_security_dev_dependencies(repo_root: &Path) -> Result<DevAuditReport, ReleaseError> {
@@ -601,27 +602,16 @@ pub fn audit_security_dev_dependencies(repo_root: &Path) -> Result<DevAuditRepor
 }
 
 pub fn cleanup_dev_environment(repo_root: &Path) -> Result<(), ReleaseError> {
-    let manifest = read_manifest(repo_root)?;
-    remove_obsolete_rust_toolchains(repo_root, &manifest.rust)?;
     remove_cargo_tools_target_dir(repo_root)
 }
 
-pub fn plan_cleanup_dev_environment(repo_root: &Path) -> Result<DevActionPlan, ReleaseError> {
-    let manifest = read_manifest(repo_root)?;
-    let mut actions = obsolete_rust_toolchains(repo_root, &manifest.rust)
-        .into_iter()
-        .map(|toolchain| {
-            command_action(
-                &format!("Remove obsolete Rust toolchain {toolchain}"),
-                command("rustup", ["toolchain", "uninstall", &toolchain]),
-            )
-        })
-        .collect::<Vec<_>>();
-    actions.push(remove_path_action(
+#[must_use]
+pub fn plan_cleanup_dev_environment(repo_root: &Path) -> DevActionPlan {
+    let actions = vec![remove_path_action(
         "Remove Cargo maintenance-tool build cache",
         repo_root.join("target/cargo-tools"),
-    ));
-    Ok(DevActionPlan::new("Developer environment cleanup", actions))
+    )];
+    DevActionPlan::new("Developer environment cleanup", actions)
 }
 
 pub fn build_release_artifacts(repo_root: &Path) -> Result<(), ReleaseError> {
@@ -736,24 +726,24 @@ fn verify_node_package(
     violations: &mut Vec<String>,
 ) -> Result<(), ReleaseError> {
     let path = repo_root.join("package.json");
-    let contents = read_to_string(&path)?;
-    require_contains(
+    let document = read_json(&path)?;
+    require_equal(
         violations,
         "package.json packageManager",
-        &contents,
-        &format!("\"packageManager\": \"npm@{}\"", manifest.npm),
+        &format!("npm@{}", manifest.npm),
+        &required_json_string(&document, &["packageManager"], &path)?,
     );
-    require_contains(
+    require_equal(
         violations,
         "package.json engines.node",
-        &contents,
-        &format!("\"node\": \"{}\"", manifest.node),
+        &manifest.node,
+        &required_json_string(&document, &["engines", "node"], &path)?,
     );
-    require_contains(
+    require_equal(
         violations,
         "package.json engines.npm",
-        &contents,
-        &format!("\"npm\": \"{}\"", manifest.npm),
+        &manifest.npm,
+        &required_json_string(&document, &["engines", "npm"], &path)?,
     );
     Ok(())
 }
@@ -765,23 +755,24 @@ fn verify_python_uv_action(
 ) -> Result<(), ReleaseError> {
     let path = repo_root.join(".github/actions/setup-python-uv/action.yml");
     let contents = read_to_string(&path)?;
-    require_contains(
+    let inputs = action_inputs(&contents, &path)?;
+    require_equal(
         violations,
         ".github/actions/setup-python-uv/action.yml python-version default",
-        &contents,
-        &format!("default: \"{}\"", manifest.python),
+        &manifest.python,
+        &required_action_input_default(&inputs, "python-version", &path)?,
     );
-    require_contains(
+    require_equal(
         violations,
         ".github/actions/setup-python-uv/action.yml uv-version default",
-        &contents,
-        &format!("default: \"{}\"", manifest.uv),
+        &manifest.uv,
+        &required_action_input_default(&inputs, "uv-version", &path)?,
     );
-    require_contains(
+    require_equal(
         violations,
         ".github/actions/setup-python-uv/action.yml setup-uv version input",
-        &contents,
-        "version: ${{ inputs.uv-version }}",
+        "${{ inputs.uv-version }}",
+        &required_action_step_with_value(&contents, "astral-sh/setup-uv@", "version", &path)?,
     );
     Ok(())
 }
@@ -793,23 +784,24 @@ fn verify_rust_maintenance_action(
 ) -> Result<(), ReleaseError> {
     let path = repo_root.join(".github/actions/setup-rust-maintenance-tools/action.yml");
     let contents = read_to_string(&path)?;
-    require_contains(
+    let inputs = action_inputs(&contents, &path)?;
+    require_equal(
         violations,
         ".github/actions/setup-rust-maintenance-tools/action.yml cargo-outdated-version",
-        &contents,
-        &format!("default: \"{}\"", manifest.cargo_outdated),
+        &manifest.cargo_outdated,
+        &required_action_input_default(&inputs, "cargo-outdated-version", &path)?,
     );
-    require_contains(
+    require_equal(
         violations,
         ".github/actions/setup-rust-maintenance-tools/action.yml cargo-audit-version",
-        &contents,
-        &format!("default: \"{}\"", manifest.cargo_audit),
+        &manifest.cargo_audit,
+        &required_action_input_default(&inputs, "cargo-audit-version", &path)?,
     );
-    require_contains(
+    require_equal(
         violations,
         ".github/actions/setup-rust-maintenance-tools/action.yml cargo-deny-version",
-        &contents,
-        &format!("default: \"{}\"", manifest.cargo_deny),
+        &manifest.cargo_deny,
+        &required_action_input_default(&inputs, "cargo-deny-version", &path)?,
     );
     Ok(())
 }
@@ -893,27 +885,6 @@ fn check_python(expected: &str) -> DevDoctorCheck {
             status: DevToolStatus::Missing,
         },
     }
-}
-
-fn obsolete_rust_toolchains(repo_root: &Path, pinned: &str) -> Vec<String> {
-    let output = Command::new("rustup")
-        .args(["toolchain", "list"])
-        .current_dir(repo_root)
-        .output();
-    let Ok(output) = output else {
-        return Vec::new();
-    };
-    if !output.status.success() {
-        return Vec::new();
-    }
-
-    String::from_utf8_lossy(&output.stdout)
-        .lines()
-        .filter_map(|line| line.split_whitespace().next())
-        .filter(|toolchain| toolchain.starts_with("1."))
-        .filter(|toolchain| !toolchain.starts_with(pinned))
-        .map(ToOwned::to_owned)
-        .collect()
 }
 
 fn setup_commands(manifest: &DevToolsManifest) -> Vec<HarnessCommand> {
@@ -1263,20 +1234,29 @@ fn update_rust_toolchain_pin(
     )
 }
 
-fn rust_update_version(manifest: &DevToolsManifest) -> String {
-    latest_stable_rust()
-        .filter(|latest| latest != &manifest.rust)
-        .unwrap_or_else(|| manifest.rust.clone())
+fn rust_update_version(
+    repo_root: &Path,
+    manifest: &DevToolsManifest,
+) -> Result<String, ReleaseError> {
+    let latest = latest_stable_rust(repo_root)?;
+    if latest == manifest.rust {
+        Ok(manifest.rust.clone())
+    } else {
+        Ok(latest)
+    }
 }
 
-fn rust_toolchain_latest_check(manifest: &DevToolsManifest) -> DevAuditCheck {
-    let Some(latest) = latest_stable_rust() else {
-        return DevAuditCheck {
-            name: "rust".to_owned(),
-            command: "rustup check".to_owned(),
-            status: DevAuditStatus::Failed,
-            output: "unable to determine latest stable Rust toolchain".to_owned(),
-        };
+fn rust_toolchain_latest_check(repo_root: &Path, manifest: &DevToolsManifest) -> DevAuditCheck {
+    let latest = match latest_stable_rust(repo_root) {
+        Ok(latest) => latest,
+        Err(error) => {
+            return DevAuditCheck {
+                name: "rust".to_owned(),
+                command: "rustup check".to_owned(),
+                status: DevAuditStatus::Failed,
+                output: error.to_string(),
+            };
+        }
     };
 
     let status = if latest == manifest.rust {
@@ -1292,15 +1272,33 @@ fn rust_toolchain_latest_check(manifest: &DevToolsManifest) -> DevAuditCheck {
     }
 }
 
-fn latest_stable_rust() -> Option<String> {
-    let output = Command::new("rustup").arg("check").output().ok()?;
+fn latest_stable_rust(repo_root: &Path) -> Result<String, ReleaseError> {
+    let output = Command::new("rustup")
+        .arg("check")
+        .current_dir(repo_root)
+        .output()
+        .map_err(|source| ReleaseError::CommandIo {
+            repo_root: repo_root.to_path_buf(),
+            program: "rustup".to_owned(),
+            args: vec!["check".to_owned()],
+            source,
+        })?;
     if !output.status.success() {
-        return None;
+        return Err(ReleaseError::CommandFailed {
+            repo_root: repo_root.to_path_buf(),
+            program: "rustup".to_owned(),
+            args: vec!["check".to_owned()],
+            code: output.status.code(),
+        });
     }
 
     String::from_utf8_lossy(&output.stdout)
         .lines()
         .find_map(parse_stable_rustup_check_line)
+        .ok_or_else(|| ReleaseError::InvalidInput {
+            path: PathBuf::from("rustup check"),
+            message: "missing stable toolchain release in rustup check output".to_owned(),
+        })
 }
 
 fn parse_stable_rustup_check_line(line: &str) -> Option<String> {
@@ -1341,6 +1339,68 @@ fn latest_audit_commands() -> Vec<HarnessCommand> {
         command("npm", ["outdated"]),
         command("uv", ["tree", "--outdated"]),
     ]
+}
+
+fn maintenance_tool_pin_check(repo_root: &Path, crate_name: &str, pinned: &str) -> DevAuditCheck {
+    let command = format!("cargo search {crate_name} --limit 1");
+    let output = Command::new("cargo")
+        .args(["search", crate_name, "--limit", "1"])
+        .current_dir(repo_root)
+        .output();
+
+    let output = match output {
+        Ok(output) => output,
+        Err(error) => {
+            return DevAuditCheck {
+                name: crate_name.to_owned(),
+                command,
+                status: DevAuditStatus::Failed,
+                output: error.to_string(),
+            };
+        }
+    };
+
+    let combined_output = command_output(&output.stdout, &output.stderr);
+    if !output.status.success() {
+        return DevAuditCheck {
+            name: crate_name.to_owned(),
+            command,
+            status: DevAuditStatus::Failed,
+            output: combined_output,
+        };
+    }
+
+    let Some(latest) = parse_cargo_search_version(crate_name, &combined_output) else {
+        return DevAuditCheck {
+            name: crate_name.to_owned(),
+            command,
+            status: DevAuditStatus::Failed,
+            output: format!(
+                "could not parse latest {crate_name} version from cargo search output\n{combined_output}"
+            ),
+        };
+    };
+
+    let status = if latest == pinned {
+        DevAuditStatus::Clean
+    } else {
+        DevAuditStatus::Findings
+    };
+    DevAuditCheck {
+        name: crate_name.to_owned(),
+        command,
+        status,
+        output: format!("pinned: {pinned}, latest: {latest}"),
+    }
+}
+
+fn parse_cargo_search_version(crate_name: &str, output: &str) -> Option<String> {
+    let prefix = format!("{crate_name} = \"");
+    output
+        .lines()
+        .find_map(|line| line.strip_prefix(&prefix))?
+        .split_once('"')
+        .map(|(version, _)| version.to_owned())
 }
 
 fn security_audit_commands() -> Vec<HarnessCommand> {
@@ -1585,17 +1645,6 @@ fn command_output(stdout: &[u8], stderr: &[u8]) -> String {
     }
 }
 
-fn remove_obsolete_rust_toolchains(repo_root: &Path, pinned: &str) -> Result<(), ReleaseError> {
-    for toolchain in obsolete_rust_toolchains(repo_root, pinned) {
-        run_commands(
-            repo_root,
-            vec![command("rustup", ["toolchain", "uninstall", &toolchain])],
-        )?;
-    }
-
-    Ok(())
-}
-
 fn remove_cargo_tools_target_dir(repo_root: &Path) -> Result<(), ReleaseError> {
     let path = repo_root.join("target/cargo-tools");
     match std::fs::remove_dir_all(&path) {
@@ -1728,6 +1777,14 @@ fn read_toml(path: &Path) -> Result<Value, ReleaseError> {
         })
 }
 
+fn read_json(path: &Path) -> Result<serde_json::Value, ReleaseError> {
+    let contents = read_to_string(path)?;
+    serde_json::from_str(&contents).map_err(|source| ReleaseError::InvalidInput {
+        path: path.to_path_buf(),
+        message: source.to_string(),
+    })
+}
+
 fn read_to_string(path: &Path) -> Result<String, ReleaseError> {
     std::fs::read_to_string(path).map_err(|source| ReleaseError::Io {
         path: path.to_path_buf(),
@@ -1737,6 +1794,23 @@ fn read_to_string(path: &Path) -> Result<String, ReleaseError> {
 
 fn required_string(document: &Value, path: &[&str], source: &Path) -> Result<String, ReleaseError> {
     required_value(document, path, source)?
+        .as_str()
+        .map(ToOwned::to_owned)
+        .ok_or_else(|| invalid_type(source, path, "string"))
+}
+
+fn required_json_string(
+    document: &serde_json::Value,
+    path: &[&str],
+    source: &Path,
+) -> Result<String, ReleaseError> {
+    let mut current = document;
+    for segment in path {
+        current = current
+            .get(*segment)
+            .ok_or_else(|| missing_value(source, path))?;
+    }
+    current
         .as_str()
         .map(ToOwned::to_owned)
         .ok_or_else(|| invalid_type(source, path, "string"))
@@ -1778,6 +1852,135 @@ fn required_value<'a>(
             .ok_or_else(|| missing_value(source, path))?;
     }
     Ok(current)
+}
+
+fn action_inputs(
+    contents: &str,
+    source: &Path,
+) -> Result<BTreeMap<String, ActionInput>, ReleaseError> {
+    let mut inputs = BTreeMap::new();
+    let mut in_inputs = false;
+    let mut current_input: Option<String> = None;
+
+    for line in contents.lines() {
+        let Some((indent, key, value)) = yaml_key_value(line) else {
+            continue;
+        };
+
+        if indent == 0 {
+            if key == "inputs" {
+                in_inputs = true;
+                current_input = None;
+                continue;
+            }
+            if in_inputs {
+                break;
+            }
+        }
+
+        if !in_inputs {
+            continue;
+        }
+
+        match indent {
+            2 => {
+                inputs.insert(key.to_owned(), ActionInput { default: None });
+                current_input = Some(key.to_owned());
+            }
+            4 if key == "default" => {
+                let Some(input) = current_input.as_deref() else {
+                    return Err(ReleaseError::InvalidInput {
+                        path: source.to_path_buf(),
+                        message: "action input default appeared before an input name".to_owned(),
+                    });
+                };
+                let Some(entry) = inputs.get_mut(input) else {
+                    return Err(ReleaseError::InvalidInput {
+                        path: source.to_path_buf(),
+                        message: format!("missing action input {input}"),
+                    });
+                };
+                entry.default = Some(yaml_scalar(value).to_owned());
+            }
+            _ => {}
+        }
+    }
+
+    Ok(inputs)
+}
+
+fn required_action_input_default(
+    inputs: &BTreeMap<String, ActionInput>,
+    input: &str,
+    source: &Path,
+) -> Result<String, ReleaseError> {
+    inputs
+        .get(input)
+        .ok_or_else(|| missing_value(source, &["inputs", input]))?
+        .default
+        .clone()
+        .ok_or_else(|| missing_value(source, &["inputs", input, "default"]))
+}
+
+fn required_action_step_with_value(
+    contents: &str,
+    uses_prefix: &str,
+    with_key: &str,
+    source: &Path,
+) -> Result<String, ReleaseError> {
+    let mut in_target_step = false;
+    let mut in_with = false;
+
+    for line in contents.lines() {
+        let Some((indent, key, value)) = yaml_key_value(line) else {
+            continue;
+        };
+
+        if indent == 4 && key == "name" {
+            in_target_step = false;
+            in_with = false;
+            continue;
+        }
+
+        if (indent == 4 || indent == 6) && key == "uses" {
+            in_target_step = yaml_scalar(value).starts_with(uses_prefix);
+            in_with = false;
+            continue;
+        }
+
+        if in_target_step && indent == 6 && key == "with" {
+            in_with = true;
+            continue;
+        }
+
+        if in_target_step && in_with && indent == 8 && key == with_key {
+            return Ok(yaml_scalar(value).to_owned());
+        }
+    }
+
+    Err(missing_value(
+        source,
+        &["runs", "steps", uses_prefix, "with", with_key],
+    ))
+}
+
+fn yaml_key_value(line: &str) -> Option<(usize, &str, &str)> {
+    let without_comment = line.split('#').next().unwrap_or(line);
+    let trimmed_end = without_comment.trim_end();
+    if trimmed_end.trim().is_empty() {
+        return None;
+    }
+    let indent = trimmed_end.len() - trimmed_end.trim_start().len();
+    let trimmed = trimmed_end
+        .trim_start()
+        .strip_prefix("- ")
+        .unwrap_or_else(|| trimmed_end.trim_start());
+    let (key, value) = trimmed.split_once(':')?;
+    Some((indent, key.trim(), value.trim()))
+}
+
+fn yaml_scalar(value: &str) -> &str {
+    value.trim_matches(['\'', '"'])
 }
 
 fn invalid_type(source: &Path, path: &[&str], expected: &str) -> ReleaseError {
@@ -1825,5 +2028,66 @@ fn minor_version(version: &str) -> String {
     match (parts.next(), parts.next()) {
         (Some(major), Some(minor)) => format!("{major}.{minor}"),
         _ => version.to_owned(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::{
+        action_inputs, parse_cargo_search_version, parse_stable_rustup_check_line,
+        required_action_input_default, required_action_step_with_value,
+    };
+
+    #[test]
+    fn parses_rustup_stable_release_from_check_output() {
+        assert_eq!(
+            parse_stable_rustup_check_line(
+                "stable-x86_64-apple-darwin - up to date: 1.97.0 (2d8144b78 2026-07-07)",
+            ),
+            Some("1.97.0".to_owned())
+        );
+    }
+
+    #[test]
+    fn parses_cargo_search_exact_crate_version() {
+        assert_eq!(
+            parse_cargo_search_version(
+                "cargo-audit",
+                "cargo-audit = \"0.22.2\"    # Audit Cargo.lock\nother = \"9.9.9\"",
+            ),
+            Some("0.22.2".to_owned())
+        );
+    }
+
+    #[test]
+    fn parses_action_input_defaults_and_step_with_values() {
+        let contents = concat!(
+            "inputs:\n",
+            "  uv-version:\n",
+            "    description: uv version\n",
+            "    default: '0.11.28'\n",
+            "runs:\n",
+            "  using: composite\n",
+            "  steps:\n",
+            "    - name: Set up uv\n",
+            "      uses: astral-sh/setup-uv@example\n",
+            "      with:\n",
+            "        version: ${{ inputs.uv-version }}\n",
+        );
+        let source = Path::new("action.yml");
+        let inputs = action_inputs(contents, source).expect("action inputs should parse");
+
+        assert_eq!(
+            required_action_input_default(&inputs, "uv-version", source)
+                .expect("uv-version default should exist"),
+            "0.11.28"
+        );
+        assert_eq!(
+            required_action_step_with_value(contents, "astral-sh/setup-uv@", "version", source)
+                .expect("setup-uv version input should exist"),
+            "${{ inputs.uv-version }}"
+        );
     }
 }

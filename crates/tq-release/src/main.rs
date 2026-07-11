@@ -169,6 +169,11 @@ enum DepsCommand {
     #[command(name = "audit-security", about = "Run dependency security audits")]
     AuditSecurity(ReportArgs),
     #[command(
+        name = "audit-maintenance-tools",
+        about = "Report drift in pinned Rust maintenance tools"
+    )]
+    AuditMaintenanceTools(ReportArgs),
+    #[command(
         name = "update",
         about = "Apply deterministic dependency and toolchain updates"
     )]
@@ -415,6 +420,12 @@ fn run_deps_command(args: &DepsArgs) -> Result<(), ReleaseError> {
             args.output,
             args.quiet,
         ),
+        DepsCommand::AuditMaintenanceTools(args) => report_audit(
+            &tq_release::audit_maintenance_tool_pins(&args.repo_root)?,
+            "Rust maintenance tool pins need review",
+            args.output,
+            args.quiet,
+        ),
         DepsCommand::Update(args) => run_deps_update_command(args),
     }
 }
@@ -450,7 +461,7 @@ fn run_health_command(args: &HealthArgs) -> Result<(), ReleaseError> {
 
 fn run_health_cleanup_command(args: &MutationArgs) -> Result<(), ReleaseError> {
     if args.dry_run {
-        let plan = tq_release::plan_cleanup_dev_environment(&args.repo_root)?;
+        let plan = tq_release::plan_cleanup_dev_environment(&args.repo_root);
         print_action_plan(&plan, args.output)?;
         return Ok(());
     }

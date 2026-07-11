@@ -6,6 +6,7 @@ This guide covers:
 
 - external GitHub Action refs in `.github/workflows/**` and `.github/actions/**`
 - frozen pre-commit hook revs in `.pre-commit-config.yaml`
+- Rust maintenance tool versions in `.github/actions/setup-rust-maintenance-tools/action.yml`
 - scheduled drift reporting for those pinned refs
 
 ## Enforcement and visibility
@@ -15,10 +16,13 @@ The repository uses three separate controls so frozen refs stay both strict and 
 - [Pinned Actions Policy](https://github.com/stelewis/tq/blob/main/.github/workflows/pinned-actions-policy.yml) fails if an external `uses:` ref is not pinned to a full commit SHA.
 - [Frozen Pre-commit Policy](https://github.com/stelewis/tq/blob/main/.github/workflows/frozen-pre-commit-policy.yml) fails if an external pre-commit hook rev is not a full commit SHA.
 - [Pinned External Dependency Drift](https://github.com/stelewis/tq/blob/main/.github/workflows/pinned-external-dependency-drift.yml) makes stale frozen refs visible when they lag the latest upstream SemVer release tag.
+- [Rust Maintenance Tool Pins](https://github.com/stelewis/tq/blob/main/.github/workflows/rust-maintenance-tool-pins.yml) makes stale `cargo-outdated`, `cargo-audit`, and `cargo-deny` pins visible when crates.io has newer releases.
 
 Dependabot remains the default update path for both surfaces. Use manual rotation when you need an urgent update, when you are responding to a drift issue, or when a Dependabot PR needs a manual follow-up.
 
 Use `cargo dev deps update --dry-run --repo-root .` before applying repository-owned dependency and toolchain updates when you need to inspect the planned commands and Rust pin file edits.
+
+Use `cargo dev deps audit-maintenance-tools --repo-root .` to run the same Rust maintenance-tool drift check locally.
 
 ## GitHub Actions rotation
 
@@ -71,7 +75,7 @@ Do not replace the frozen SHA with a tag. The version comment is documentation o
 
 ## Responding to drift issues
 
-The scheduled drift workflow opens or refreshes a single tracking issue titled `chore: review frozen external pins` when it detects lagging action or pre-commit refs.
+The scheduled external-pin drift workflow opens or refreshes a single tracking issue titled `chore: review frozen external pins` when it detects lagging action or pre-commit refs. The Rust maintenance-tool pin workflow uses the same issue lifecycle with the title `chore: review Rust maintenance tool pins`.
 
 When that issue appears:
 

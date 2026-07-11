@@ -29,100 +29,70 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Read pinned maintenance tool versions
-        id: pinned
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          ruby <<'RUBY' >> "$GITHUB_OUTPUT"
-          require "yaml"
-
-          inputs = YAML.load_file(".github/actions/setup-rust-maintenance-tools/action.yml").fetch("inputs")
-
-          puts "cargo_outdated_version=#{inputs.fetch("cargo-outdated-version").fetch("default")}"
-          puts "cargo_audit_version=#{inputs.fetch("cargo-audit-version").fetch("default")}"
-          puts "cargo_deny_version=#{inputs.fetch("cargo-deny-version").fetch("default")}"
-          RUBY
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
 
       - name: Check upstream drift for pinned maintenance tools
         id: drift
         shell: bash
-        env:
-          PINNED_CARGO_OUTDATED: ${{ steps.pinned.outputs.cargo_outdated_version }}
-          PINNED_CARGO_AUDIT: ${{ steps.pinned.outputs.cargo_audit_version }}
-          PINNED_CARGO_DENY: ${{ steps.pinned.outputs.cargo_deny_version }}
         run: |
           set -euo pipefail
 
           report_file="$(mktemp)"
-          drift_detected="false"
 
-          crates_io_latest_version() {
-            local crate_name="$1"
-            curl -fsSL "https://crates.io/api/v1/crates/${crate_name}" \
-              | ruby -rjson -e 'payload = JSON.parse(STDIN.read); print payload.fetch("crate").fetch("newest_version")'
-          }
+          set +e
+          cargo dev deps audit-maintenance-tools --output json --repo-root . > "$report_file"
+          status="$?"
+          set -e
 
-          latest_cargo_outdated="$(crates_io_latest_version cargo-outdated)"
-          latest_cargo_audit="$(crates_io_latest_version cargo-audit)"
-          latest_cargo_deny="$(crates_io_latest_version cargo-deny)"
+          python <<'PY' "$report_file" "$status" >> "$GITHUB_OUTPUT"
+          import json
+          import os
+          import sys
 
-          if [[ "$PINNED_CARGO_OUTDATED" != "$latest_cargo_outdated" ]]; then
-            drift_detected="true"
-          fi
+          report_path, status = sys.argv[1:]
+          report = json.loads(open(report_path, encoding="utf-8").read())
+          drift_detected = report["summary"]["status"] != "clean"
 
-          if [[ "$PINNED_CARGO_DENY" != "$latest_cargo_deny" ]]; then
-            drift_detected="true"
-          fi
+          lines = [
+            "## Rust maintenance tool pin review",
+            "",
+            "| Tool | Pinned | Latest | Status |",
+            "| --- | --- | --- | --- |",
+          ]
+          for check in report["checks"]:
+            pinned = "unavailable"
+            latest = "unavailable"
+            for part in check["output"].split(", "):
+              if part.startswith("pinned: "):
+                pinned = part.removeprefix("pinned: ")
+              if part.startswith("latest: "):
+                latest = part.removeprefix("latest: ")
+            lines.append(f"| {check['name']} | {pinned} | {latest} | {check['status']} |")
+          lines.extend([
+            "",
+            "The centralized Rust maintenance tool pins need review."
+            if drift_detected
+            else "All centralized maintenance tool pins are current.",
+          ])
+          body = "\n".join(lines) + "\n"
+          issue_body = (
+            body
+            + f"\nDetected by workflow run: https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}\n"
+          )
 
-          if [[ "$PINNED_CARGO_AUDIT" != "$latest_cargo_audit" ]]; then
-            drift_detected="true"
-          fi
+          open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8").write(body)
 
-          {
-            echo "## Rust maintenance tool pin review"
-            echo
-            echo "| Tool | Pinned | Latest | Status |"
-            echo "| --- | --- | --- | --- |"
+          if status != "0" and not drift_detected:
+            raise SystemExit(f"maintenance tool audit failed without findings: exit {status}")
 
-            cargo_outdated_status="up to date"
-            if [[ "$PINNED_CARGO_OUTDATED" != "$latest_cargo_outdated" ]]; then
-              cargo_outdated_status="update required"
-            fi
-            echo "| cargo-outdated | ${PINNED_CARGO_OUTDATED} | ${latest_cargo_outdated} | ${cargo_outdated_status} |"
+          print("title=chore: review Rust maintenance tool pins")
+          print(f"drift_detected={str(drift_detected).lower()}")
+          print("issue_body<<__ISSUE_BODY__")
+          print(issue_body, end="")
+          print("__ISSUE_BODY__")
+          PY
 
-            cargo_audit_status="up to date"
-            if [[ "$PINNED_CARGO_AUDIT" != "$latest_cargo_audit" ]]; then
-              cargo_audit_status="update required"
-            fi
-            echo "| cargo-audit | ${PINNED_CARGO_AUDIT} | ${latest_cargo_audit} | ${cargo_audit_status} |"
-
-            cargo_deny_status="up to date"
-            if [[ "$PINNED_CARGO_DENY" != "$latest_cargo_deny" ]]; then
-              cargo_deny_status="update required"
-            fi
-            echo "| cargo-deny | ${PINNED_CARGO_DENY} | ${latest_cargo_deny} | ${cargo_deny_status} |"
-            echo
-
-            if [[ "$drift_detected" == "true" ]]; then
-              echo "The centralized pins in .github/actions/setup-rust-maintenance-tools/action.yml need review."
-            else
-              echo "All centralized maintenance tool pins are current."
-            fi
-          } | tee "$report_file"
-
-          {
-            echo "title=chore: review Rust maintenance tool pins"
-            echo "drift_detected=${drift_detected}"
-            echo "issue_body<<__ISSUE_BODY__"
-            cat "$report_file"
-            echo
-            echo "Detected by workflow run: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-            echo "__ISSUE_BODY__"
-          } >> "$GITHUB_OUTPUT"
-
-          cat "$report_file" >> "$GITHUB_STEP_SUMMARY"
 
   sync-maintenance-tool-pin-issue:
     name: Sync maintenance tool pin issue

@@ -88,7 +88,8 @@ pub fn cleanup_dev_environment(repo_root: &Path) -> Result<(), ReleaseError> {
     dev_tools::cleanup_dev_environment(repo_root)
 }
 
-pub fn plan_cleanup_dev_environment(repo_root: &Path) -> Result<DevActionPlan, ReleaseError> {
+#[must_use]
+pub fn plan_cleanup_dev_environment(repo_root: &Path) -> DevActionPlan {
     dev_tools::plan_cleanup_dev_environment(repo_root)
 }
 
@@ -102,6 +103,10 @@ pub fn plan_update_dev_dependencies(repo_root: &Path) -> Result<DevActionPlan, R
 
 pub fn audit_latest_dev_dependencies(repo_root: &Path) -> Result<DevAuditReport, ReleaseError> {
     dev_tools::audit_latest_dev_dependencies(repo_root)
+}
+
+pub fn audit_maintenance_tool_pins(repo_root: &Path) -> Result<DevAuditReport, ReleaseError> {
+    dev_tools::audit_maintenance_tool_pins(repo_root)
 }
 
 pub fn audit_security_dev_dependencies(repo_root: &Path) -> Result<DevAuditReport, ReleaseError> {

@@ -132,11 +132,11 @@ fn cleanup_plan_exposes_cache_removal_action() {
     let temp = tempfile::tempdir().expect("tempdir");
     write_dev_tools_manifest(temp.path());
 
-    let plan =
-        tq_release::plan_cleanup_dev_environment(temp.path()).expect("cleanup plan should build");
+    let plan = tq_release::plan_cleanup_dev_environment(temp.path());
 
-    assert!(plan.actions.iter().any(|action| matches!(
-        &action.action,
+    assert_eq!(plan.actions.len(), 1);
+    assert!(matches!(
+        &plan.actions[0].action,
         DevAction::RemovePath { path } if path == &temp.path().join("target/cargo-tools")
-    )));
+    ));
 }
