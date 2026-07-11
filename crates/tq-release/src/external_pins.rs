@@ -471,8 +471,8 @@ mod tests {
 
     #[test]
     fn accepts_only_lowercase_full_commit_sha_pins() {
-        assert!(is_full_sha("9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"));
-        assert!(!is_full_sha("9C091BB21B7C1C1D1991BB908D89E4E9DDDFE3E0"));
+        assert!(is_full_sha("9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0")); // pragma: allowlist secret
+        assert!(!is_full_sha("9C091BB21B7C1C1D1991BB908D89E4E9DDDFE3E0")); // pragma: allowlist secret
         assert!(!is_full_sha("v1.2.3"));
     }
 }
