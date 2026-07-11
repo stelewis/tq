@@ -15,7 +15,10 @@ use tq_release::{
 mod dev_output;
 
 #[derive(Debug, Parser)]
-#[command(name = "tq-release", about = "Run tq release policy checks")]
+#[command(
+    name = "tq-release",
+    about = "Run tq release and developer harness tooling"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -23,17 +26,32 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    #[command(name = "check-runtime-deps")]
+    #[command(
+        name = "check-runtime-deps",
+        about = "Detect shipped runtime dependency changes"
+    )]
     RuntimeDeps(CheckRuntimeDepsArgs),
-    #[command(name = "dev")]
+    #[command(name = "dev", about = "Run the project developer harness")]
     Dev(DevArgs),
-    #[command(name = "verify-artifact-contents")]
+    #[command(
+        name = "verify-artifact-contents",
+        about = "Verify release artifact contents"
+    )]
     ArtifactContents(VerifyArtifactContentsArgs),
-    #[command(name = "verify-dependabot")]
+    #[command(
+        name = "verify-dependabot",
+        about = "Verify Dependabot policy coverage"
+    )]
     Dependabot(VerifyDependabotArgs),
-    #[command(name = "verify-release-policy")]
+    #[command(
+        name = "verify-release-policy",
+        about = "Verify release policy invariants"
+    )]
     ReleasePolicy(VerifyReleasePolicyArgs),
-    #[command(name = "verify-workspace-version")]
+    #[command(
+        name = "verify-workspace-version",
+        about = "Verify workspace version consistency"
+    )]
     WorkspaceVersion(VerifyWorkspaceVersionArgs),
 }
 
@@ -55,32 +73,44 @@ struct DevArgs {
 
 #[derive(Debug, Subcommand)]
 enum DevCommand {
-    #[command(name = "check")]
+    #[command(name = "check", about = "Run deterministic local validation gates")]
     Check(CheckArgs),
-    #[command(name = "deps")]
+    #[command(name = "deps", about = "Audit or update repository-owned dependencies")]
     Deps(DepsArgs),
-    #[command(name = "health")]
+    #[command(
+        name = "health",
+        about = "Inspect or clean the local developer environment"
+    )]
     Health(HealthArgs),
-    #[command(name = "policy")]
+    #[command(name = "policy", about = "Verify repository policy invariants")]
     Policy(PolicyArgs),
-    #[command(name = "release")]
+    #[command(name = "release", about = "Build and verify release artifacts")]
     Release(ReleaseArgs),
-    #[command(name = "setup")]
+    #[command(
+        name = "setup",
+        about = "Install pinned developer toolchain prerequisites"
+    )]
     Setup(SetupArgs),
 }
 
 #[derive(Debug, clap::Args)]
 struct CheckArgs {
+    /// Validation target to run.
     #[arg(default_value = "routine", value_enum)]
     target: CheckTargetArg,
+    /// Check depth: fast for daily work, full for release-sensitive gates.
     #[arg(long, value_enum, default_value_t = CheckProfileArg::Fast)]
     profile: CheckProfileArg,
+    /// Repository root used to resolve workspace files.
     #[arg(long, default_value = ".")]
     repo_root: PathBuf,
+    /// Output format. Use agent for concise Markdown; use json for automation.
     #[arg(long, value_enum, default_value_t = OutputMode::Human)]
     output: OutputMode,
+    /// Suppress successful human output.
     #[arg(long)]
     quiet: bool,
+    /// Print the resolved check plan without running commands.
     #[arg(long)]
     dry_run: bool,
 }
@@ -131,11 +161,17 @@ struct DepsArgs {
 
 #[derive(Debug, Subcommand)]
 enum DepsCommand {
-    #[command(name = "audit-latest")]
+    #[command(
+        name = "audit-latest",
+        about = "Report available dependency and tool updates"
+    )]
     AuditLatest(ReportArgs),
-    #[command(name = "audit-security")]
+    #[command(name = "audit-security", about = "Run dependency security audits")]
     AuditSecurity(ReportArgs),
-    #[command(name = "update")]
+    #[command(
+        name = "update",
+        about = "Apply deterministic dependency and toolchain updates"
+    )]
     Update(MutationArgs),
 }
 
@@ -148,10 +184,13 @@ enum OutputMode {
 
 #[derive(Debug, clap::Args)]
 struct ReportArgs {
+    /// Repository root used to resolve workspace files.
     #[arg(long, default_value = ".")]
     repo_root: PathBuf,
+    /// Output format. Use agent for concise Markdown; use json for automation.
     #[arg(long, value_enum, default_value_t = OutputMode::Human)]
     output: OutputMode,
+    /// Suppress successful human output.
     #[arg(long)]
     quiet: bool,
 }
@@ -164,9 +203,15 @@ struct HealthArgs {
 
 #[derive(Debug, Subcommand)]
 enum HealthCommand {
-    #[command(name = "cleanup")]
+    #[command(
+        name = "cleanup",
+        about = "Remove obsolete local toolchains and harness caches"
+    )]
     Cleanup(MutationArgs),
-    #[command(name = "doctor")]
+    #[command(
+        name = "doctor",
+        about = "Check pinned tools and native build prerequisites"
+    )]
     Doctor(ReportArgs),
 }
 
@@ -178,9 +223,12 @@ struct PolicyArgs {
 
 #[derive(Debug, Subcommand)]
 enum PolicyCommand {
-    #[command(name = "audit-external-pins")]
+    #[command(
+        name = "audit-external-pins",
+        about = "Report drift in pinned external repositories"
+    )]
     AuditExternalPins(ReportArgs),
-    #[command(name = "verify-pins")]
+    #[command(name = "verify-pins", about = "Verify repository pinning policy")]
     VerifyPins(RepoRootArgs),
 }
 
@@ -192,42 +240,52 @@ struct ReleaseArgs {
 
 #[derive(Debug, Subcommand)]
 enum ReleaseCommand {
-    #[command(name = "build")]
+    #[command(name = "build", about = "Build release artifacts through the harness")]
     Build(ReleaseBuildArgs),
 }
 
 #[derive(Debug, clap::Args)]
 struct RepoRootArgs {
+    /// Repository root used to resolve workspace files.
     #[arg(long, default_value = ".")]
     repo_root: PathBuf,
 }
 
 #[derive(Debug, clap::Args)]
 struct MutationArgs {
+    /// Repository root used to resolve workspace files.
     #[arg(long, default_value = ".")]
     repo_root: PathBuf,
+    /// Output format. Use agent for concise Markdown; use json for automation.
     #[arg(long, value_enum, default_value_t = OutputMode::Human)]
     output: OutputMode,
+    /// Print the planned commands and mutations without applying changes.
     #[arg(long)]
     dry_run: bool,
 }
 
 #[derive(Debug, clap::Args)]
 struct SetupArgs {
+    /// Repository root used to resolve workspace files.
     #[arg(long, default_value = ".")]
     repo_root: PathBuf,
+    /// Output format. Use agent for concise Markdown; use json for automation.
     #[arg(long, value_enum, default_value_t = OutputMode::Human)]
     output: OutputMode,
+    /// Print the setup command plan without running commands.
     #[arg(long)]
     dry_run: bool,
 }
 
 #[derive(Debug, clap::Args)]
 struct ReleaseBuildArgs {
+    /// Repository root used to resolve workspace files.
     #[arg(long, default_value = ".")]
     repo_root: PathBuf,
+    /// Output format. Use agent for concise Markdown; use json for automation.
     #[arg(long, value_enum, default_value_t = OutputMode::Human)]
     output: OutputMode,
+    /// Print the release build command plan without running commands.
     #[arg(long)]
     dry_run: bool,
 }
