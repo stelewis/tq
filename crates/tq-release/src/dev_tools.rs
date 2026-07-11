@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::path::PathBuf;
 use std::process::Command;
 use std::time::Instant;
 
@@ -253,6 +254,43 @@ impl DevCommandPlan {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct DevPlannedCommand {
     pub command: DevCheckCommand,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct DevActionPlan {
+    pub title: String,
+    pub actions: Vec<DevPlannedAction>,
+}
+
+impl DevActionPlan {
+    fn new(title: &str, actions: Vec<DevPlannedAction>) -> Self {
+        Self {
+            title: title.to_owned(),
+            actions,
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct DevPlannedAction {
+    pub label: String,
+    pub action: DevAction,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(tag = "type", rename_all = "kebab-case")]
+pub enum DevAction {
+    Command {
+        command: DevCheckCommand,
+    },
+    ReplaceText {
+        path: PathBuf,
+        from: String,
+        to: String,
+    },
+    RemovePath {
+        path: PathBuf,
+    },
 }
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -532,8 +570,21 @@ pub fn run_dev_checks(
 
 pub fn update_dev_dependencies(repo_root: &Path) -> Result<(), ReleaseError> {
     let manifest = read_manifest(repo_root)?;
-    update_rust_toolchain_pin(repo_root, &manifest)?;
-    run_commands(repo_root, update_commands(&manifest))
+    let rust = rust_update_version(&manifest);
+    update_rust_toolchain_pin(repo_root, &manifest, &rust)?;
+    run_commands(repo_root, update_commands(&rust))
+}
+
+pub fn plan_update_dev_dependencies(repo_root: &Path) -> Result<DevActionPlan, ReleaseError> {
+    let manifest = read_manifest(repo_root)?;
+    let rust = rust_update_version(&manifest);
+    let mut actions = rust_toolchain_update_actions(repo_root, &manifest, &rust);
+    actions.extend(
+        update_commands(&rust)
+            .into_iter()
+            .map(update_command_action),
+    );
+    Ok(DevActionPlan::new("Dependency update", actions))
 }
 
 pub fn audit_latest_dev_dependencies(repo_root: &Path) -> Result<DevAuditReport, ReleaseError> {
@@ -553,6 +604,24 @@ pub fn cleanup_dev_environment(repo_root: &Path) -> Result<(), ReleaseError> {
     let manifest = read_manifest(repo_root)?;
     remove_obsolete_rust_toolchains(repo_root, &manifest.rust)?;
     remove_cargo_tools_target_dir(repo_root)
+}
+
+pub fn plan_cleanup_dev_environment(repo_root: &Path) -> Result<DevActionPlan, ReleaseError> {
+    let manifest = read_manifest(repo_root)?;
+    let mut actions = obsolete_rust_toolchains(repo_root, &manifest.rust)
+        .into_iter()
+        .map(|toolchain| {
+            command_action(
+                &format!("Remove obsolete Rust toolchain {toolchain}"),
+                command("rustup", ["toolchain", "uninstall", &toolchain]),
+            )
+        })
+        .collect::<Vec<_>>();
+    actions.push(remove_path_action(
+        "Remove Cargo maintenance-tool build cache",
+        repo_root.join("target/cargo-tools"),
+    ));
+    Ok(DevActionPlan::new("Developer environment cleanup", actions))
 }
 
 pub fn build_release_artifacts(repo_root: &Path) -> Result<(), ReleaseError> {
@@ -977,14 +1046,80 @@ fn cargo_bin_dir() -> Option<std::path::PathBuf> {
     std::env::var_os("HOME").map(|home| Path::new(&home).join(".cargo/bin"))
 }
 
-fn update_commands(manifest: &DevToolsManifest) -> Vec<HarnessCommand> {
+fn update_commands(rust: &str) -> Vec<HarnessCommand> {
     vec![
-        command("rustup", ["update", &manifest.rust]),
+        command("rustup", ["update", rust]),
         command("mise", ["install"]),
         command("uv", ["lock", "--upgrade"]),
         command("npm", ["update"]),
         command("uv", ["run", "prek", "autoupdate", "--freeze"]),
     ]
+}
+
+fn rust_toolchain_update_actions(
+    repo_root: &Path,
+    manifest: &DevToolsManifest,
+    rust: &str,
+) -> Vec<DevPlannedAction> {
+    if rust == manifest.rust {
+        return Vec::new();
+    }
+
+    vec![
+        replace_text_action(
+            "Update Rust pin in dev tools manifest",
+            repo_root.join(DEV_TOOLS_PATH),
+            format!("rust = \"{}\"", manifest.rust),
+            format!("rust = \"{rust}\""),
+        ),
+        replace_text_action(
+            "Update Rust toolchain file",
+            repo_root.join("rust-toolchain.toml"),
+            format!("channel = \"{}\"", manifest.rust),
+            format!("channel = \"{rust}\""),
+        ),
+        replace_text_action(
+            "Update Cargo MSRV metadata",
+            repo_root.join("Cargo.toml"),
+            format!("rust-version = \"{}\"", minor_version(&manifest.rust)),
+            format!("rust-version = \"{}\"", minor_version(rust)),
+        ),
+    ]
+}
+
+fn command_action(label: &str, command: HarnessCommand) -> DevPlannedAction {
+    DevPlannedAction {
+        label: label.to_owned(),
+        action: DevAction::Command {
+            command: DevCheckCommand::from(command),
+        },
+    }
+}
+
+fn update_command_action(command: HarnessCommand) -> DevPlannedAction {
+    let label = match command.display().as_str() {
+        command if command.starts_with("rustup update ") => "Update selected Rust toolchain",
+        "mise install" => "Install pinned mise tools",
+        "uv lock --upgrade" => "Upgrade uv lockfile",
+        "npm update" => "Update npm dependencies",
+        "uv run prek autoupdate --freeze" => "Freeze-update pre-commit hooks",
+        _ => "Run dependency update command",
+    };
+    command_action(label, command)
+}
+
+fn replace_text_action(label: &str, path: PathBuf, from: String, to: String) -> DevPlannedAction {
+    DevPlannedAction {
+        label: label.to_owned(),
+        action: DevAction::ReplaceText { path, from, to },
+    }
+}
+
+fn remove_path_action(label: &str, path: PathBuf) -> DevPlannedAction {
+    DevPlannedAction {
+        label: label.to_owned(),
+        action: DevAction::RemovePath { path },
+    }
 }
 
 fn check_tasks(target: DevCheckTarget, profile: DevCheckProfile) -> Vec<DevCheckTask> {
@@ -1105,29 +1240,33 @@ fn check_task(id: &str, label: &str, command: HarnessCommand) -> DevCheckTask {
 fn update_rust_toolchain_pin(
     repo_root: &Path,
     manifest: &DevToolsManifest,
+    rust: &str,
 ) -> Result<(), ReleaseError> {
-    let Some(latest) = latest_stable_rust() else {
-        return Ok(());
-    };
-    if latest == manifest.rust {
+    if rust == manifest.rust {
         return Ok(());
     }
 
     replace_once(
         &repo_root.join(DEV_TOOLS_PATH),
         &format!("rust = \"{}\"", manifest.rust),
-        &format!("rust = \"{latest}\""),
+        &format!("rust = \"{rust}\""),
     )?;
     replace_once(
         &repo_root.join("rust-toolchain.toml"),
         &format!("channel = \"{}\"", manifest.rust),
-        &format!("channel = \"{latest}\""),
+        &format!("channel = \"{rust}\""),
     )?;
     replace_once(
         &repo_root.join("Cargo.toml"),
         &format!("rust-version = \"{}\"", minor_version(&manifest.rust)),
-        &format!("rust-version = \"{}\"", minor_version(&latest)),
+        &format!("rust-version = \"{}\"", minor_version(rust)),
     )
+}
+
+fn rust_update_version(manifest: &DevToolsManifest) -> String {
+    latest_stable_rust()
+        .filter(|latest| latest != &manifest.rust)
+        .unwrap_or_else(|| manifest.rust.clone())
 }
 
 fn rust_toolchain_latest_check(manifest: &DevToolsManifest) -> DevAuditCheck {

@@ -1,6 +1,6 @@
 use tq_release::{
-    DevAuditReport, DevCheckPlan, DevCheckReport, DevCheckStatus, DevCommandPlan, DevDoctorReport,
-    ExternalPinReport,
+    DevAction, DevActionPlan, DevAuditReport, DevCheckPlan, DevCheckReport, DevCheckStatus,
+    DevCommandPlan, DevDoctorReport, ExternalPinReport,
 };
 
 pub fn render_doctor_human(report: &DevDoctorReport) -> String {
@@ -329,6 +329,67 @@ pub fn render_command_plan_agent(plan: &DevCommandPlan) -> String {
     ];
     output.push(String::new());
     output.join("\n")
+}
+
+pub fn render_action_plan_human(plan: &DevActionPlan) -> String {
+    let mut output = vec![
+        format!("{} dry run", plan.title),
+        format!("{} actions planned", plan.actions.len()),
+        String::new(),
+        render_text_table(
+            &["Step", "Action", "Detail"],
+            &plan
+                .actions
+                .iter()
+                .enumerate()
+                .map(|(index, action)| {
+                    vec![
+                        (index + 1).to_string(),
+                        action.label.clone(),
+                        render_action_detail(&action.action),
+                    ]
+                })
+                .collect::<Vec<_>>(),
+        ),
+    ];
+    output.push(String::new());
+    output.join("\n")
+}
+
+pub fn render_action_plan_agent(plan: &DevActionPlan) -> String {
+    let mut output = vec![
+        format!("## {} Dry Run", plan.title),
+        String::new(),
+        format!("Actions: {} planned", plan.actions.len()),
+        String::new(),
+        render_markdown_table(
+            &["Step", "Action", "Detail"],
+            &plan
+                .actions
+                .iter()
+                .enumerate()
+                .map(|(index, action)| {
+                    vec![
+                        (index + 1).to_string(),
+                        action.label.clone(),
+                        render_action_detail(&action.action),
+                    ]
+                })
+                .collect::<Vec<_>>(),
+        ),
+    ];
+    output.push(String::new());
+    output.join("\n")
+}
+
+fn render_action_detail(action: &DevAction) -> String {
+    match action {
+        DevAction::Command { command } => command.display(),
+        DevAction::ReplaceText { path, from, to } => {
+            format!("replace {from:?} with {to:?} in {}", path.display())
+        }
+        DevAction::RemovePath { path } => format!("remove {}", path.display()),
+    }
 }
 
 pub fn render_external_pin_human(report: &ExternalPinReport) -> String {

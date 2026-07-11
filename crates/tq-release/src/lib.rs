@@ -9,11 +9,11 @@ mod workspace_version;
 use std::path::Path;
 
 pub use dev_tools::{
-    DevAuditCheck, DevAuditReport, DevAuditReportStatus, DevAuditStatus, DevAuditSummary,
-    DevCheckCommand, DevCheckPlan, DevCheckProfile, DevCheckReport, DevCheckReportStatus,
-    DevCheckResult, DevCheckStatus, DevCheckSummary, DevCheckTarget, DevCheckTask, DevCommandPlan,
-    DevDoctorCheck, DevDoctorReport, DevDoctorStatus, DevDoctorSummary, DevPlannedCommand,
-    DevToolStatus,
+    DevAction, DevActionPlan, DevAuditCheck, DevAuditReport, DevAuditReportStatus, DevAuditStatus,
+    DevAuditSummary, DevCheckCommand, DevCheckPlan, DevCheckProfile, DevCheckReport,
+    DevCheckReportStatus, DevCheckResult, DevCheckStatus, DevCheckSummary, DevCheckTarget,
+    DevCheckTask, DevCommandPlan, DevDoctorCheck, DevDoctorReport, DevDoctorStatus,
+    DevDoctorSummary, DevPlannedAction, DevPlannedCommand, DevToolStatus,
 };
 pub use error::ReleaseError;
 pub use external_pins::{
@@ -88,8 +88,16 @@ pub fn cleanup_dev_environment(repo_root: &Path) -> Result<(), ReleaseError> {
     dev_tools::cleanup_dev_environment(repo_root)
 }
 
+pub fn plan_cleanup_dev_environment(repo_root: &Path) -> Result<DevActionPlan, ReleaseError> {
+    dev_tools::plan_cleanup_dev_environment(repo_root)
+}
+
 pub fn update_dev_dependencies(repo_root: &Path) -> Result<(), ReleaseError> {
     dev_tools::update_dev_dependencies(repo_root)
+}
+
+pub fn plan_update_dev_dependencies(repo_root: &Path) -> Result<DevActionPlan, ReleaseError> {
+    dev_tools::plan_update_dev_dependencies(repo_root)
 }
 
 pub fn audit_latest_dev_dependencies(repo_root: &Path) -> Result<DevAuditReport, ReleaseError> {

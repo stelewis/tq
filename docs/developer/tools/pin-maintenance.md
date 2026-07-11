@@ -18,6 +18,8 @@ The repository uses three separate controls so frozen refs stay both strict and 
 
 Dependabot remains the default update path for both surfaces. Use manual rotation when you need an urgent update, when you are responding to a drift issue, or when a Dependabot PR needs a manual follow-up.
 
+Use `cargo dev deps update --dry-run --repo-root .` before applying repository-owned dependency and toolchain updates when you need to inspect the planned commands and Rust pin file edits.
+
 ## GitHub Actions rotation
 
 Review the upstream release first. Frozen SHAs are only useful when the release behind the SHA is acceptable.

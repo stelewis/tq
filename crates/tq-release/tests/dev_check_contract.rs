@@ -1,4 +1,36 @@
-use tq_release::{DevCheckProfile, DevCheckTarget};
+use std::fs;
+use std::path::Path;
+
+use tq_release::{DevAction, DevCheckProfile, DevCheckTarget};
+
+fn write(path: &Path, contents: &str) {
+    fs::create_dir_all(path.parent().expect("parent path must exist"))
+        .expect("create parent directories");
+    fs::write(path, contents).expect("write file");
+}
+
+fn write_dev_tools_manifest(repo_root: &Path) {
+    write(
+        &repo_root.join(".github/dev-tools.toml"),
+        concat!(
+            "[schema]\n",
+            "version = 1\n",
+            "\n",
+            "[tools]\n",
+            "rust = \"1.96.1\"\n",
+            "python = \"3.14.6\"\n",
+            "uv = \"0.11.28\"\n",
+            "node = \"26.4.0\"\n",
+            "npm = \"11.17.0\"\n",
+            "mise = \"2026.7.5\"\n",
+            "\n",
+            "[rust-maintenance]\n",
+            "cargo-outdated = \"0.17.0\"\n",
+            "cargo-audit = \"0.22.1\"\n",
+            "cargo-deny = \"0.19.0\"\n",
+        ),
+    );
+}
 
 #[test]
 fn routine_check_plan_is_the_fast_daily_gate() {
@@ -68,4 +100,43 @@ fn release_build_plan_exposes_the_artifact_build_commands() {
             "uv run --isolated --with maturin>=1.11,<2.0 -- maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml --bindings bin --out dist -i python"
         ]
     );
+}
+
+#[test]
+fn dependency_update_plan_exposes_file_and_command_actions() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    write_dev_tools_manifest(temp.path());
+
+    let plan = tq_release::plan_update_dev_dependencies(temp.path())
+        .expect("dependency update plan should build");
+    let commands = plan
+        .actions
+        .iter()
+        .filter_map(|action| match &action.action {
+            DevAction::Command { command } => Some(command.display()),
+            DevAction::ReplaceText { .. } | DevAction::RemovePath { .. } => None,
+        })
+        .collect::<Vec<_>>();
+
+    assert!(
+        commands
+            .iter()
+            .any(|command| command.starts_with("rustup update "))
+    );
+    assert!(commands.contains(&"uv lock --upgrade".to_owned()));
+    assert!(commands.contains(&"npm update".to_owned()));
+}
+
+#[test]
+fn cleanup_plan_exposes_cache_removal_action() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    write_dev_tools_manifest(temp.path());
+
+    let plan =
+        tq_release::plan_cleanup_dev_environment(temp.path()).expect("cleanup plan should build");
+
+    assert!(plan.actions.iter().any(|action| matches!(
+        &action.action,
+        DevAction::RemovePath { path } if path == &temp.path().join("target/cargo-tools")
+    )));
 }
