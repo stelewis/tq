@@ -27,14 +27,14 @@ Release intent in this repository comes from Conventional Commit types. `cz chec
 4. When you have base and head refs, run the advisory runtime dependency check and use its result as a signal:
 
    ```bash
-   cargo run -p tq-release --locked -- check-runtime-deps --repo-root . --base-ref <base> --head-ref <head>
+   cargo dev runtime-deps --repo-root . --base-ref <base> --head-ref <head>
    ```
 
 5. Apply the policy in order:
    - Does the change affect the published `tq` artifact at all? If not, it is non-shipping.
    - Does it alter a documented contract surface (CLI flags/behavior, config keys, rule IDs or default severities, exit codes, JSON schema) or an internal workspace API consumed by another crate? If yes, it is a `minor` change.
    - Does it preserve contract meaning but still change shipped behavior, including shipped runtime dependency updates? If yes, it is a `patch` change.
-   - Is it repository-only maintenance (CI, GitHub Actions, pre-commit hooks, docs-site tooling, pinned developer tools, `tq-release`, `tq-docsgen`, dev-only dependencies)? If yes, it is non-shipping.
+   - Is it repository-only maintenance (CI, GitHub Actions, pre-commit hooks, docs-site tooling, pinned developer tools, `tq-dev`, `tq-docsgen`, dev-only dependencies)? If yes, it is non-shipping.
 
 ## Commit type mapping
 

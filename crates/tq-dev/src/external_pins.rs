@@ -1,10 +1,15 @@
+//! Drift audit for frozen external pins: GitHub Action refs and pre-commit
+//! hook revisions.
+
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 use serde::Serialize;
 
-use crate::ReleaseError;
+use crate::error::DevError;
+use crate::label::labeled_enum;
+use crate::parse;
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ExternalPinReport {
@@ -25,46 +30,20 @@ pub struct ExternalPinResult {
     pub message: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ExternalPinSurface {
-    GitHubAction,
-    PreCommitHook,
-}
-
-impl std::fmt::Display for ExternalPinSurface {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::GitHubAction => formatter.write_str("GitHub Action"),
-            Self::PreCommitHook => formatter.write_str("pre-commit hook"),
-        }
+labeled_enum! {
+    #[derive(Ord, PartialOrd)]
+    pub enum ExternalPinSurface {
+        GitHubAction => "GitHub Action",
+        PreCommitHook => "pre-commit hook",
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum ExternalPinStatus {
-    UpToDate,
-    UpdateRequired,
-    InvalidPin,
-    LookupFailed,
-}
-
-impl ExternalPinStatus {
-    #[must_use]
-    pub const fn label(self) -> &'static str {
-        match self {
-            Self::UpToDate => "up to date",
-            Self::UpdateRequired => "update required",
-            Self::InvalidPin => "invalid pin",
-            Self::LookupFailed => "lookup failed",
-        }
-    }
-}
-
-impl std::fmt::Display for ExternalPinStatus {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(self.label())
+labeled_enum! {
+    pub enum ExternalPinStatus {
+        UpToDate => "up to date",
+        UpdateRequired => "update required",
+        InvalidPin => "invalid pin",
+        LookupFailed => "lookup failed",
     }
 }
 
@@ -78,7 +57,7 @@ struct ExternalPinRef {
     lookup_message: Option<String>,
 }
 
-pub fn audit_external_pin_drift(repo_root: &Path) -> Result<ExternalPinReport, ReleaseError> {
+pub fn audit_external_pin_drift(repo_root: &Path) -> Result<ExternalPinReport, DevError> {
     let mut refs = Vec::new();
     refs.extend(action_refs(repo_root)?);
     refs.extend(pre_commit_refs(repo_root)?);
@@ -102,7 +81,7 @@ pub fn audit_external_pin_drift(repo_root: &Path) -> Result<ExternalPinReport, R
     })
 }
 
-fn action_refs(repo_root: &Path) -> Result<Vec<ExternalPinRef>, ReleaseError> {
+fn action_refs(repo_root: &Path) -> Result<Vec<ExternalPinRef>, DevError> {
     let files = git_ls_files(
         repo_root,
         &[
@@ -116,7 +95,7 @@ fn action_refs(repo_root: &Path) -> Result<Vec<ExternalPinRef>, ReleaseError> {
 
     for file in files {
         let path = repo_root.join(&file);
-        let contents = read_to_string(&path)?;
+        let contents = parse::read_to_string(&path)?;
         for line in contents.lines() {
             let Some(reference) = parse_action_uses(line) else {
                 continue;
@@ -143,20 +122,20 @@ fn action_refs(repo_root: &Path) -> Result<Vec<ExternalPinRef>, ReleaseError> {
     Ok(refs)
 }
 
-fn pre_commit_refs(repo_root: &Path) -> Result<Vec<ExternalPinRef>, ReleaseError> {
+fn pre_commit_refs(repo_root: &Path) -> Result<Vec<ExternalPinRef>, DevError> {
     let source = ".pre-commit-config.yaml";
     let path = repo_root.join(source);
     if !path.exists() {
         return Ok(Vec::new());
     }
-    let contents = read_to_string(&path)?;
+    let contents = parse::read_to_string(&path)?;
     let mut refs = Vec::new();
     let mut current_repo: Option<String> = None;
 
     for line in contents.lines() {
         let trimmed = line.trim();
         if let Some(repo) = trimmed.strip_prefix("- repo:") {
-            current_repo = Some(unquote(repo.trim()).to_owned());
+            current_repo = Some(parse::yaml_scalar(repo).to_owned());
             continue;
         }
 
@@ -166,7 +145,6 @@ fn pre_commit_refs(repo_root: &Path) -> Result<Vec<ExternalPinRef>, ReleaseError
         let Some(repo) = current_repo.take() else {
             continue;
         };
-        let repo = yaml_scalar(&repo);
         if repo == "local" {
             continue;
         }
@@ -177,7 +155,7 @@ fn pre_commit_refs(repo_root: &Path) -> Result<Vec<ExternalPinRef>, ReleaseError
             source: source.to_owned(),
             name: repo.clone(),
             remote: remote.clone(),
-            pinned: Some(yaml_scalar(rev.trim())),
+            pinned: Some(parse::yaml_scalar(rev).to_owned()),
             lookup_message: remote.is_none().then(|| {
                 "unsupported pre-commit repository URL for automated drift lookup".to_owned()
             }),
@@ -339,7 +317,7 @@ fn parse_action_uses(line: &str) -> Option<String> {
         .unwrap_or(line)
         .trim_start();
     let value = trimmed.strip_prefix("uses:")?.trim();
-    Some(yaml_scalar(value))
+    Some(parse::yaml_scalar(value).to_owned())
 }
 
 fn split_pin(reference: &str) -> (String, Option<String>) {
@@ -377,14 +355,6 @@ fn github_action_remote(name: &str) -> Option<String> {
     Some(format!("https://github.com/{owner}/{repo}.git"))
 }
 
-fn unquote(value: &str) -> &str {
-    value.trim_matches(['\'', '"'])
-}
-
-fn yaml_scalar(value: &str) -> String {
-    unquote(value.split('#').next().unwrap_or(value).trim()).to_owned()
-}
-
 fn is_full_sha(value: &str) -> bool {
     value.len() == 40
         && value
@@ -392,20 +362,18 @@ fn is_full_sha(value: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
-fn git_ls_files(repo_root: &Path, patterns: &[&str]) -> Result<Vec<String>, ReleaseError> {
+fn git_ls_files(repo_root: &Path, patterns: &[&str]) -> Result<Vec<String>, DevError> {
     let output = Command::new("git")
         .arg("ls-files")
         .args(patterns)
         .current_dir(repo_root)
         .output()
-        .map_err(|source| ReleaseError::GitIo {
-            repo_root: repo_root.to_path_buf(),
+        .map_err(|source| DevError::GitIo {
             args: format!("ls-files {}", patterns.join(" ")),
             source,
         })?;
     if !output.status.success() {
-        return Err(ReleaseError::Git {
-            repo_root: repo_root.to_path_buf(),
+        return Err(DevError::Git {
             args: format!("ls-files {}", patterns.join(" ")),
             stderr: String::from_utf8_lossy(&output.stderr).trim().to_owned(),
         });
@@ -415,13 +383,6 @@ fn git_ls_files(repo_root: &Path, patterns: &[&str]) -> Result<Vec<String>, Rele
         .lines()
         .map(ToOwned::to_owned)
         .collect())
-}
-
-fn read_to_string(path: &Path) -> Result<String, ReleaseError> {
-    std::fs::read_to_string(path).map_err(|source| ReleaseError::Io {
-        path: PathBuf::from(path),
-        source,
-    })
 }
 
 #[cfg(test)]

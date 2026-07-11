@@ -20,9 +20,10 @@ fn verify_release_policy_passes_when_workspace_and_dependabot_policies_pass() {
             "[workspace.package]\n",
             "version = \"0.7.0\"\n",
             "rust-version = \"1.96\"\n",
+            "publish = false\n",
             "\n",
             "[workspace.dependencies]\n",
-            "tq-core = { version = \"0.7.0\", path = \"crates/tq-core\" }\n",
+            "tq-core = { path = \"crates/tq-core\" }\n",
         ),
     );
     write(
@@ -40,6 +41,7 @@ fn verify_release_policy_passes_when_workspace_and_dependabot_policies_pass() {
             "[package]\n",
             "name = \"tq-core\"\n",
             "version.workspace = true\n",
+            "publish.workspace = true\n",
         ),
     );
     write(
@@ -157,7 +159,7 @@ fn verify_release_policy_passes_when_workspace_and_dependabot_policies_pass() {
     );
     write(&temp.path().join(".github/workflows/ci.yml"), "name: CI\n");
 
-    tq_release::verify_release_policy(temp.path()).expect("release policy should pass");
+    tq_dev::policy::verify_release_policy(temp.path()).expect("release policy should pass");
 }
 
 #[test]
@@ -172,9 +174,10 @@ fn verify_release_policy_fails_when_either_policy_fails() {
             "\n",
             "[workspace.package]\n",
             "version = \"0.7.0\"\n",
+            "publish = false\n",
             "\n",
             "[workspace.dependencies]\n",
-            "tq-core = { version = \"0.6.3\", path = \"crates/tq-core\" }\n",
+            "tq-core = { path = \"crates/tq-core\" }\n",
         ),
     );
     write(
@@ -187,15 +190,16 @@ fn verify_release_policy_fails_when_either_policy_fails() {
             "[package]\n",
             "name = \"tq-core\"\n",
             "version.workspace = true\n",
+            "publish.workspace = true\n",
         ),
     );
 
-    let error = tq_release::verify_release_policy(temp.path())
+    let error = tq_dev::policy::verify_release_policy(temp.path())
         .expect_err("release policy should fail when workspace version policy fails");
 
     assert!(
         error
             .to_string()
-            .contains("workspace.dependencies.tq-core.version")
+            .contains("CHANGELOG.md top release heading")
     );
 }

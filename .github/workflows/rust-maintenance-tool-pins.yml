@@ -20,9 +20,8 @@ jobs:
     permissions:
       contents: read
     outputs:
-      title: ${{ steps.drift.outputs.title }}
       drift_detected: ${{ steps.drift.outputs.drift_detected }}
-      issue_body: ${{ steps.drift.outputs.issue_body }}
+      report: ${{ steps.drift.outputs.report }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -39,60 +38,29 @@ jobs:
           set -euo pipefail
 
           report_file="$(mktemp)"
-
           set +e
-          cargo dev deps audit-maintenance-tools --output json --repo-root . > "$report_file"
-          status="$?"
+          cargo dev deps audit-maintenance-tools --output agent --repo-root . > "$report_file"
+          audit_exit_code="$?"
           set -e
 
-          python <<'PY' "$report_file" "$status" >> "$GITHUB_OUTPUT"
-          import json
-          import os
-          import sys
+          cat "$report_file" >> "$GITHUB_STEP_SUMMARY"
 
-          report_path, status = sys.argv[1:]
-          report = json.loads(open(report_path, encoding="utf-8").read())
-          drift_detected = report["summary"]["status"] != "clean"
+          case "$audit_exit_code" in
+            0) drift_detected=false ;;
+            1) drift_detected=true ;;
+            *)
+              echo "maintenance tool audit failed: exit $audit_exit_code"
+              exit "$audit_exit_code"
+              ;;
+          esac
 
-          lines = [
-            "## Rust maintenance tool pin review",
-            "",
-            "| Tool | Pinned | Latest | Status |",
-            "| --- | --- | --- | --- |",
-          ]
-          for check in report["checks"]:
-            pinned = "unavailable"
-            latest = "unavailable"
-            for part in check["output"].split(", "):
-              if part.startswith("pinned: "):
-                pinned = part.removeprefix("pinned: ")
-              if part.startswith("latest: "):
-                latest = part.removeprefix("latest: ")
-            lines.append(f"| {check['name']} | {pinned} | {latest} | {check['status']} |")
-          lines.extend([
-            "",
-            "The centralized Rust maintenance tool pins need review."
-            if drift_detected
-            else "All centralized maintenance tool pins are current.",
-          ])
-          body = "\n".join(lines) + "\n"
-          issue_body = (
-            body
-            + f"\nDetected by workflow run: https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}\n"
-          )
-
-          open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8").write(body)
-
-          if status != "0" and not drift_detected:
-            raise SystemExit(f"maintenance tool audit failed without findings: exit {status}")
-
-          print("title=chore: review Rust maintenance tool pins")
-          print(f"drift_detected={str(drift_detected).lower()}")
-          print("issue_body<<__ISSUE_BODY__")
-          print(issue_body, end="")
-          print("__ISSUE_BODY__")
-          PY
-
+          delimiter="$(uuidgen)"
+          {
+            echo "drift_detected=$drift_detected"
+            echo "report<<$delimiter"
+            cat "$report_file"
+            echo "$delimiter"
+          } >> "$GITHUB_OUTPUT"
 
   sync-maintenance-tool-pin-issue:
     name: Sync maintenance tool pin issue
@@ -100,40 +68,30 @@ jobs:
     needs: audit-maintenance-tool-pins
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       issues: write
     steps:
-      - name: Sync maintenance tool pin issue
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Write drift report
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          ISSUE_TITLE: ${{ needs.audit-maintenance-tool-pins.outputs.title }}
-          ISSUE_BODY: ${{ needs.audit-maintenance-tool-pins.outputs.issue_body }}
-          DRIFT_DETECTED: ${{ needs.audit-maintenance-tool-pins.outputs.drift_detected }}
-        run: |
-          set -euo pipefail
+          REPORT: ${{ needs.audit-maintenance-tool-pins.outputs.report }}
+        run: printf '%s\n' "$REPORT" > "$RUNNER_TEMP/drift-report.md"
 
-          existing_issue_number="$(gh issue list --repo "$GH_REPO" --state open --limit 100 --search "$ISSUE_TITLE in:title" --json number,title --jq '.[] | select(.title == env.ISSUE_TITLE) | .number' | head -n 1)"
-
-          if [[ "$DRIFT_DETECTED" == 'true' ]]; then
-            issue_body_file="$(mktemp)"
-            printf '%s' "$ISSUE_BODY" > "$issue_body_file"
-
-            if [[ -n "$existing_issue_number" ]]; then
-              gh issue edit "$existing_issue_number" --repo "$GH_REPO" --body-file "$issue_body_file"
-              exit 0
-            fi
-
-            gh issue create --repo "$GH_REPO" --title "$ISSUE_TITLE" --body-file "$issue_body_file"
-            exit 0
-          fi
-
-          if [[ -z "$existing_issue_number" ]]; then
-            exit 0
-          fi
-
-          gh issue comment "$existing_issue_number" --repo "$GH_REPO" --body "Pinned Rust maintenance tools are current again. Closing this tracking issue."
-          gh issue close "$existing_issue_number" --repo "$GH_REPO"
+      - name: Sync maintenance tool pin issue
+        uses: ./.github/actions/sync-drift-issue
+        with:
+          issue-title: "chore: review Rust maintenance tool pins"
+          report-file: ${{ runner.temp }}/drift-report.md
+          drift-detected: ${{ needs.audit-maintenance-tool-pins.outputs.drift_detected }}
+          all-clear-comment: >-
+            Pinned Rust maintenance tools are current again.
+            Closing this tracking issue.
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   fail-on-drift:
     name: Fail on drift

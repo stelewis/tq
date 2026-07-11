@@ -1,13 +1,13 @@
 [package]
-name = "tq-release"
+name = "tq-dev"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 readme.workspace = true
-description = "Rust release policy verification tooling for tq"
-exclude = ["tests/**"]
+publish.workspace = true
+description = "Developer harness and repository policy tooling for the tq workspace"
 
 [dependencies]
 clap.workspace = true
@@ -20,7 +20,6 @@ toml.workspace = true
 zip.workspace = true
 
 [dev-dependencies]
-assert_cmd = "2.2.2"
 tempfile = "3.27.0"
 
 [lints]

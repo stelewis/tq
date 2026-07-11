@@ -2,12 +2,12 @@ use std::path::{Path, PathBuf};
 
 use toml::{Table, Value};
 
-use crate::ReleaseError;
+use crate::error::DevError;
 
 const ROOT_CARGO_TOML: &str = "Cargo.toml";
 const CHANGELOG_PATH: &str = "CHANGELOG.md";
 
-pub fn verify_workspace_version(repo_root: &Path) -> Result<(), ReleaseError> {
+pub fn verify_workspace_version(repo_root: &Path) -> Result<(), DevError> {
     let root_cargo_path = repo_root.join(ROOT_CARGO_TOML);
     let root_manifest = read_toml_table(&root_cargo_path, "workspace Cargo.toml")?;
     let workspace_version = workspace_version(&root_manifest, &root_cargo_path)?;
@@ -17,12 +17,7 @@ pub fn verify_workspace_version(repo_root: &Path) -> Result<(), ReleaseError> {
     let mut violations = Vec::new();
 
     for member in members {
-        violations.extend(verify_member(
-            repo_root,
-            &member,
-            workspace_version,
-            workspace_dependencies,
-        )?);
+        violations.extend(verify_member(repo_root, &member, workspace_dependencies)?);
     }
 
     let changelog_path = repo_root.join(CHANGELOG_PATH);
@@ -32,7 +27,7 @@ pub fn verify_workspace_version(repo_root: &Path) -> Result<(), ReleaseError> {
         return Ok(());
     }
 
-    Err(ReleaseError::RepositoryPolicyViolation {
+    Err(DevError::PolicyViolation {
         details: violations.join("\n"),
     })
 }
@@ -40,9 +35,8 @@ pub fn verify_workspace_version(repo_root: &Path) -> Result<(), ReleaseError> {
 fn verify_member(
     repo_root: &Path,
     member: &Path,
-    workspace_version: &str,
     workspace_dependencies: &Table,
-) -> Result<Vec<String>, ReleaseError> {
+) -> Result<Vec<String>, DevError> {
     let member_manifest_path = repo_root.join(member).join(ROOT_CARGO_TOML);
     let member_manifest = read_toml_table(&member_manifest_path, "member Cargo.toml")?;
     let package = package_table(&member_manifest, &member_manifest_path)?;
@@ -51,19 +45,16 @@ fn verify_member(
         .and_then(Value::as_str)
         .ok_or_else(|| workspace_version_error(&member_manifest_path, "missing package.name"))?;
 
-    let package_version = package
-        .get("version")
-        .ok_or_else(|| workspace_version_error(&member_manifest_path, "missing package.version"))?;
-
     let mut violations = Vec::new();
-    let uses_workspace_version = package_version
-        .as_table()
-        .and_then(|table| table.get("workspace"))
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    if !uses_workspace_version {
+    if !inherits_workspace_field(package, "version") {
         violations.push(format!(
             "{crate_name} must inherit package.version from workspace.package.version"
+        ));
+    }
+    if !inherits_workspace_field(package, "publish") {
+        violations.push(format!(
+            "{crate_name} must inherit package.publish from workspace.package.publish; \
+             workspace crates are not published to crates.io"
         ));
     }
 
@@ -76,17 +67,10 @@ fn verify_member(
 
     let Some(root_dependency_table) = root_dependency.as_table() else {
         violations.push(format!(
-            "workspace.dependencies.{crate_name} must be a table with path and version"
+            "workspace.dependencies.{crate_name} must be a table with a path entry"
         ));
         return Ok(violations);
     };
-
-    let declared_version = root_dependency_table.get("version").and_then(Value::as_str);
-    if declared_version != Some(workspace_version) {
-        violations.push(format!(
-            "workspace.dependencies.{crate_name}.version must match workspace.package.version ({workspace_version})"
-        ));
-    }
 
     let declared_path = root_dependency_table.get("path").and_then(Value::as_str);
     if declared_path.map(Path::new) != Some(member) {
@@ -99,12 +83,21 @@ fn verify_member(
     Ok(violations)
 }
 
+fn inherits_workspace_field(package: &Table, field: &str) -> bool {
+    package
+        .get(field)
+        .and_then(Value::as_table)
+        .and_then(|table| table.get("workspace"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
 fn verify_changelog(
     changelog_path: &Path,
     workspace_version: &str,
-) -> Result<Vec<String>, ReleaseError> {
+) -> Result<Vec<String>, DevError> {
     let changelog_contents =
-        std::fs::read_to_string(changelog_path).map_err(|source| ReleaseError::Io {
+        std::fs::read_to_string(changelog_path).map_err(|source| DevError::Io {
             path: changelog_path.to_path_buf(),
             source,
         })?;
@@ -115,7 +108,7 @@ fn verify_changelog(
         .lines()
         .find(|line| line.starts_with("## ["))
     else {
-        return Err(ReleaseError::RepositoryPolicyViolation {
+        return Err(DevError::PolicyViolation {
             details: "CHANGELOG.md must contain at least one release heading".to_owned(),
         });
     };
@@ -140,8 +133,8 @@ fn verify_changelog(
     Ok(violations)
 }
 
-fn read_toml_table(path: &Path, description: &str) -> Result<Table, ReleaseError> {
-    let contents = std::fs::read_to_string(path).map_err(|source| ReleaseError::Io {
+fn read_toml_table(path: &Path, description: &str) -> Result<Table, DevError> {
+    let contents = std::fs::read_to_string(path).map_err(|source| DevError::Io {
         path: path.to_path_buf(),
         source,
     })?;
@@ -151,7 +144,7 @@ fn read_toml_table(path: &Path, description: &str) -> Result<Table, ReleaseError
     })
 }
 
-fn workspace_version<'a>(manifest: &'a Table, path: &Path) -> Result<&'a str, ReleaseError> {
+fn workspace_version<'a>(manifest: &'a Table, path: &Path) -> Result<&'a str, DevError> {
     manifest
         .get("workspace")
         .and_then(Value::as_table)
@@ -162,7 +155,7 @@ fn workspace_version<'a>(manifest: &'a Table, path: &Path) -> Result<&'a str, Re
         .ok_or_else(|| workspace_version_error(path, "missing workspace.package.version"))
 }
 
-fn workspace_members(manifest: &Table, path: &Path) -> Result<Vec<PathBuf>, ReleaseError> {
+fn workspace_members(manifest: &Table, path: &Path) -> Result<Vec<PathBuf>, DevError> {
     let members = manifest
         .get("workspace")
         .and_then(Value::as_table)
@@ -180,7 +173,7 @@ fn workspace_members(manifest: &Table, path: &Path) -> Result<Vec<PathBuf>, Rele
         .collect()
 }
 
-fn workspace_dependencies<'a>(manifest: &'a Table, path: &Path) -> Result<&'a Table, ReleaseError> {
+fn workspace_dependencies<'a>(manifest: &'a Table, path: &Path) -> Result<&'a Table, DevError> {
     manifest
         .get("workspace")
         .and_then(Value::as_table)
@@ -189,15 +182,15 @@ fn workspace_dependencies<'a>(manifest: &'a Table, path: &Path) -> Result<&'a Ta
         .ok_or_else(|| workspace_version_error(path, "missing workspace.dependencies"))
 }
 
-fn package_table<'a>(manifest: &'a Table, path: &Path) -> Result<&'a Table, ReleaseError> {
+fn package_table<'a>(manifest: &'a Table, path: &Path) -> Result<&'a Table, DevError> {
     manifest
         .get("package")
         .and_then(Value::as_table)
         .ok_or_else(|| workspace_version_error(path, "missing [package] table"))
 }
 
-fn workspace_version_error(path: &Path, message: &str) -> ReleaseError {
-    ReleaseError::WorkspaceVersionInput {
+fn workspace_version_error(path: &Path, message: &str) -> DevError {
+    DevError::InvalidInput {
         path: path.to_path_buf(),
         message: message.to_owned(),
     }

@@ -15,7 +15,7 @@
     "docs:rules:generate": "cargo run -p tq-docsgen --locked -- generate rules",
     "docs:cli:generate": "cargo run -p tq-docsgen --locked -- generate cli",
     "docs:config:generate": "cargo run -p tq-docsgen --locked -- generate config",
-    "package:verify-contents": "cargo run -p tq-release --locked -- verify-artifact-contents"
+    "package:verify-contents": "cargo dev release verify-artifacts"
   },
   "devDependencies": {
     "vitepress": "1.6.4"

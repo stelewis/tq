@@ -554,6 +554,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "tq-dev"
+version = "0.11.5"
+dependencies = [
+ "clap",
+ "flate2",
+ "serde",
+ "serde_json",
+ "tar",
+ "tempfile",
+ "thiserror",
+ "toml",
+ "zip",
+]
+
+[[package]]
 name = "tq-discovery"
 version = "0.11.5"
 dependencies = [
@@ -583,22 +598,6 @@ dependencies = [
  "thiserror",
  "tq-core",
  "tq-discovery",
-]
-
-[[package]]
-name = "tq-release"
-version = "0.11.5"
-dependencies = [
- "assert_cmd",
- "clap",
- "flate2",
- "serde",
- "serde_json",
- "tar",
- "tempfile",
- "thiserror",
- "toml",
- "zip",
 ]
 
 [[package]]

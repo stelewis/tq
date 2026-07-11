@@ -41,11 +41,11 @@ The docs site build runs the Rust docs generator first through `package.json` an
 
 ## Repository and release verification
 
-Repository-policy and release artifact checks are enforced by `tq-release`.
+Repository-policy and release artifact checks are enforced by the `tq-dev` harness.
 
 - `cargo dev check all --repo-root .`
 - `cargo dev check --profile full all --repo-root .`
-- `cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist`
+- `cargo dev release verify-artifacts --dist-dir dist`
 
 The release-policy verifier checks workspace versioning policy and the GitHub Actions Dependabot coverage policy together.
 

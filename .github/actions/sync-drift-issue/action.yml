@@ -1,0 +1,61 @@
+name: Sync drift tracking issue
+description: >
+  Keep a single open tracking issue in sync with a drift report: create or
+  update it while drift persists, close it when the report is clean.
+
+inputs:
+  issue-title:
+    description: Exact title of the tracking issue
+    required: true
+  report-file:
+    description: Path to the Markdown report used as the issue body
+    required: true
+  drift-detected:
+    description: Whether the report found drift ("true" or "false")
+    required: true
+  all-clear-comment:
+    description: Comment posted when closing a resolved tracking issue
+    required: true
+  github-token:
+    description: Token with issues write permission
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Sync tracking issue
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        GH_REPO: ${{ github.repository }}
+        ISSUE_TITLE: ${{ inputs.issue-title }}
+        REPORT_FILE: ${{ inputs.report-file }}
+        DRIFT_DETECTED: ${{ inputs.drift-detected }}
+        ALL_CLEAR_COMMENT: ${{ inputs.all-clear-comment }}
+      run: |
+        set -euo pipefail
+
+        existing_issue_number="$(gh issue list --repo "$GH_REPO" --state open --limit 100 \
+          --search "$ISSUE_TITLE in:title" --json number,title \
+          --jq '.[] | select(.title == env.ISSUE_TITLE) | .number' | head -n 1)"
+
+        if [[ "$DRIFT_DETECTED" == 'true' ]]; then
+          issue_body_file="$(mktemp)"
+          cat "$REPORT_FILE" > "$issue_body_file"
+          printf '\nDetected by workflow run: https://github.com/%s/actions/runs/%s\n' \
+            "$GH_REPO" "$GITHUB_RUN_ID" >> "$issue_body_file"
+
+          if [[ -n "$existing_issue_number" ]]; then
+            gh issue edit "$existing_issue_number" --repo "$GH_REPO" --body-file "$issue_body_file"
+          else
+            gh issue create --repo "$GH_REPO" --title "$ISSUE_TITLE" --body-file "$issue_body_file"
+          fi
+          exit 0
+        fi
+
+        if [[ -z "$existing_issue_number" ]]; then
+          exit 0
+        fi
+
+        gh issue comment "$existing_issue_number" --repo "$GH_REPO" --body "$ALL_CLEAR_COMMENT"
+        gh issue close "$existing_issue_number" --repo "$GH_REPO"

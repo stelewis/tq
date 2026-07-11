@@ -10,7 +10,7 @@ fn verify_artifact_contents_fails_when_dist_dir_is_missing() {
     let temp = tempfile::tempdir().expect("tempdir");
     let dist_dir = temp.path().join("missing-dist");
 
-    let error = tq_release::verify_artifact_contents(&dist_dir, None)
+    let error = tq_dev::artifacts::verify_artifact_contents(&dist_dir, None)
         .expect_err("missing dist should fail");
     assert!(
         error
@@ -42,7 +42,7 @@ fn verify_artifact_contents_reports_forbidden_members() {
         ],
     );
 
-    let error = tq_release::verify_artifact_contents(&dist_dir, None)
+    let error = tq_dev::artifacts::verify_artifact_contents(&dist_dir, None)
         .expect_err("policy violations should fail");
 
     let message = error.to_string();
@@ -64,7 +64,7 @@ fn verify_artifact_contents_passes_when_no_violations_exist() {
         &[("tq/__init__.py", "")],
     );
 
-    tq_release::verify_artifact_contents(&dist_dir, Some(vec!["tests/".to_owned()]))
+    tq_dev::artifacts::verify_artifact_contents(&dist_dir, Some(vec!["tests/".to_owned()]))
         .expect("no policy violations");
 }
 
@@ -79,7 +79,7 @@ fn verify_artifact_contents_allows_wheel_installer_scripts() {
         &[("pkg-0.1.0.data/scripts/tq", "")],
     );
 
-    tq_release::verify_artifact_contents(&dist_dir, None)
+    tq_dev::artifacts::verify_artifact_contents(&dist_dir, None)
         .expect("wheel installer scripts should be allowed");
 }
 
@@ -97,7 +97,7 @@ fn verify_artifact_contents_fails_when_sdist_declares_missing_license_file() {
         )],
     );
 
-    let error = tq_release::verify_artifact_contents(&dist_dir, None)
+    let error = tq_dev::artifacts::verify_artifact_contents(&dist_dir, None)
         .expect_err("missing declared license file should fail");
 
     assert!(
@@ -124,7 +124,7 @@ fn verify_artifact_contents_passes_when_sdist_includes_declared_license_file() {
         ],
     );
 
-    tq_release::verify_artifact_contents(&dist_dir, None)
+    tq_dev::artifacts::verify_artifact_contents(&dist_dir, None)
         .expect("sdist with declared license file should pass");
 }
 

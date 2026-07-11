@@ -150,10 +150,10 @@ jobs:
           done
 
       - name: Verify release policy
-        run: cargo run -p tq-release --locked -- verify-release-policy --repo-root .
+        run: cargo dev policy verify-release --repo-root .
 
       - name: Verify artifact contents policy
-        run: cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist
+        run: cargo dev release verify-artifacts --dist-dir dist
 
       - name: Validate package metadata
         run: uv run --isolated --no-project --with twine -- twine check dist/*

@@ -1,2 +1,2 @@
 [alias]
-dev = "run -p tq-release --locked -- dev"
+dev = "run -p tq-dev --locked --"

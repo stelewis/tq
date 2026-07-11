@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use flate2::read::GzDecoder;
 
-use crate::ReleaseError;
+use crate::error::DevError;
 
 pub const DEFAULT_FORBIDDEN_PREFIXES: &[&str] = &[
     "scripts/", "tests/", "docs/", "tmp/", ".github/", ".vscode/",
@@ -18,9 +18,9 @@ pub struct ArtifactViolation {
 pub fn verify_artifact_contents(
     dist_dir: &Path,
     forbidden_prefixes: Option<Vec<String>>,
-) -> Result<(), ReleaseError> {
+) -> Result<(), DevError> {
     if !dist_dir.exists() {
-        return Err(ReleaseError::MissingDistributionDirectory {
+        return Err(DevError::MissingDistributionDirectory {
             path: dist_dir.to_path_buf(),
         });
     }
@@ -41,20 +41,20 @@ pub fn verify_artifact_contents(
         .map(|violation| format!("- {}: {}", violation.artifact.display(), violation.member))
         .collect::<Vec<_>>()
         .join("\n");
-    Err(ReleaseError::PolicyViolation { details })
+    Err(DevError::ArtifactPolicyViolation { details })
 }
 
 fn collect_violations(
     dist_dir: &Path,
     forbidden_prefixes: &[String],
-) -> Result<Vec<ArtifactViolation>, ReleaseError> {
+) -> Result<Vec<ArtifactViolation>, DevError> {
     let mut violations = Vec::new();
 
-    for entry in std::fs::read_dir(dist_dir).map_err(|source| ReleaseError::Io {
+    for entry in std::fs::read_dir(dist_dir).map_err(|source| DevError::Io {
         path: dist_dir.to_path_buf(),
         source,
     })? {
-        let entry = entry.map_err(|source| ReleaseError::Io {
+        let entry = entry.map_err(|source| DevError::Io {
             path: dist_dir.to_path_buf(),
             source,
         })?;
@@ -76,12 +76,12 @@ fn collect_violations(
 fn find_zip_violations(
     artifact_path: &Path,
     forbidden_prefixes: &[String],
-) -> Result<Vec<ArtifactViolation>, ReleaseError> {
-    let file = std::fs::File::open(artifact_path).map_err(|source| ReleaseError::Io {
+) -> Result<Vec<ArtifactViolation>, DevError> {
+    let file = std::fs::File::open(artifact_path).map_err(|source| DevError::Io {
         path: artifact_path.to_path_buf(),
         source,
     })?;
-    let mut archive = zip::ZipArchive::new(file).map_err(|source| ReleaseError::Zip {
+    let mut archive = zip::ZipArchive::new(file).map_err(|source| DevError::Zip {
         path: artifact_path.to_path_buf(),
         source,
     })?;
@@ -90,12 +90,10 @@ fn find_zip_violations(
     let mut declared_license_files = Vec::new();
 
     for index in 0..archive.len() {
-        let mut member = archive
-            .by_index(index)
-            .map_err(|source| ReleaseError::Zip {
-                path: artifact_path.to_path_buf(),
-                source,
-            })?;
+        let mut member = archive.by_index(index).map_err(|source| DevError::Zip {
+            path: artifact_path.to_path_buf(),
+            source,
+        })?;
         let member_name = member.name().to_owned();
         members.push(member_name.clone());
         if is_forbidden_member(&member_name, forbidden_prefixes) {
@@ -123,8 +121,8 @@ fn find_zip_violations(
 fn find_tar_gz_violations(
     artifact_path: &Path,
     forbidden_prefixes: &[String],
-) -> Result<Vec<ArtifactViolation>, ReleaseError> {
-    let file = std::fs::File::open(artifact_path).map_err(|source| ReleaseError::Io {
+) -> Result<Vec<ArtifactViolation>, DevError> {
+    let file = std::fs::File::open(artifact_path).map_err(|source| DevError::Io {
         path: artifact_path.to_path_buf(),
         source,
     })?;
@@ -134,18 +132,18 @@ fn find_tar_gz_violations(
     let mut members = Vec::new();
     let mut declared_license_files = Vec::new();
 
-    let entries = archive.entries().map_err(|source| ReleaseError::Io {
+    let entries = archive.entries().map_err(|source| DevError::Io {
         path: artifact_path.to_path_buf(),
         source,
     })?;
     for entry in entries {
-        let mut entry = entry.map_err(|source| ReleaseError::Io {
+        let mut entry = entry.map_err(|source| DevError::Io {
             path: artifact_path.to_path_buf(),
             source,
         })?;
         let member_name = entry
             .path()
-            .map_err(|source| ReleaseError::Io {
+            .map_err(|source| DevError::Io {
                 path: artifact_path.to_path_buf(),
                 source,
             })?
@@ -177,11 +175,11 @@ fn find_tar_gz_violations(
 fn read_zip_member_to_string<R: Read>(
     member: &mut R,
     artifact_path: &Path,
-) -> Result<String, ReleaseError> {
+) -> Result<String, DevError> {
     let mut metadata = String::new();
     member
         .read_to_string(&mut metadata)
-        .map_err(|source| ReleaseError::Io {
+        .map_err(|source| DevError::Io {
             path: artifact_path.to_path_buf(),
             source,
         })?;
@@ -191,11 +189,11 @@ fn read_zip_member_to_string<R: Read>(
 fn read_tar_member_to_string<R: Read>(
     member: &mut R,
     artifact_path: &Path,
-) -> Result<String, ReleaseError> {
+) -> Result<String, DevError> {
     let mut metadata = String::new();
     member
         .read_to_string(&mut metadata)
-        .map_err(|source| ReleaseError::Io {
+        .map_err(|source| DevError::Io {
             path: artifact_path.to_path_buf(),
             source,
         })?;

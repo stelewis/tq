@@ -4,7 +4,7 @@ use std::process::Command;
 
 use toml::{Table, Value};
 
-use crate::ReleaseError;
+use crate::error::DevError;
 
 const LOCKFILE_PATH: &str = "Cargo.lock";
 const ROOT_MANIFEST_PATH: &str = "Cargo.toml";
@@ -58,7 +58,7 @@ pub fn check_runtime_dep_changes(
     repo_root: &Path,
     base_ref: &str,
     head_ref: &str,
-) -> Result<RuntimeDependencyChange, ReleaseError> {
+) -> Result<RuntimeDependencyChange, DevError> {
     let merge_base = git_stdout(repo_root, &["merge-base", base_ref, head_ref])?;
     let merge_base = merge_base.trim();
 
@@ -81,7 +81,7 @@ pub fn check_runtime_dep_changes(
 fn runtime_dependency_snapshot_at(
     repo_root: &Path,
     git_ref: &str,
-) -> Result<RuntimeDependencySnapshot, ReleaseError> {
+) -> Result<RuntimeDependencySnapshot, DevError> {
     let root_manifest_path = repo_root.join(ROOT_MANIFEST_PATH);
     let root_manifest = parse_toml_table(
         &git_file_contents(repo_root, git_ref, ROOT_MANIFEST_PATH)?,
@@ -109,7 +109,7 @@ fn load_member_manifests(
     repo_root: &Path,
     git_ref: &str,
     members: &[PathBuf],
-) -> Result<BTreeMap<String, MemberManifest>, ReleaseError> {
+) -> Result<BTreeMap<String, MemberManifest>, DevError> {
     let mut manifests = BTreeMap::new();
 
     for member in members {
@@ -142,7 +142,7 @@ fn load_member_manifests(
 fn runtime_manifest_fingerprint(
     workspace_dependencies: &Table,
     member_manifests: &BTreeMap<String, MemberManifest>,
-) -> Result<(Fingerprint, DirectExternalPackages), ReleaseError> {
+) -> Result<(Fingerprint, DirectExternalPackages), DevError> {
     let mut direct_external_packages = BTreeSet::new();
     let mut manifest_fingerprint = Fingerprint::new();
     let mut queued = VecDeque::from([SHIPPED_RUNTIME_ROOT_CRATE.to_owned()]);
@@ -203,7 +203,7 @@ fn resolve_dependency(
     member_value: &Value,
     workspace_dependencies: &Table,
     manifest_path: &Path,
-) -> Result<ResolvedDependency, ReleaseError> {
+) -> Result<ResolvedDependency, DevError> {
     let inherits_workspace = member_value
         .as_table()
         .and_then(|table| table.get("workspace"))
@@ -254,7 +254,7 @@ fn resolve_dependency(
     })
 }
 
-fn parse_lock_packages(contents: &str, path: &Path) -> Result<Vec<LockPackage>, ReleaseError> {
+fn parse_lock_packages(contents: &str, path: &Path) -> Result<Vec<LockPackage>, DevError> {
     let lockfile = parse_toml_table(contents, path)?;
     let packages = lockfile
         .get("package")
@@ -309,7 +309,7 @@ fn parse_lock_packages(contents: &str, path: &Path) -> Result<Vec<LockPackage>, 
         .collect()
 }
 
-fn parse_lock_dependency(dependency: &str, path: &Path) -> Result<LockDependencyRef, ReleaseError> {
+fn parse_lock_dependency(dependency: &str, path: &Path) -> Result<LockDependencyRef, DevError> {
     let mut tokens = dependency.split_whitespace();
     let name = tokens
         .next()
@@ -388,7 +388,7 @@ fn package_fingerprint(package: &LockPackage) -> String {
     )
 }
 
-fn workspace_dependencies<'a>(manifest: &'a Table, path: &Path) -> Result<&'a Table, ReleaseError> {
+fn workspace_dependencies<'a>(manifest: &'a Table, path: &Path) -> Result<&'a Table, DevError> {
     manifest
         .get("workspace")
         .and_then(Value::as_table)
@@ -397,7 +397,7 @@ fn workspace_dependencies<'a>(manifest: &'a Table, path: &Path) -> Result<&'a Ta
         .ok_or_else(|| invalid_input(path, "missing workspace.dependencies"))
 }
 
-fn workspace_members(manifest: &Table, path: &Path) -> Result<Vec<PathBuf>, ReleaseError> {
+fn workspace_members(manifest: &Table, path: &Path) -> Result<Vec<PathBuf>, DevError> {
     let members = manifest
         .get("workspace")
         .and_then(Value::as_table)
@@ -416,7 +416,7 @@ fn workspace_members(manifest: &Table, path: &Path) -> Result<Vec<PathBuf>, Rele
         .collect()
 }
 
-fn parse_toml_table(contents: &str, path: &Path) -> Result<Table, ReleaseError> {
+fn parse_toml_table(contents: &str, path: &Path) -> Result<Table, DevError> {
     contents
         .parse::<Table>()
         .map_err(|source| invalid_input(path, &format!("invalid TOML: {source}")))
@@ -426,24 +426,22 @@ fn git_file_contents(
     repo_root: &Path,
     git_ref: &str,
     relative_path: &str,
-) -> Result<String, ReleaseError> {
+) -> Result<String, DevError> {
     git_stdout(repo_root, &["show", &format!("{git_ref}:{relative_path}")])
 }
 
-fn git_stdout(repo_root: &Path, args: &[&str]) -> Result<String, ReleaseError> {
+fn git_stdout(repo_root: &Path, args: &[&str]) -> Result<String, DevError> {
     let output = Command::new("git")
         .current_dir(repo_root)
         .args(args)
         .output()
-        .map_err(|source| ReleaseError::GitIo {
-            repo_root: repo_root.to_path_buf(),
+        .map_err(|source| DevError::GitIo {
             args: args.join(" "),
             source,
         })?;
 
     if !output.status.success() {
-        return Err(ReleaseError::Git {
-            repo_root: repo_root.to_path_buf(),
+        return Err(DevError::Git {
             args: args.join(" "),
             stderr: String::from_utf8_lossy(&output.stderr).trim().to_owned(),
         });
@@ -475,8 +473,8 @@ fn canonical_toml_value(value: &Value) -> String {
     }
 }
 
-fn invalid_input(path: &Path, message: &str) -> ReleaseError {
-    ReleaseError::InvalidInput {
+fn invalid_input(path: &Path, message: &str) -> DevError {
+    DevError::InvalidInput {
         path: path.to_path_buf(),
         message: message.to_owned(),
     }

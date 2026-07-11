@@ -90,5 +90,5 @@ If the workflow cannot resolve an upstream SemVer release tag, or cannot derive 
 - Was the source repository reviewed as a dependency admission decision, not just as a version bump?
 - Is the new ref pinned to a full 40-character commit SHA?
 - Does the human-readable version comment match the intended upstream release?
-- If `.github/dependabot.yml` changed, does `cargo run -p tq-release --locked -- verify-dependabot --repo-root .` still pass?
+- If `.github/dependabot.yml` changed, does `cargo dev policy verify-dependabot --repo-root .` still pass?
 - If `.pre-commit-config.yaml` changed, were the inline allowlist comments preserved on the frozen `rev:` lines?

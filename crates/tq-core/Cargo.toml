@@ -6,6 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 readme.workspace = true
+publish.workspace = true
 description = "Shared validated identifiers and vocabularies for tq"
 exclude = ["tests/**"]
 

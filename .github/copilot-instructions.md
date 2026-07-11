@@ -18,11 +18,11 @@ Use the Rust workspace for product code and `uv` for packaging and repository au
 
 - Rust CLI: `cargo run -p tq-cli --locked -- <args>`
 - Docs generator: `cargo run -p tq-docsgen --locked -- <args>`
-- Release tooling: `cargo run -p tq-release --locked -- <args>`
 - Developer harness: `cargo dev <group> <command>`
   - Check plan: `cargo dev check --dry-run --output agent --profile full all --repo-root .`
   - Routine check: `cargo dev check routine --repo-root .`
   - Repo policy: `cargo dev policy verify-pins --repo-root .`
+  - Release policy: `cargo dev policy verify-release --repo-root .`
   - External pin drift: `cargo dev policy audit-external-pins --repo-root .`
   - Local health: `cargo dev health doctor --repo-root .`
   - Cleanup plan: `cargo dev health cleanup --dry-run --repo-root .`
@@ -31,8 +31,10 @@ Use the Rust workspace for product code and `uv` for packaging and repository au
   - Dependency update plan: `cargo dev deps update --dry-run --repo-root .`
   - Dependency update apply: `cargo dev deps update --repo-root .`
   - Security audit: `cargo dev deps audit-security --repo-root .`
+  - Runtime dependency change check: `cargo dev runtime-deps --repo-root . --base-ref <base> --head-ref <head>`
   - Release build plan: `cargo dev release build --dry-run --repo-root .`
   - Release build: `cargo dev release build --repo-root .`
+  - Release artifact policy: `cargo dev release verify-artifacts --dist-dir dist`
 - Python: `uv run python <args>`
 - File system operations: `git mv`, `git rm`, `mv`, `rm`
 - For complex multiline shell input that causes terminal wrapping issues, write a temporary script in `tmp/` instead.
@@ -50,8 +52,7 @@ Use the Rust workspace for product code and `uv` for packaging and repository au
 - MUST treat internal crate APIs as current-only interfaces, not compatibility surfaces.
   - When an internal crate API changes, MUST update all workspace callers in the same change.
   - MUST remove the old API immediately instead of adding shims, aliases, adapter helpers, or dual-path call sites.
-  - MUST bump the shared workspace/internal crate minor version before packaging or release validation when an internal public API changes.
-  - If `cargo package --workspace --locked` fails because a published crate version no longer matches the current internal API, MUST fix that by bumping the workspace/internal crate version, not by restoring compatibility code.
+  - Workspace crates are never published to crates.io; the PyPI distribution built from `tq-cli` is the only published artifact.
 - MUST ensure that test modules are properly refactored when source code changes (split, merge, replace, delete).
 - MUST develop clean, maintainable, well factored, and elegant code.
 - MUST NOT blindly comply with lint rules or contort otherwise clear code to satisfy linting heuristics.

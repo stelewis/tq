@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use tq_release::RuntimeDependencyChange;
+use tq_dev::runtime_deps::RuntimeDependencyChange;
 
 /// Minimal two-crate workspace whose shipped root crate is `tq-cli`.
 struct Workspace {
@@ -135,7 +135,7 @@ fn reports_unchanged_when_only_tooling_files_change() {
     .write(root);
     let head = commit_all(root, "tooling-only change");
 
-    let change = tq_release::check_runtime_dep_changes(root, &base, &head)
+    let change = tq_dev::runtime_deps::check_runtime_dep_changes(root, &base, &head)
         .expect("runtime dep check should succeed");
 
     assert_eq!(change, RuntimeDependencyChange::Unchanged);
@@ -157,7 +157,7 @@ fn reports_changed_when_shipped_runtime_dependency_version_changes() {
     .write(root);
     let head = commit_all(root, "bump shipped runtime dependency");
 
-    let change = tq_release::check_runtime_dep_changes(root, &base, &head)
+    let change = tq_dev::runtime_deps::check_runtime_dep_changes(root, &base, &head)
         .expect("runtime dep check should succeed");
 
     assert_eq!(change, RuntimeDependencyChange::Changed);
@@ -181,7 +181,7 @@ fn reports_changed_when_member_enables_dependency_feature_without_lock_change() 
     .write(root);
     let head = commit_all(root, "enable shipped dependency feature");
 
-    let change = tq_release::check_runtime_dep_changes(root, &base, &head)
+    let change = tq_dev::runtime_deps::check_runtime_dep_changes(root, &base, &head)
         .expect("runtime dep check should succeed");
 
     assert_eq!(change, RuntimeDependencyChange::Changed);
@@ -196,7 +196,7 @@ fn reports_unchanged_for_identical_refs() {
     Workspace::baseline().write(root);
     let base = commit_all(root, "baseline workspace");
 
-    let change = tq_release::check_runtime_dep_changes(root, &base, &base)
+    let change = tq_dev::runtime_deps::check_runtime_dep_changes(root, &base, &base)
         .expect("runtime dep check should succeed");
 
     assert_eq!(change, RuntimeDependencyChange::Unchanged);

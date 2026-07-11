@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::ReleaseError;
+use crate::error::DevError;
 
 const DEPENDABOT_CONFIG_PATH: &str = ".github/dependabot.yml";
 const GITHUB_ACTIONS_ECOSYSTEM: &str = "github-actions";
@@ -16,19 +16,17 @@ struct DependabotUpdate {
     directories: Vec<String>,
 }
 
-pub fn verify_dependabot(repo_root: &Path) -> Result<(), ReleaseError> {
+pub fn verify_dependabot(repo_root: &Path) -> Result<(), DevError> {
     let config_path = repo_root.join(DEPENDABOT_CONFIG_PATH);
-    let config_contents =
-        std::fs::read_to_string(&config_path).map_err(|source| ReleaseError::Io {
-            path: config_path.clone(),
-            source,
-        })?;
-    let config = parse_dependabot_updates(&config_contents).map_err(|message| {
-        ReleaseError::DependabotConfig {
+    let config_contents = std::fs::read_to_string(&config_path).map_err(|source| DevError::Io {
+        path: config_path.clone(),
+        source,
+    })?;
+    let config =
+        parse_dependabot_updates(&config_contents).map_err(|message| DevError::InvalidInput {
             path: config_path.clone(),
             message,
-        }
-    })?;
+        })?;
 
     let github_actions_updates = config
         .into_iter()
@@ -78,7 +76,7 @@ pub fn verify_dependabot(repo_root: &Path) -> Result<(), ReleaseError> {
         return Ok(());
     }
 
-    Err(ReleaseError::RepositoryPolicyViolation {
+    Err(DevError::PolicyViolation {
         details: violations.join("\n"),
     })
 }
@@ -459,7 +457,7 @@ fn collect_directory_patterns(updates: &[DependabotUpdate]) -> Vec<String> {
     patterns
 }
 
-fn local_action_directories(repo_root: &Path) -> Result<Vec<String>, ReleaseError> {
+fn local_action_directories(repo_root: &Path) -> Result<Vec<String>, DevError> {
     let actions_root = repo_root.join(ACTIONS_ROOT);
     if !actions_root.exists() {
         return Ok(Vec::new());
@@ -476,12 +474,12 @@ fn collect_action_directories(
     repo_root: &Path,
     current_dir: &Path,
     directories: &mut Vec<String>,
-) -> Result<(), ReleaseError> {
-    for entry in std::fs::read_dir(current_dir).map_err(|source| ReleaseError::Io {
+) -> Result<(), DevError> {
+    for entry in std::fs::read_dir(current_dir).map_err(|source| DevError::Io {
         path: current_dir.to_path_buf(),
         source,
     })? {
-        let entry = entry.map_err(|source| ReleaseError::Io {
+        let entry = entry.map_err(|source| DevError::Io {
             path: current_dir.to_path_buf(),
             source,
         })?;
@@ -512,14 +510,14 @@ fn collect_action_directories(
     Ok(())
 }
 
-fn local_workflow_files(repo_root: &Path) -> Result<Vec<PathBuf>, ReleaseError> {
+fn local_workflow_files(repo_root: &Path) -> Result<Vec<PathBuf>, DevError> {
     let workflows_root = repo_root.join(WORKFLOWS_ROOT);
     if !workflows_root.exists() {
         return Ok(Vec::new());
     }
 
     let mut files = std::fs::read_dir(&workflows_root)
-        .map_err(|source| ReleaseError::Io {
+        .map_err(|source| DevError::Io {
             path: workflows_root.clone(),
             source,
         })?

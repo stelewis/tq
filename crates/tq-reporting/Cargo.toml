@@ -6,6 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 readme.workspace = true
+publish.workspace = true
 description = "Text and JSON reporting adapters for tq"
 exclude = ["tests/**"]
 

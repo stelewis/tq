@@ -39,6 +39,7 @@
     "lifecycles",
     "Lockfiles",
     "mapfile",
+    "misparse",
     "mnda",
     "monkeypatch",
     "msgfile",

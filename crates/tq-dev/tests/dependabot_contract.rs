@@ -32,7 +32,7 @@ fn verify_dependabot_passes_for_repo_style_coverage() {
     );
     write(&temp.path().join(".github/workflows/ci.yml"), "name: CI\n");
 
-    tq_release::verify_dependabot(temp.path()).expect("dependabot coverage should pass");
+    tq_dev::dependabot::verify_dependabot(temp.path()).expect("dependabot coverage should pass");
 }
 
 #[test]
@@ -62,8 +62,8 @@ fn verify_dependabot_reports_missing_required_patterns_and_uncovered_actions() {
     );
     write(&temp.path().join(".github/workflows/ci.yml"), "name: CI\n");
 
-    let error =
-        tq_release::verify_dependabot(temp.path()).expect_err("dependabot coverage should fail");
+    let error = tq_dev::dependabot::verify_dependabot(temp.path())
+        .expect_err("dependabot coverage should fail");
     let message = error.to_string();
 
     assert!(message.contains("does not cover local action directories"));
@@ -92,7 +92,7 @@ fn verify_dependabot_requires_one_github_actions_update_block() {
         ),
     );
 
-    let error = tq_release::verify_dependabot(temp.path())
+    let error = tq_dev::dependabot::verify_dependabot(temp.path())
         .expect_err("multiple github-actions blocks should fail");
     assert!(
         error
@@ -110,8 +110,9 @@ fn verify_dependabot_rejects_invalid_config_shape() {
         concat!("version: 2\n", "updates: []\n",),
     );
 
-    let error = tq_release::verify_dependabot(temp.path()).expect_err("invalid config should fail");
-    assert!(error.to_string().contains("invalid Dependabot config"));
+    let error =
+        tq_dev::dependabot::verify_dependabot(temp.path()).expect_err("invalid config should fail");
+    assert!(error.to_string().contains("invalid input"));
 }
 
 #[test]
@@ -129,10 +130,10 @@ fn verify_dependabot_rejects_missing_version() {
         ),
     );
 
-    let error =
-        tq_release::verify_dependabot(temp.path()).expect_err("missing version should fail");
+    let error = tq_dev::dependabot::verify_dependabot(temp.path())
+        .expect_err("missing version should fail");
     let message = error.to_string();
-    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("invalid input"));
     assert!(message.contains("missing Dependabot version"));
 }
 
@@ -152,10 +153,10 @@ fn verify_dependabot_rejects_unsupported_version() {
         ),
     );
 
-    let error =
-        tq_release::verify_dependabot(temp.path()).expect_err("unsupported version should fail");
+    let error = tq_dev::dependabot::verify_dependabot(temp.path())
+        .expect_err("unsupported version should fail");
     let message = error.to_string();
-    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("invalid input"));
     assert!(message.contains("unsupported Dependabot version: 3"));
 }
 
@@ -168,10 +169,10 @@ fn verify_dependabot_rejects_inline_updates_declaration() {
         concat!("version: 2\n", "updates: []\n",),
     );
 
-    let error = tq_release::verify_dependabot(temp.path())
+    let error = tq_dev::dependabot::verify_dependabot(temp.path())
         .expect_err("inline updates declaration should fail");
     let message = error.to_string();
-    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("invalid input"));
     assert!(message.contains("updates must be declared as a block"));
 }
 
@@ -189,10 +190,10 @@ fn verify_dependabot_rejects_inline_directories_declaration() {
         ),
     );
 
-    let error = tq_release::verify_dependabot(temp.path())
+    let error = tq_dev::dependabot::verify_dependabot(temp.path())
         .expect_err("inline directories declaration should fail");
     let message = error.to_string();
-    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("invalid input"));
     assert!(message.contains("directories must be declared as a block list"));
 }
 
@@ -213,10 +214,10 @@ fn verify_dependabot_rejects_unknown_top_level_key() {
         ),
     );
 
-    let error =
-        tq_release::verify_dependabot(temp.path()).expect_err("unknown top-level keys should fail");
+    let error = tq_dev::dependabot::verify_dependabot(temp.path())
+        .expect_err("unknown top-level keys should fail");
     let message = error.to_string();
-    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("invalid input"));
     assert!(message.contains("unknown top-level key unexpected"));
 }
 
@@ -237,10 +238,10 @@ fn verify_dependabot_rejects_unknown_update_key() {
         ),
     );
 
-    let error =
-        tq_release::verify_dependabot(temp.path()).expect_err("unknown update keys should fail");
+    let error = tq_dev::dependabot::verify_dependabot(temp.path())
+        .expect_err("unknown update keys should fail");
     let message = error.to_string();
-    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("invalid input"));
     assert!(message.contains("unknown update key unsupported-key"));
 }
 
@@ -259,10 +260,10 @@ fn verify_dependabot_rejects_non_list_directory_entries() {
         ),
     );
 
-    let error =
-        tq_release::verify_dependabot(temp.path()).expect_err("directories must be a list block");
+    let error = tq_dev::dependabot::verify_dependabot(temp.path())
+        .expect_err("directories must be a list block");
     let message = error.to_string();
-    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("invalid input"));
     assert!(message.contains("directories entries must be list items at indent 6"));
 }
 
@@ -275,10 +276,10 @@ fn verify_dependabot_rejects_update_without_package_ecosystem() {
         concat!("version: 2\n", "updates:\n", "  - directory: \"/\"\n",),
     );
 
-    let error = tq_release::verify_dependabot(temp.path())
+    let error = tq_dev::dependabot::verify_dependabot(temp.path())
         .expect_err("missing package ecosystem should fail");
     let message = error.to_string();
-    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("invalid input"));
     assert!(message.contains("dependabot update is missing package-ecosystem"));
 }
 
@@ -298,10 +299,10 @@ fn verify_dependabot_rejects_update_with_both_directory_fields() {
         ),
     );
 
-    let error =
-        tq_release::verify_dependabot(temp.path()).expect_err("both directory shapes should fail");
+    let error = tq_dev::dependabot::verify_dependabot(temp.path())
+        .expect_err("both directory shapes should fail");
     let message = error.to_string();
-    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("invalid input"));
     assert!(message.contains("exactly one of directory or directories"));
 }
 
@@ -320,10 +321,10 @@ fn verify_dependabot_rejects_update_without_directory_fields() {
         ),
     );
 
-    let error = tq_release::verify_dependabot(temp.path())
+    let error = tq_dev::dependabot::verify_dependabot(temp.path())
         .expect_err("missing directory shapes should fail");
     let message = error.to_string();
-    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("invalid input"));
     assert!(message.contains("exactly one of directory or directories"));
 }
 
@@ -341,10 +342,10 @@ fn verify_dependabot_rejects_empty_directories_list() {
         ),
     );
 
-    let error =
-        tq_release::verify_dependabot(temp.path()).expect_err("empty directories list should fail");
+    let error = tq_dev::dependabot::verify_dependabot(temp.path())
+        .expect_err("empty directories list should fail");
     let message = error.to_string();
-    assert!(message.contains("invalid Dependabot config"));
+    assert!(message.contains("invalid input"));
     assert!(message.contains("directories must contain at least one entry"));
 }
 
@@ -371,5 +372,6 @@ fn verify_dependabot_accepts_single_quoted_scalars() {
     );
     write(&temp.path().join(".github/workflows/ci.yml"), "name: CI\n");
 
-    tq_release::verify_dependabot(temp.path()).expect("single-quoted scalars should be accepted");
+    tq_dev::dependabot::verify_dependabot(temp.path())
+        .expect("single-quoted scalars should be accepted");
 }

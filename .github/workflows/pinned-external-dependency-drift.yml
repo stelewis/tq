@@ -20,9 +20,8 @@ jobs:
     permissions:
       contents: read
     outputs:
-      title: ${{ steps.drift.outputs.title }}
       drift_detected: ${{ steps.drift.outputs.drift_detected }}
-      issue_body: ${{ steps.drift.outputs.issue_body }}
+      report: ${{ steps.drift.outputs.report }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -42,62 +41,29 @@ jobs:
           set -euo pipefail
 
           report_file="$(mktemp)"
-          issue_body_file="$(mktemp)"
-
           set +e
-          cargo dev policy audit-external-pins --output json --repo-root . > "$report_file"
-          status="$?"
+          cargo dev policy audit-external-pins --output agent --repo-root . > "$report_file"
+          audit_exit_code="$?"
           set -e
 
-          python <<'PY' "$report_file" "$issue_body_file" "$status" >> "$GITHUB_OUTPUT"
-          import json
-          import os
-          import sys
+          cat "$report_file" >> "$GITHUB_STEP_SUMMARY"
 
-          report_path, issue_body_path, status = sys.argv[1:]
-          report = json.loads(open(report_path, encoding="utf-8").read())
+          case "$audit_exit_code" in
+            0) drift_detected=false ;;
+            1) drift_detected=true ;;
+            *)
+              echo "external pin audit failed: exit $audit_exit_code"
+              exit "$audit_exit_code"
+              ;;
+          esac
 
-          lines = [
-              f"## {report['title']}",
-              "",
-              "| Surface | Source | Dependency | Pinned | Latest | Status |",
-              "| --- | --- | --- | --- | --- | --- |",
-          ]
-          for result in report["results"]:
-              lines.append(
-                  "| {surface} | {source} | {name} | {pinned} | {latest} | {status} |".format(
-                      surface=result["surface"],
-                      source=result["source"],
-                      name=result["name"],
-                      pinned=result.get("pinned") or "unavailable",
-                      latest=result.get("latest") or "unavailable",
-                      status=result["status"],
-                  )
-              )
-          lines.extend([
-              "",
-              "One or more frozen external pins need review."
-              if report["drift_detected"]
-              else "All frozen external pins are current.",
-          ])
-          body = "\n".join(lines) + "\n"
-          issue_body = (
-              body
-              + f"\nDetected by workflow run: https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}\n"
-          )
-
-          open(issue_body_path, "w", encoding="utf-8").write(issue_body)
-          open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8").write(body)
-
-          if status != "0" and not report["drift_detected"]:
-              raise SystemExit(f"external pin audit failed without drift: exit {status}")
-
-          print("title=chore: review frozen external pins")
-          print(f"drift_detected={str(report['drift_detected']).lower()}")
-          print("issue_body<<__ISSUE_BODY__")
-          print(issue_body, end="")
-          print("__ISSUE_BODY__")
-          PY
+          delimiter="$(uuidgen)"
+          {
+            echo "drift_detected=$drift_detected"
+            echo "report<<$delimiter"
+            cat "$report_file"
+            echo "$delimiter"
+          } >> "$GITHUB_OUTPUT"
 
   sync-drift-issue:
     name: Sync pin drift issue
@@ -105,40 +71,30 @@ jobs:
     needs: audit-pins
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       issues: write
     steps:
-      - name: Sync pin drift issue
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Write drift report
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          ISSUE_TITLE: ${{ needs.audit-pins.outputs.title }}
-          ISSUE_BODY: ${{ needs.audit-pins.outputs.issue_body }}
-          DRIFT_DETECTED: ${{ needs.audit-pins.outputs.drift_detected }}
-        run: |
-          set -euo pipefail
+          REPORT: ${{ needs.audit-pins.outputs.report }}
+        run: printf '%s\n' "$REPORT" > "$RUNNER_TEMP/drift-report.md"
 
-          existing_issue_number="$(gh issue list --repo "$GH_REPO" --state open --limit 100 --search "$ISSUE_TITLE in:title" --json number,title --jq '.[] | select(.title == env.ISSUE_TITLE) | .number' | head -n 1)"
-
-          if [[ "$DRIFT_DETECTED" == 'true' ]]; then
-            issue_body_file="$(mktemp)"
-            printf '%s' "$ISSUE_BODY" > "$issue_body_file"
-
-            if [[ -n "$existing_issue_number" ]]; then
-              gh issue edit "$existing_issue_number" --repo "$GH_REPO" --body-file "$issue_body_file"
-              exit 0
-            fi
-
-            gh issue create --repo "$GH_REPO" --title "$ISSUE_TITLE" --body-file "$issue_body_file"
-            exit 0
-          fi
-
-          if [[ -z "$existing_issue_number" ]]; then
-            exit 0
-          fi
-
-          gh issue comment "$existing_issue_number" --repo "$GH_REPO" --body "Frozen action and pre-commit pins are current again. Closing this tracking issue."
-          gh issue close "$existing_issue_number" --repo "$GH_REPO"
+      - name: Sync pin drift issue
+        uses: ./.github/actions/sync-drift-issue
+        with:
+          issue-title: "chore: review frozen external pins"
+          report-file: ${{ runner.temp }}/drift-report.md
+          drift-detected: ${{ needs.audit-pins.outputs.drift_detected }}
+          all-clear-comment: >-
+            Frozen action and pre-commit pins are current again.
+            Closing this tracking issue.
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   fail-on-drift:
     name: Fail on drift

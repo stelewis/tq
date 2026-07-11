@@ -29,7 +29,7 @@ The product MSRV is Rust 1.96. Local and CI commands should use the pinned works
 - `cargo audit`
 - `cargo deny check`
 - `cargo outdated --workspace --root-deps-only`
-- `cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist`
+- `cargo dev release verify-artifacts --dist-dir dist`
 
 ## Governance
 

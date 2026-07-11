@@ -6,6 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 readme.workspace = true
+publish.workspace = true
 description = "Filesystem discovery and analysis indexing for tq"
 exclude = ["tests/**"]
 

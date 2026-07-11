@@ -51,7 +51,7 @@ Required coverage:
 
 Enforcement:
 
-- CI runs `cargo run -p tq-release --locked -- verify-dependabot --repo-root .`
+- CI runs `cargo dev policy verify-dependabot --repo-root .`
 
 Why this matters:
 
@@ -139,7 +139,7 @@ Forbidden repository paths in wheel and sdist artifacts:
 
 Enforcement:
 
-- CI and publish checks run `cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist`
+- CI and publish checks run `cargo dev release verify-artifacts --dist-dir dist`
 
 Why this matters:
 
