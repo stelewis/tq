@@ -43,9 +43,8 @@ The docs site build runs the Rust docs generator first through `package.json` an
 
 Repository-policy and release artifact checks are enforced by `tq-release`.
 
-- `cargo run -p tq-release --locked -- verify-release-policy --repo-root .`
-- `cargo package --workspace --locked`
-- `cargo dev release build`
+- `cargo dev check all --repo-root .`
+- `cargo dev check --profile full all --repo-root .`
 - `cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist`
 
 The release-policy verifier checks workspace versioning policy and the GitHub Actions Dependabot coverage policy together.
@@ -54,7 +53,7 @@ The artifact verifier inspects built wheels and sdists for repository-only paths
 
 ## Release artifact shape
 
-`cargo dev release build` builds the source distribution plus a wheel for the current host platform.
+`cargo dev check --profile full all` includes the local release build, which builds the source distribution plus a wheel for the current host platform. Use `cargo dev release build --dry-run --repo-root .` to inspect the artifact build commands without changing `dist/`.
 
 The CI release wheel matrix builds the source distribution on Linux, then builds publishable wheels for Linux x86_64, macOS x86_64, macOS arm64, and Windows x86_64. The Linux wheel is built explicitly through `maturin build --release --locked --compatibility pypi --zig` so the platform tag is PyPI-compatible instead of a native `linux_*` tag. On SemVer tags, a separate CI attestation job promotes those validated build artifacts into the final `validated-dist` artifact that the publish workflow consumes without rebuilding.
 

@@ -51,3 +51,21 @@ fn all_check_plan_keeps_release_packaging_in_the_full_profile() {
         ]
     );
 }
+
+#[test]
+fn release_build_plan_exposes_the_artifact_build_commands() {
+    let plan = tq_release::plan_release_artifacts();
+    let commands = plan
+        .commands
+        .iter()
+        .map(|command| command.command.display())
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        commands,
+        [
+            "uv build --sdist",
+            "uv run --isolated --with maturin>=1.11,<2.0 -- maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml --bindings bin --out dist -i python"
+        ]
+    );
+}

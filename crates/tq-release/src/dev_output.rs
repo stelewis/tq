@@ -1,5 +1,6 @@
 use tq_release::{
-    DevAuditReport, DevCheckPlan, DevCheckReport, DevDoctorReport, ExternalPinReport,
+    DevAuditReport, DevCheckPlan, DevCheckReport, DevCheckStatus, DevCommandPlan, DevDoctorReport,
+    ExternalPinReport,
 };
 
 pub fn render_doctor_human(report: &DevDoctorReport) -> String {
@@ -205,20 +206,23 @@ pub fn render_check_human(report: &DevCheckReport) -> String {
     let mut output = vec![
         format!("Developer checks: {}", report.summary.status.label()),
         format!(
-            "{} checks: {} passed, {} failed",
-            report.summary.total, report.summary.passed, report.summary.failed
+            "{} checks: {} passed, {} failed in {:.2}s",
+            report.summary.total,
+            report.summary.passed,
+            report.summary.failed,
+            report.summary.elapsed_seconds
         ),
         String::new(),
         render_text_table(
-            &["Status", "Task", "Command"],
+            &["Status", "Check", "Time"],
             &report
                 .checks
                 .iter()
                 .map(|check| {
                     vec![
                         check.status.label().to_owned(),
-                        check.task.id.clone(),
-                        check.task.command.display(),
+                        check.task.label.clone(),
+                        format!("{:.2}s", check.elapsed_seconds),
                     ]
                 })
                 .collect::<Vec<_>>(),
@@ -228,8 +232,11 @@ pub fn render_check_human(report: &DevCheckReport) -> String {
     for check in report
         .checks
         .iter()
-        .filter(|check| !check.output.is_empty())
+        .filter(|check| check.status == DevCheckStatus::Failed && !check.output.is_empty())
     {
+        output.push(String::new());
+        output.push(format!("{} failed command:", check.task.id));
+        output.push(check.task.command.display());
         output.push(String::new());
         output.push(format!("{} output:", check.task.id));
         output.push(check.output.clone());
@@ -244,12 +251,15 @@ pub fn render_check_agent(report: &DevCheckReport) -> String {
         String::new(),
         format!("Status: {}", report.summary.status.label()),
         format!(
-            "Checks: {} total, {} passed, {} failed",
-            report.summary.total, report.summary.passed, report.summary.failed
+            "Checks: {} total, {} passed, {} failed in {:.2}s",
+            report.summary.total,
+            report.summary.passed,
+            report.summary.failed,
+            report.summary.elapsed_seconds
         ),
         String::new(),
         render_markdown_table(
-            &["Status", "Task", "Command"],
+            &["Status", "Task", "Time", "Command"],
             &report
                 .checks
                 .iter()
@@ -257,6 +267,7 @@ pub fn render_check_agent(report: &DevCheckReport) -> String {
                     vec![
                         check.status.label().to_owned(),
                         check.task.id.clone(),
+                        format!("{:.2}s", check.elapsed_seconds),
                         check.task.command.display(),
                     ]
                 })
@@ -267,7 +278,7 @@ pub fn render_check_agent(report: &DevCheckReport) -> String {
     for check in report
         .checks
         .iter()
-        .filter(|check| !check.output.is_empty())
+        .filter(|check| check.status == DevCheckStatus::Failed && !check.output.is_empty())
     {
         output.push(String::new());
         output.push(format!("### {} Output", check.task.id));
@@ -277,6 +288,45 @@ pub fn render_check_agent(report: &DevCheckReport) -> String {
         output.push("```".to_owned());
     }
 
+    output.push(String::new());
+    output.join("\n")
+}
+
+pub fn render_command_plan_human(plan: &DevCommandPlan) -> String {
+    let mut output = vec![
+        format!("{} dry run", plan.title),
+        format!("{} commands planned", plan.commands.len()),
+        String::new(),
+        render_text_table(
+            &["Step", "Command"],
+            &plan
+                .commands
+                .iter()
+                .enumerate()
+                .map(|(index, command)| vec![(index + 1).to_string(), command.command.display()])
+                .collect::<Vec<_>>(),
+        ),
+    ];
+    output.push(String::new());
+    output.join("\n")
+}
+
+pub fn render_command_plan_agent(plan: &DevCommandPlan) -> String {
+    let mut output = vec![
+        format!("## {} Dry Run", plan.title),
+        String::new(),
+        format!("Commands: {} planned", plan.commands.len()),
+        String::new(),
+        render_markdown_table(
+            &["Step", "Command"],
+            &plan
+                .commands
+                .iter()
+                .enumerate()
+                .map(|(index, command)| vec![(index + 1).to_string(), command.command.display()])
+                .collect::<Vec<_>>(),
+        ),
+    ];
     output.push(String::new());
     output.join("\n")
 }

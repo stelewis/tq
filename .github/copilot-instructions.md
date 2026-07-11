@@ -10,12 +10,9 @@ Use the Rust workspace for product code and `uv` for packaging and repository au
 
 ### Core checks
 
-- Format: `cargo fmt --all --check`
-- Lint: `cargo clippy --workspace --all-targets --locked -- -D warnings`
-- Tests: `cargo test --workspace --locked`
-- Docs sync: `cargo run -p tq-docsgen --locked -- generate all`
-- Release policy: `cargo run -p tq-release --locked -- verify-release-policy --repo-root .`
-- Packaging check: `cargo package --workspace --locked && cargo dev release build`
+- Routine gate: `cargo dev check routine --repo-root .`
+- Broad gate: `cargo dev check all --repo-root .`
+- Full release-sensitive gate: `cargo dev check --profile full all --repo-root .`
 
 ### Commands
 
@@ -23,24 +20,20 @@ Use the Rust workspace for product code and `uv` for packaging and repository au
 - Docs generator: `cargo run -p tq-docsgen --locked -- <args>`
 - Release tooling: `cargo run -p tq-release --locked -- <args>`
 - Developer harness: `cargo dev <group> <command>`
+  - Check plan: `cargo dev check --dry-run --output agent --profile full all --repo-root .`
+  - Routine check: `cargo dev check routine --repo-root .`
   - Repo policy: `cargo dev policy verify-pins --repo-root .`
   - External pin drift: `cargo dev policy audit-external-pins --repo-root .`
   - Local health: `cargo dev health doctor --repo-root .`
+  - Setup plan: `cargo dev setup --dry-run --repo-root .`
   - Dependency freshness check: `cargo dev deps audit-latest --output agent --repo-root .`
   - Dependency update apply: `cargo dev deps update --repo-root .`
   - Security audit: `cargo dev deps audit-security --repo-root .`
+  - Release build plan: `cargo dev release build --dry-run --repo-root .`
   - Release build: `cargo dev release build --repo-root .`
 - Python: `uv run python <args>`
 - File system operations: `git mv`, `git rm`, `mv`, `rm`
 - For complex multiline shell input that causes terminal wrapping issues, write a temporary script in `tmp/` instead.
-
-### Full validation
-
-Run the relevant subset for the task. When full validation is required:
-
-```bash
-cargo fmt --all --check && cargo clippy --workspace --all-targets --locked -- -D warnings && cargo test --workspace --locked && cargo run -p tq-docsgen --locked -- generate all && cargo run -p tq-release --locked -- verify-release-policy --repo-root . && cargo package --workspace --locked && cargo dev release build
-```
 
 ## Guidelines
 

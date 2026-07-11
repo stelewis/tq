@@ -11,8 +11,9 @@ use std::path::Path;
 pub use dev_tools::{
     DevAuditCheck, DevAuditReport, DevAuditReportStatus, DevAuditStatus, DevAuditSummary,
     DevCheckCommand, DevCheckPlan, DevCheckProfile, DevCheckReport, DevCheckReportStatus,
-    DevCheckResult, DevCheckStatus, DevCheckSummary, DevCheckTarget, DevCheckTask, DevDoctorCheck,
-    DevDoctorReport, DevDoctorStatus, DevDoctorSummary, DevToolStatus,
+    DevCheckResult, DevCheckStatus, DevCheckSummary, DevCheckTarget, DevCheckTask, DevCommandPlan,
+    DevDoctorCheck, DevDoctorReport, DevDoctorStatus, DevDoctorSummary, DevPlannedCommand,
+    DevToolStatus,
 };
 pub use error::ReleaseError;
 pub use external_pins::{
@@ -66,6 +67,10 @@ pub fn setup_dev_environment(repo_root: &Path) -> Result<(), ReleaseError> {
     dev_tools::setup_dev_environment(repo_root)
 }
 
+pub fn plan_setup_dev_environment(repo_root: &Path) -> Result<DevCommandPlan, ReleaseError> {
+    dev_tools::plan_setup_dev_environment(repo_root)
+}
+
 #[must_use]
 pub fn plan_dev_checks(target: DevCheckTarget, profile: DevCheckProfile) -> DevCheckPlan {
     dev_tools::plan_dev_checks(target, profile)
@@ -97,4 +102,9 @@ pub fn audit_security_dev_dependencies(repo_root: &Path) -> Result<DevAuditRepor
 
 pub fn build_release_artifacts(repo_root: &Path) -> Result<(), ReleaseError> {
     dev_tools::build_release_artifacts(repo_root)
+}
+
+#[must_use]
+pub fn plan_release_artifacts() -> DevCommandPlan {
+    dev_tools::plan_release_artifacts()
 }

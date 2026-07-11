@@ -1,5 +1,6 @@
 use std::path::Path;
 use std::process::Command;
+use std::time::Instant;
 
 use serde::Serialize;
 use toml::Value;
@@ -231,9 +232,30 @@ pub struct DevCheckTask {
 pub struct DevCheckCommand {
     pub program: String,
     pub args: Vec<String>,
+    pub env: Vec<(String, String)>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct DevCommandPlan {
+    pub title: String,
+    pub commands: Vec<DevPlannedCommand>,
+}
+
+impl DevCommandPlan {
+    fn new(title: &str, commands: Vec<HarnessCommand>) -> Self {
+        Self {
+            title: title.to_owned(),
+            commands: commands.into_iter().map(DevPlannedCommand::from).collect(),
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct DevPlannedCommand {
+    pub command: DevCheckCommand,
+}
+
+#[derive(Debug, PartialEq, Serialize)]
 pub struct DevCheckReport {
     pub summary: DevCheckSummary,
     pub checks: Vec<DevCheckResult>,
@@ -245,24 +267,25 @@ impl DevCheckReport {
         self.summary.status == DevCheckReportStatus::Passed
     }
 
-    fn new(checks: Vec<DevCheckResult>) -> Self {
+    fn new(checks: Vec<DevCheckResult>, elapsed_seconds: f64) -> Self {
         Self {
-            summary: DevCheckSummary::from_results(&checks),
+            summary: DevCheckSummary::from_results(&checks, elapsed_seconds),
             checks,
         }
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Serialize)]
+#[derive(Debug, PartialEq, Serialize)]
 pub struct DevCheckSummary {
     pub status: DevCheckReportStatus,
     pub total: usize,
     pub passed: usize,
     pub failed: usize,
+    pub elapsed_seconds: f64,
 }
 
 impl DevCheckSummary {
-    fn from_results(results: &[DevCheckResult]) -> Self {
+    fn from_results(results: &[DevCheckResult], elapsed_seconds: f64) -> Self {
         let passed = results
             .iter()
             .filter(|result| result.status == DevCheckStatus::Passed)
@@ -277,6 +300,7 @@ impl DevCheckSummary {
             total: results.len(),
             passed,
             failed,
+            elapsed_seconds,
         }
     }
 }
@@ -298,11 +322,12 @@ impl DevCheckReportStatus {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Serialize)]
+#[derive(Debug, PartialEq, Serialize)]
 pub struct DevCheckResult {
     pub task: DevCheckTask,
     pub status: DevCheckStatus,
     pub output: String,
+    pub elapsed_seconds: f64,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -480,6 +505,17 @@ pub fn setup_dev_environment(repo_root: &Path) -> Result<(), ReleaseError> {
     install_missing_cargo_tools(repo_root, &manifest)
 }
 
+pub fn plan_setup_dev_environment(repo_root: &Path) -> Result<DevCommandPlan, ReleaseError> {
+    let manifest = read_manifest(repo_root)?;
+    let mut commands = setup_commands(&manifest);
+    commands.extend(
+        cargo_tool_installs_needed(repo_root, &manifest)
+            .into_iter()
+            .map(|install| install.command),
+    );
+    Ok(DevCommandPlan::new("Developer setup", commands))
+}
+
 #[must_use]
 pub fn plan_dev_checks(target: DevCheckTarget, profile: DevCheckProfile) -> DevCheckPlan {
     DevCheckPlan::new(target, profile, check_tasks(target, profile))
@@ -533,6 +569,11 @@ pub fn build_release_artifacts(repo_root: &Path) -> Result<(), ReleaseError> {
     }
 
     run_commands(repo_root, release_build_commands())
+}
+
+#[must_use]
+pub fn plan_release_artifacts() -> DevCommandPlan {
+    DevCommandPlan::new("Release artifact build", release_build_commands())
 }
 
 fn read_manifest(repo_root: &Path) -> Result<DevToolsManifest, ReleaseError> {
@@ -834,11 +875,29 @@ fn install_missing_cargo_tools(
     repo_root: &Path,
     manifest: &DevToolsManifest,
 ) -> Result<(), ReleaseError> {
+    for install in cargo_tool_installs_needed(repo_root, manifest) {
+        remove_stale_cargo_binaries(install.stale_binaries)?;
+        run_commands(repo_root, vec![install.command])?;
+    }
+
+    Ok(())
+}
+
+struct CargoToolInstall {
+    stale_binaries: &'static [&'static str],
+    command: HarnessCommand,
+}
+
+fn cargo_tool_installs_needed(
+    repo_root: &Path,
+    manifest: &DevToolsManifest,
+) -> Vec<CargoToolInstall> {
+    let mut installs = Vec::new();
+
     if !cargo_subcommand_matches("outdated", &manifest.cargo_outdated) {
-        remove_stale_cargo_binaries(&["cargo-outdated"])?;
-        run_commands(
-            repo_root,
-            vec![cargo_install_command(
+        installs.push(CargoToolInstall {
+            stale_binaries: &["cargo-outdated"],
+            command: cargo_install_command(
                 repo_root,
                 [
                     "install",
@@ -846,15 +905,14 @@ fn install_missing_cargo_tools(
                     "--locked",
                     &format!("cargo-outdated@{}", manifest.cargo_outdated),
                 ],
-            )],
-        )?;
+            ),
+        });
     }
 
     if !cargo_subcommand_matches("deny", &manifest.cargo_deny) {
-        remove_stale_cargo_binaries(&["cargo-deny"])?;
-        run_commands(
-            repo_root,
-            vec![cargo_install_command(
+        installs.push(CargoToolInstall {
+            stale_binaries: &["cargo-deny"],
+            command: cargo_install_command(
                 repo_root,
                 [
                     "install",
@@ -862,15 +920,14 @@ fn install_missing_cargo_tools(
                     "--locked",
                     &format!("cargo-deny@{}", manifest.cargo_deny),
                 ],
-            )],
-        )?;
+            ),
+        });
     }
 
     if !cargo_subcommand_matches("audit", &manifest.cargo_audit) {
-        remove_stale_cargo_binaries(&["cargo-audit", "cargo-audit-audit"])?;
-        run_commands(
-            repo_root,
-            vec![cargo_install_command(
+        installs.push(CargoToolInstall {
+            stale_binaries: &["cargo-audit", "cargo-audit-audit"],
+            command: cargo_install_command(
                 repo_root,
                 [
                     "install",
@@ -878,11 +935,11 @@ fn install_missing_cargo_tools(
                     "--locked",
                     &format!("cargo-audit@{}", manifest.cargo_audit),
                 ],
-            )],
-        )?;
+            ),
+        });
     }
 
-    Ok(())
+    installs
 }
 
 fn cargo_subcommand_matches(subcommand: &str, expected: &str) -> bool {
@@ -1251,13 +1308,16 @@ fn run_check_tasks(
     tasks: Vec<DevCheckTask>,
 ) -> Result<DevCheckReport, ReleaseError> {
     let native_env = native_build_env();
+    let started = Instant::now();
     let mut results = Vec::new();
 
     for task in tasks {
+        let task_started = Instant::now();
         let output = Command::new(&task.command.program)
             .args(&task.command.args)
             .current_dir(repo_root)
             .envs(native_env.iter().map(|(key, value)| (key, value)))
+            .envs(task.command.env.iter().map(|(key, value)| (key, value)))
             .output()
             .map_err(|source| ReleaseError::CommandIo {
                 repo_root: repo_root.to_path_buf(),
@@ -1274,10 +1334,14 @@ fn run_check_tasks(
                 DevCheckStatus::Failed
             },
             output: command_output(&output.stdout, &output.stderr),
+            elapsed_seconds: task_started.elapsed().as_secs_f64(),
         });
     }
 
-    Ok(DevCheckReport::new(results))
+    Ok(DevCheckReport::new(
+        results,
+        started.elapsed().as_secs_f64(),
+    ))
 }
 
 fn audit_status(
@@ -1341,10 +1405,14 @@ impl HarnessCommand {
 impl DevCheckCommand {
     #[must_use]
     pub fn display(&self) -> String {
-        std::iter::once(self.program.as_str())
-            .chain(self.args.iter().map(String::as_str))
-            .collect::<Vec<_>>()
-            .join(" ")
+        let mut parts = self
+            .env
+            .iter()
+            .map(|(key, value)| format!("{key}={value}"))
+            .collect::<Vec<_>>();
+        parts.push(self.program.clone());
+        parts.extend(self.args.iter().cloned());
+        parts.join(" ")
     }
 }
 
@@ -1353,6 +1421,15 @@ impl From<HarnessCommand> for DevCheckCommand {
         Self {
             program: command.program,
             args: command.args,
+            env: command.env,
+        }
+    }
+}
+
+impl From<HarnessCommand> for DevPlannedCommand {
+    fn from(command: HarnessCommand) -> Self {
+        Self {
+            command: DevCheckCommand::from(command),
         }
     }
 }

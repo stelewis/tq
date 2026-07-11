@@ -15,14 +15,16 @@ cargo dev <group> <command>
 - `cargo dev policy audit-external-pins --repo-root .` checks frozen GitHub Action and pre-commit pins against the latest upstream SemVer release tags.
 - `cargo dev health doctor --repo-root .` checks the local developer environment against pinned tools and native build prerequisites.
 - `cargo dev health cleanup --repo-root .` removes obsolete project Rust toolchains and harness build caches.
+- `cargo dev setup --dry-run --repo-root .` prints the setup commands that would run, including any currently needed pinned Cargo maintenance-tool installs.
 - `cargo dev deps audit-latest --repo-root .` reports dependency and toolchain drift without changing files.
 - `cargo dev deps update --repo-root .` applies deterministic dependency and toolchain updates.
 - `cargo dev deps audit-security --repo-root .` runs the pinned Rust and npm security audit tools.
+- `cargo dev release build --dry-run --repo-root .` prints the local release artifact build commands without changing `dist/`.
 - `cargo dev release build --repo-root .` builds the local release sdist and host wheel.
 
 ## Output modes
 
-Reporting commands support `--output human`, `--output json`, `--output agent`, and `--quiet`. The check command also supports `--dry-run` to print the resolved plan without executing commands.
+Reporting commands support `--output human`, `--output json`, `--output agent`, and `--quiet`. The check, setup, and release build commands support `--dry-run` to print the resolved plan without executing commands.
 
 - `human` is the default terminal UI.
 - `json` is for automation that needs a stable machine-readable report. Report payloads include a typed `summary` plus the ordered check results.

@@ -40,13 +40,7 @@ Publishing runs in the `pypi` GitHub Actions environment. This environment must 
 
 1. Ensure `CHANGELOG.md` and version are ready.
 2. Run the local validation commands:
-   - `cargo fmt --all --check`
-   - `cargo clippy --workspace --all-targets --locked -- -D warnings`
-   - `cargo test --workspace --locked`
-   - `cargo run -p tq-docsgen --locked -- generate all`
-   - `cargo run -p tq-release --locked -- verify-release-policy --repo-root .`
-   - `cargo package --workspace --locked`
-   - `cargo dev release build`
+   - `cargo dev check --profile full all --repo-root .`
 3. Create and push a signed release tag.
 4. Confirm the tag-triggered CI run completes, including the tag-only artifact attestation job.
 5. Approve the pending `pypi` environment deployment in GitHub Actions.
@@ -56,7 +50,7 @@ Publishing runs in the `pypi` GitHub Actions environment. This environment must 
    - `uvx --from tqlint tq check --help`
    - `uv tool install tqlint && tq --help`
 
-`cargo dev release build` validates the source distribution plus a host-platform wheel. The full publishable artifact set is built in CI as Linux x86_64, macOS x86_64, macOS arm64, Windows x86_64 wheels, and the source distribution.
+`cargo dev check --profile full all` validates the source distribution plus a host-platform wheel. The full publishable artifact set is built in CI as Linux x86_64, macOS x86_64, macOS arm64, Windows x86_64 wheels, and the source distribution.
 
 ## Rollback guidance
 

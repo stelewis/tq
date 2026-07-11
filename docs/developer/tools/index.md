@@ -23,13 +23,12 @@ The product MSRV is Rust 1.96. Local and CI commands should use the pinned works
 ## Core commands
 
 - `cargo check --workspace --all-targets --locked`
-- `cargo fmt --all --check`
-- `cargo clippy --workspace --all-targets --locked -- -D warnings`
-- `cargo test --workspace --locked`
+- `cargo dev check routine --repo-root .`
+- `cargo dev check all --repo-root .`
+- `cargo dev check --profile full all --repo-root .`
 - `cargo audit`
 - `cargo deny check`
 - `cargo outdated --workspace --root-deps-only`
-- `cargo run -p tq-docsgen --locked -- generate all`
 - `cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist`
 
 ## Governance

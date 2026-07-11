@@ -3,12 +3,13 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand, ValueEnum};
 use dev_output::{
     render_audit_agent, render_audit_human, render_check_agent, render_check_human,
-    render_check_plan_agent, render_check_plan_human, render_doctor_agent, render_doctor_human,
-    render_external_pin_agent, render_external_pin_human,
+    render_check_plan_agent, render_check_plan_human, render_command_plan_agent,
+    render_command_plan_human, render_doctor_agent, render_doctor_human, render_external_pin_agent,
+    render_external_pin_human,
 };
 use tq_release::{
-    DevAuditReport, DevCheckPlan, DevCheckProfile, DevCheckReport, DevCheckTarget, DevDoctorReport,
-    ExternalPinReport, ReleaseError, RuntimeDependencyChange,
+    DevAuditReport, DevCheckPlan, DevCheckProfile, DevCheckReport, DevCheckTarget, DevCommandPlan,
+    DevDoctorReport, ExternalPinReport, ReleaseError, RuntimeDependencyChange,
 };
 
 mod dev_output;
@@ -65,7 +66,7 @@ enum DevCommand {
     #[command(name = "release")]
     Release(ReleaseArgs),
     #[command(name = "setup")]
-    Setup(RepoRootArgs),
+    Setup(SetupArgs),
 }
 
 #[derive(Debug, clap::Args)]
@@ -192,13 +193,33 @@ struct ReleaseArgs {
 #[derive(Debug, Subcommand)]
 enum ReleaseCommand {
     #[command(name = "build")]
-    Build(RepoRootArgs),
+    Build(ReleaseBuildArgs),
 }
 
 #[derive(Debug, clap::Args)]
 struct RepoRootArgs {
     #[arg(long, default_value = ".")]
     repo_root: PathBuf,
+}
+
+#[derive(Debug, clap::Args)]
+struct SetupArgs {
+    #[arg(long, default_value = ".")]
+    repo_root: PathBuf,
+    #[arg(long, value_enum, default_value_t = OutputMode::Human)]
+    output: OutputMode,
+    #[arg(long)]
+    dry_run: bool,
+}
+
+#[derive(Debug, clap::Args)]
+struct ReleaseBuildArgs {
+    #[arg(long, default_value = ".")]
+    repo_root: PathBuf,
+    #[arg(long, value_enum, default_value_t = OutputMode::Human)]
+    output: OutputMode,
+    #[arg(long)]
+    dry_run: bool,
 }
 
 #[derive(Debug, clap::Args)]
@@ -277,8 +298,17 @@ fn run_dev_command(args: &DevArgs) -> Result<(), ReleaseError> {
         DevCommand::Health(args) => run_health_command(args),
         DevCommand::Policy(args) => run_policy_command(args),
         DevCommand::Release(args) => run_release_command(args),
-        DevCommand::Setup(args) => tq_release::setup_dev_environment(&args.repo_root),
+        DevCommand::Setup(args) => run_setup_command(args),
     }
+}
+
+fn run_setup_command(args: &SetupArgs) -> Result<(), ReleaseError> {
+    if args.dry_run {
+        let plan = tq_release::plan_setup_dev_environment(&args.repo_root)?;
+        print_command_plan(&plan, args.output)?;
+        return Ok(());
+    }
+    tq_release::setup_dev_environment(&args.repo_root)
 }
 
 fn run_check_command(args: &CheckArgs) -> Result<(), ReleaseError> {
@@ -354,8 +384,17 @@ fn run_policy_command(args: &PolicyArgs) -> Result<(), ReleaseError> {
 
 fn run_release_command(args: &ReleaseArgs) -> Result<(), ReleaseError> {
     match &args.command {
-        ReleaseCommand::Build(args) => tq_release::build_release_artifacts(&args.repo_root),
+        ReleaseCommand::Build(args) => run_release_build_command(args),
     }
+}
+
+fn run_release_build_command(args: &ReleaseBuildArgs) -> Result<(), ReleaseError> {
+    if args.dry_run {
+        let plan = tq_release::plan_release_artifacts();
+        print_command_plan(&plan, args.output)?;
+        return Ok(());
+    }
+    tq_release::build_release_artifacts(&args.repo_root)
 }
 
 fn print_doctor_report(report: &DevDoctorReport, output: OutputMode) -> Result<(), ReleaseError> {
@@ -411,6 +450,16 @@ fn print_check_report(report: &DevCheckReport, output: OutputMode) -> Result<(),
         OutputMode::Human => print!("{}", render_check_human(report)),
         OutputMode::Json => print_json(report)?,
         OutputMode::Agent => print!("{}", render_check_agent(report)),
+    }
+
+    Ok(())
+}
+
+fn print_command_plan(plan: &DevCommandPlan, output: OutputMode) -> Result<(), ReleaseError> {
+    match output {
+        OutputMode::Human => print!("{}", render_command_plan_human(plan)),
+        OutputMode::Json => print_json(plan)?,
+        OutputMode::Agent => print!("{}", render_command_plan_agent(plan)),
     }
 
     Ok(())
