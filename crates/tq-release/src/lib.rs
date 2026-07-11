@@ -10,7 +10,9 @@ use std::path::Path;
 
 pub use dev_tools::{
     DevAuditCheck, DevAuditReport, DevAuditReportStatus, DevAuditStatus, DevAuditSummary,
-    DevDoctorCheck, DevDoctorReport, DevDoctorStatus, DevDoctorSummary, DevToolStatus,
+    DevCheckCommand, DevCheckPlan, DevCheckProfile, DevCheckReport, DevCheckReportStatus,
+    DevCheckResult, DevCheckStatus, DevCheckSummary, DevCheckTarget, DevCheckTask, DevDoctorCheck,
+    DevDoctorReport, DevDoctorStatus, DevDoctorSummary, DevToolStatus,
 };
 pub use error::ReleaseError;
 pub use external_pins::{
@@ -62,6 +64,19 @@ pub fn doctor_dev_environment(repo_root: &Path) -> Result<DevDoctorReport, Relea
 
 pub fn setup_dev_environment(repo_root: &Path) -> Result<(), ReleaseError> {
     dev_tools::setup_dev_environment(repo_root)
+}
+
+#[must_use]
+pub fn plan_dev_checks(target: DevCheckTarget, profile: DevCheckProfile) -> DevCheckPlan {
+    dev_tools::plan_dev_checks(target, profile)
+}
+
+pub fn run_dev_checks(
+    repo_root: &Path,
+    target: DevCheckTarget,
+    profile: DevCheckProfile,
+) -> Result<DevCheckReport, ReleaseError> {
+    dev_tools::run_dev_checks(repo_root, target, profile)
 }
 
 pub fn cleanup_dev_environment(repo_root: &Path) -> Result<(), ReleaseError> {

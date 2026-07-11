@@ -10,6 +10,7 @@ cargo dev <group> <command>
 
 ## Command groups
 
+- `cargo dev check [target] --repo-root .` runs repository validation through a deterministic harness-owned task catalog. Use `routine` for the daily Rust gate, `all` for the broad repo gate, or target `docs`, `release-policy`, `package`, and `release-build` directly when those surfaces are implicated.
 - `cargo dev policy verify-pins --repo-root .` checks repository-owned tool pins and configuration surfaces. This is CI-safe and is included in release-policy validation.
 - `cargo dev policy audit-external-pins --repo-root .` checks frozen GitHub Action and pre-commit pins against the latest upstream SemVer release tags.
 - `cargo dev health doctor --repo-root .` checks the local developer environment against pinned tools and native build prerequisites.
@@ -21,7 +22,7 @@ cargo dev <group> <command>
 
 ## Output modes
 
-Reporting commands support `--output human`, `--output json`, `--output agent`, and `--quiet`.
+Reporting commands support `--output human`, `--output json`, `--output agent`, and `--quiet`. The check command also supports `--dry-run` to print the resolved plan without executing commands.
 
 - `human` is the default terminal UI.
 - `json` is for automation that needs a stable machine-readable report. Report payloads include a typed `summary` plus the ordered check results.

@@ -11,19 +11,15 @@ Use `cargo check` as the fast compile, type, trait, and borrow-check loop before
 
 ## Quality gates
 
-- `cargo fmt --all --check`
-- `cargo clippy --workspace --all-targets --locked -- -D warnings`
-- `cargo test --workspace --locked`
-- `cargo build --workspace --locked`
-- `cargo build -p tq-cli --release --locked`
-- `cargo package --workspace --locked`
-- `cargo dev release build`
+- `cargo dev check routine --repo-root .`
+- `cargo dev check all --repo-root .`
+- `cargo dev check --profile full all --repo-root .`
 
-`cargo dev release build` validates the source distribution plus a wheel for the current host platform. The full publishable artifact matrix is validated in CI.
+`cargo dev check routine` runs the fast daily Rust gate: format, clippy, and tests. `cargo dev check all` adds generated-doc sync and release-policy validation. `cargo dev check --profile full all` adds package creation and the local release artifact build. The release build validates the source distribution plus a wheel for the current host platform; the full publishable artifact matrix is validated in CI.
 
 ## Combined local check
 
-- `cargo fmt --all --check && cargo clippy --workspace --all-targets --locked -- -D warnings && cargo test --workspace --locked`
+- `cargo dev check routine --repo-root .`
 
 ## Security and dependency audit
 

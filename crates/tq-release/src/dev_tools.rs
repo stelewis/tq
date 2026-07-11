@@ -199,6 +199,171 @@ pub struct DevAuditCheck {
     pub output: String,
 }
 
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct DevCheckPlan {
+    pub target: DevCheckTarget,
+    pub profile: DevCheckProfile,
+    pub tasks: Vec<DevCheckTask>,
+}
+
+impl DevCheckPlan {
+    const fn new(
+        target: DevCheckTarget,
+        profile: DevCheckProfile,
+        tasks: Vec<DevCheckTask>,
+    ) -> Self {
+        Self {
+            target,
+            profile,
+            tasks,
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct DevCheckTask {
+    pub id: String,
+    pub label: String,
+    pub command: DevCheckCommand,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct DevCheckCommand {
+    pub program: String,
+    pub args: Vec<String>,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct DevCheckReport {
+    pub summary: DevCheckSummary,
+    pub checks: Vec<DevCheckResult>,
+}
+
+impl DevCheckReport {
+    #[must_use]
+    pub fn passed(&self) -> bool {
+        self.summary.status == DevCheckReportStatus::Passed
+    }
+
+    fn new(checks: Vec<DevCheckResult>) -> Self {
+        Self {
+            summary: DevCheckSummary::from_results(&checks),
+            checks,
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct DevCheckSummary {
+    pub status: DevCheckReportStatus,
+    pub total: usize,
+    pub passed: usize,
+    pub failed: usize,
+}
+
+impl DevCheckSummary {
+    fn from_results(results: &[DevCheckResult]) -> Self {
+        let passed = results
+            .iter()
+            .filter(|result| result.status == DevCheckStatus::Passed)
+            .count();
+        let failed = results.len() - passed;
+        Self {
+            status: if failed == 0 {
+                DevCheckReportStatus::Passed
+            } else {
+                DevCheckReportStatus::Failed
+            },
+            total: results.len(),
+            passed,
+            failed,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DevCheckReportStatus {
+    Passed,
+    Failed,
+}
+
+impl DevCheckReportStatus {
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Passed => "passed",
+            Self::Failed => "failed",
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct DevCheckResult {
+    pub task: DevCheckTask,
+    pub status: DevCheckStatus,
+    pub output: String,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DevCheckStatus {
+    Passed,
+    Failed,
+}
+
+impl DevCheckStatus {
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Passed => "passed",
+            Self::Failed => "failed",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DevCheckTarget {
+    Routine,
+    Docs,
+    ReleasePolicy,
+    Package,
+    ReleaseBuild,
+    All,
+}
+
+impl DevCheckTarget {
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Routine => "routine",
+            Self::Docs => "docs",
+            Self::ReleasePolicy => "release-policy",
+            Self::Package => "package",
+            Self::ReleaseBuild => "release-build",
+            Self::All => "all",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DevCheckProfile {
+    Fast,
+    Full,
+}
+
+impl DevCheckProfile {
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Fast => "fast",
+            Self::Full => "full",
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum DevAuditStatus {
@@ -313,6 +478,20 @@ pub fn setup_dev_environment(repo_root: &Path) -> Result<(), ReleaseError> {
     verify_native_build_prerequisites()?;
     run_commands(repo_root, setup_commands(&manifest))?;
     install_missing_cargo_tools(repo_root, &manifest)
+}
+
+#[must_use]
+pub fn plan_dev_checks(target: DevCheckTarget, profile: DevCheckProfile) -> DevCheckPlan {
+    DevCheckPlan::new(target, profile, check_tasks(target, profile))
+}
+
+pub fn run_dev_checks(
+    repo_root: &Path,
+    target: DevCheckTarget,
+    profile: DevCheckProfile,
+) -> Result<DevCheckReport, ReleaseError> {
+    let plan = plan_dev_checks(target, profile);
+    run_check_tasks(repo_root, plan.tasks)
 }
 
 pub fn update_dev_dependencies(repo_root: &Path) -> Result<(), ReleaseError> {
@@ -751,6 +930,121 @@ fn update_commands(manifest: &DevToolsManifest) -> Vec<HarnessCommand> {
     ]
 }
 
+fn check_tasks(target: DevCheckTarget, profile: DevCheckProfile) -> Vec<DevCheckTask> {
+    let mut tasks = Vec::new();
+    match target {
+        DevCheckTarget::Routine => push_routine_check_tasks(&mut tasks),
+        DevCheckTarget::Docs => push_docs_check_tasks(&mut tasks),
+        DevCheckTarget::ReleasePolicy => push_release_policy_check_tasks(&mut tasks),
+        DevCheckTarget::Package => push_package_check_tasks(&mut tasks),
+        DevCheckTarget::ReleaseBuild => push_release_build_check_tasks(&mut tasks),
+        DevCheckTarget::All => {
+            push_routine_check_tasks(&mut tasks);
+            push_docs_check_tasks(&mut tasks);
+            push_release_policy_check_tasks(&mut tasks);
+            if profile == DevCheckProfile::Full {
+                push_package_check_tasks(&mut tasks);
+                push_release_build_check_tasks(&mut tasks);
+            }
+        }
+    }
+    tasks
+}
+
+fn push_routine_check_tasks(tasks: &mut Vec<DevCheckTask>) {
+    tasks.extend([
+        check_task(
+            "rust-format",
+            "Rust format",
+            command("cargo", ["fmt", "--all", "--check"]),
+        ),
+        check_task(
+            "rust-lint",
+            "Rust lint",
+            command(
+                "cargo",
+                [
+                    "clippy",
+                    "--workspace",
+                    "--all-targets",
+                    "--locked",
+                    "--",
+                    "-D",
+                    "warnings",
+                ],
+            ),
+        ),
+        check_task(
+            "rust-tests",
+            "Rust tests",
+            command("cargo", ["test", "--workspace", "--locked"]),
+        ),
+    ]);
+}
+
+fn push_docs_check_tasks(tasks: &mut Vec<DevCheckTask>) {
+    tasks.push(check_task(
+        "docs-sync",
+        "Generated docs",
+        command(
+            "cargo",
+            [
+                "run",
+                "-p",
+                "tq-docsgen",
+                "--locked",
+                "--",
+                "generate",
+                "all",
+            ],
+        ),
+    ));
+}
+
+fn push_release_policy_check_tasks(tasks: &mut Vec<DevCheckTask>) {
+    tasks.push(check_task(
+        "release-policy",
+        "Release policy",
+        command(
+            "cargo",
+            [
+                "run",
+                "-p",
+                "tq-release",
+                "--locked",
+                "--",
+                "verify-release-policy",
+                "--repo-root",
+                ".",
+            ],
+        ),
+    ));
+}
+
+fn push_package_check_tasks(tasks: &mut Vec<DevCheckTask>) {
+    tasks.push(check_task(
+        "cargo-package",
+        "Cargo package",
+        command("cargo", ["package", "--workspace", "--locked"]),
+    ));
+}
+
+fn push_release_build_check_tasks(tasks: &mut Vec<DevCheckTask>) {
+    tasks.push(check_task(
+        "release-build",
+        "Release build",
+        command("cargo", ["dev", "release", "build", "--repo-root", "."]),
+    ));
+}
+
+fn check_task(id: &str, label: &str, command: HarnessCommand) -> DevCheckTask {
+    DevCheckTask {
+        id: id.to_owned(),
+        label: label.to_owned(),
+        command: DevCheckCommand::from(command),
+    }
+}
+
 fn update_rust_toolchain_pin(
     repo_root: &Path,
     manifest: &DevToolsManifest,
@@ -952,6 +1246,40 @@ fn audit_commands(
     Ok(DevAuditReport::new(checks))
 }
 
+fn run_check_tasks(
+    repo_root: &Path,
+    tasks: Vec<DevCheckTask>,
+) -> Result<DevCheckReport, ReleaseError> {
+    let native_env = native_build_env();
+    let mut results = Vec::new();
+
+    for task in tasks {
+        let output = Command::new(&task.command.program)
+            .args(&task.command.args)
+            .current_dir(repo_root)
+            .envs(native_env.iter().map(|(key, value)| (key, value)))
+            .output()
+            .map_err(|source| ReleaseError::CommandIo {
+                repo_root: repo_root.to_path_buf(),
+                program: task.command.program.clone(),
+                args: task.command.args.clone(),
+                source,
+            })?;
+
+        results.push(DevCheckResult {
+            task,
+            status: if output.status.success() {
+                DevCheckStatus::Passed
+            } else {
+                DevCheckStatus::Failed
+            },
+            output: command_output(&output.stdout, &output.stderr),
+        });
+    }
+
+    Ok(DevCheckReport::new(results))
+}
+
 fn audit_status(
     command: &HarnessCommand,
     code: Option<i32>,
@@ -1007,6 +1335,25 @@ impl HarnessCommand {
             .chain(self.args.iter().map(String::as_str))
             .collect::<Vec<_>>()
             .join(" ")
+    }
+}
+
+impl DevCheckCommand {
+    #[must_use]
+    pub fn display(&self) -> String {
+        std::iter::once(self.program.as_str())
+            .chain(self.args.iter().map(String::as_str))
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+}
+
+impl From<HarnessCommand> for DevCheckCommand {
+    fn from(command: HarnessCommand) -> Self {
+        Self {
+            program: command.program,
+            args: command.args,
+        }
     }
 }
 

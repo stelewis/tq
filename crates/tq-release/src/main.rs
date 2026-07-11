@@ -2,11 +2,13 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use dev_output::{
-    render_audit_agent, render_audit_human, render_doctor_agent, render_doctor_human,
+    render_audit_agent, render_audit_human, render_check_agent, render_check_human,
+    render_check_plan_agent, render_check_plan_human, render_doctor_agent, render_doctor_human,
     render_external_pin_agent, render_external_pin_human,
 };
 use tq_release::{
-    DevAuditReport, DevDoctorReport, ExternalPinReport, ReleaseError, RuntimeDependencyChange,
+    DevAuditReport, DevCheckPlan, DevCheckProfile, DevCheckReport, DevCheckTarget, DevDoctorReport,
+    ExternalPinReport, ReleaseError, RuntimeDependencyChange,
 };
 
 mod dev_output;
@@ -52,6 +54,8 @@ struct DevArgs {
 
 #[derive(Debug, Subcommand)]
 enum DevCommand {
+    #[command(name = "check")]
+    Check(CheckArgs),
     #[command(name = "deps")]
     Deps(DepsArgs),
     #[command(name = "health")]
@@ -62,6 +66,60 @@ enum DevCommand {
     Release(ReleaseArgs),
     #[command(name = "setup")]
     Setup(RepoRootArgs),
+}
+
+#[derive(Debug, clap::Args)]
+struct CheckArgs {
+    #[arg(default_value = "routine", value_enum)]
+    target: CheckTargetArg,
+    #[arg(long, value_enum, default_value_t = CheckProfileArg::Fast)]
+    profile: CheckProfileArg,
+    #[arg(long, default_value = ".")]
+    repo_root: PathBuf,
+    #[arg(long, value_enum, default_value_t = OutputMode::Human)]
+    output: OutputMode,
+    #[arg(long)]
+    quiet: bool,
+    #[arg(long)]
+    dry_run: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+enum CheckTargetArg {
+    Routine,
+    Docs,
+    ReleasePolicy,
+    Package,
+    ReleaseBuild,
+    All,
+}
+
+impl From<CheckTargetArg> for DevCheckTarget {
+    fn from(value: CheckTargetArg) -> Self {
+        match value {
+            CheckTargetArg::Routine => Self::Routine,
+            CheckTargetArg::Docs => Self::Docs,
+            CheckTargetArg::ReleasePolicy => Self::ReleasePolicy,
+            CheckTargetArg::Package => Self::Package,
+            CheckTargetArg::ReleaseBuild => Self::ReleaseBuild,
+            CheckTargetArg::All => Self::All,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+enum CheckProfileArg {
+    Fast,
+    Full,
+}
+
+impl From<CheckProfileArg> for DevCheckProfile {
+    fn from(value: CheckProfileArg) -> Self {
+        match value {
+            CheckProfileArg::Fast => Self::Fast,
+            CheckProfileArg::Full => Self::Full,
+        }
+    }
 }
 
 #[derive(Debug, clap::Args)]
@@ -214,11 +272,34 @@ fn report_runtime_deps(args: &CheckRuntimeDepsArgs) -> Result<(), ReleaseError> 
 
 fn run_dev_command(args: &DevArgs) -> Result<(), ReleaseError> {
     match &args.command {
+        DevCommand::Check(args) => run_check_command(args),
         DevCommand::Deps(args) => run_deps_command(args),
         DevCommand::Health(args) => run_health_command(args),
         DevCommand::Policy(args) => run_policy_command(args),
         DevCommand::Release(args) => run_release_command(args),
         DevCommand::Setup(args) => tq_release::setup_dev_environment(&args.repo_root),
+    }
+}
+
+fn run_check_command(args: &CheckArgs) -> Result<(), ReleaseError> {
+    let target = DevCheckTarget::from(args.target);
+    let profile = DevCheckProfile::from(args.profile);
+    if args.dry_run {
+        let plan = tq_release::plan_dev_checks(target, profile);
+        print_check_plan(&plan, args.output)?;
+        return Ok(());
+    }
+
+    let report = tq_release::run_dev_checks(&args.repo_root, target, profile)?;
+    if !args.quiet || !report.passed() {
+        print_check_report(&report, args.output)?;
+    }
+    if report.passed() {
+        Ok(())
+    } else {
+        Err(ReleaseError::RepositoryPolicyViolation {
+            details: "developer checks failed".to_owned(),
+        })
     }
 }
 
@@ -310,6 +391,26 @@ fn print_audit_report(report: &DevAuditReport, output: OutputMode) -> Result<(),
         OutputMode::Human => print!("{}", render_audit_human(report)),
         OutputMode::Json => print_json(report)?,
         OutputMode::Agent => print!("{}", render_audit_agent(report)),
+    }
+
+    Ok(())
+}
+
+fn print_check_plan(plan: &DevCheckPlan, output: OutputMode) -> Result<(), ReleaseError> {
+    match output {
+        OutputMode::Human => print!("{}", render_check_plan_human(plan)),
+        OutputMode::Json => print_json(plan)?,
+        OutputMode::Agent => print!("{}", render_check_plan_agent(plan)),
+    }
+
+    Ok(())
+}
+
+fn print_check_report(report: &DevCheckReport, output: OutputMode) -> Result<(), ReleaseError> {
+    match output {
+        OutputMode::Human => print!("{}", render_check_human(report)),
+        OutputMode::Json => print_json(report)?,
+        OutputMode::Agent => print!("{}", render_check_agent(report)),
     }
 
     Ok(())

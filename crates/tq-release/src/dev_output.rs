@@ -1,4 +1,6 @@
-use tq_release::{DevAuditReport, DevDoctorReport, ExternalPinReport};
+use tq_release::{
+    DevAuditReport, DevCheckPlan, DevCheckReport, DevDoctorReport, ExternalPinReport,
+};
 
 pub fn render_doctor_human(report: &DevDoctorReport) -> String {
     let mut output = vec![
@@ -146,6 +148,129 @@ pub fn render_audit_agent(report: &DevAuditReport) -> String {
     {
         output.push(String::new());
         output.push(format!("### {} Output", check.name));
+        output.push(String::new());
+        output.push("```text".to_owned());
+        output.push(check.output.clone());
+        output.push("```".to_owned());
+    }
+
+    output.push(String::new());
+    output.join("\n")
+}
+
+pub fn render_check_plan_human(plan: &DevCheckPlan) -> String {
+    let mut output = vec![
+        format!(
+            "Developer checks: {} ({})",
+            plan.target.label(),
+            plan.profile.label()
+        ),
+        format!("{} tasks planned", plan.tasks.len()),
+        String::new(),
+        render_text_table(
+            &["Task", "Label", "Command"],
+            &plan
+                .tasks
+                .iter()
+                .map(|task| vec![task.id.clone(), task.label.clone(), task.command.display()])
+                .collect::<Vec<_>>(),
+        ),
+    ];
+    output.push(String::new());
+    output.join("\n")
+}
+
+pub fn render_check_plan_agent(plan: &DevCheckPlan) -> String {
+    let mut output = vec![
+        "## Developer Check Plan".to_owned(),
+        String::new(),
+        format!("Target: {}", plan.target.label()),
+        format!("Profile: {}", plan.profile.label()),
+        format!("Tasks: {} planned", plan.tasks.len()),
+        String::new(),
+        render_markdown_table(
+            &["Task", "Label", "Command"],
+            &plan
+                .tasks
+                .iter()
+                .map(|task| vec![task.id.clone(), task.label.clone(), task.command.display()])
+                .collect::<Vec<_>>(),
+        ),
+    ];
+    output.push(String::new());
+    output.join("\n")
+}
+
+pub fn render_check_human(report: &DevCheckReport) -> String {
+    let mut output = vec![
+        format!("Developer checks: {}", report.summary.status.label()),
+        format!(
+            "{} checks: {} passed, {} failed",
+            report.summary.total, report.summary.passed, report.summary.failed
+        ),
+        String::new(),
+        render_text_table(
+            &["Status", "Task", "Command"],
+            &report
+                .checks
+                .iter()
+                .map(|check| {
+                    vec![
+                        check.status.label().to_owned(),
+                        check.task.id.clone(),
+                        check.task.command.display(),
+                    ]
+                })
+                .collect::<Vec<_>>(),
+        ),
+    ];
+
+    for check in report
+        .checks
+        .iter()
+        .filter(|check| !check.output.is_empty())
+    {
+        output.push(String::new());
+        output.push(format!("{} output:", check.task.id));
+        output.push(check.output.clone());
+    }
+    output.push(String::new());
+    output.join("\n")
+}
+
+pub fn render_check_agent(report: &DevCheckReport) -> String {
+    let mut output = vec![
+        "## Developer Checks".to_owned(),
+        String::new(),
+        format!("Status: {}", report.summary.status.label()),
+        format!(
+            "Checks: {} total, {} passed, {} failed",
+            report.summary.total, report.summary.passed, report.summary.failed
+        ),
+        String::new(),
+        render_markdown_table(
+            &["Status", "Task", "Command"],
+            &report
+                .checks
+                .iter()
+                .map(|check| {
+                    vec![
+                        check.status.label().to_owned(),
+                        check.task.id.clone(),
+                        check.task.command.display(),
+                    ]
+                })
+                .collect::<Vec<_>>(),
+        ),
+    ];
+
+    for check in report
+        .checks
+        .iter()
+        .filter(|check| !check.output.is_empty())
+    {
+        output.push(String::new());
+        output.push(format!("### {} Output", check.task.id));
         output.push(String::new());
         output.push("```text".to_owned());
         output.push(check.output.clone());
