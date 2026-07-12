@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
@@ -9,17 +10,105 @@ pub const DEFAULT_FORBIDDEN_PREFIXES: &[&str] = &[
     "scripts/", "tests/", "docs/", "tmp/", ".github/", ".vscode/",
 ];
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ArtifactViolation {
-    pub artifact: PathBuf,
-    pub member: String,
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum WheelPlatform {
+    PortableLinux,
+    MacosX86_64,
+    MacosArm64,
+    WindowsX86_64,
 }
 
-pub fn verify_artifact_contents(
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ArtifactExpectation {
+    SdistOnly,
+    WheelOnly(WheelPlatform),
+    SdistAndWheel(WheelPlatform),
+    FullRelease,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum ArtifactKind {
+    Sdist,
+    Wheel(WheelPlatform),
+    NativeLinuxWheel,
+    UnsupportedWheel,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Artifact {
+    pub path: PathBuf,
+    pub kind: ArtifactKind,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ArtifactViolation {
+    UnexpectedPath {
+        path: PathBuf,
+    },
+    UnexpectedKind {
+        artifact: Artifact,
+    },
+    Count {
+        kind: ArtifactKind,
+        expected: usize,
+        actual: usize,
+    },
+    NativeLinuxTag {
+        path: PathBuf,
+    },
+    ForbiddenMember {
+        artifact: PathBuf,
+        member: String,
+    },
+    MissingDeclaredLicense {
+        artifact: PathBuf,
+        license: String,
+    },
+}
+
+impl ArtifactViolation {
+    fn describe(&self) -> String {
+        match self {
+            Self::UnexpectedPath { path } => {
+                format!("unexpected distribution path: {}", path.display())
+            }
+            Self::UnexpectedKind { artifact } => format!(
+                "unexpected artifact kind {:?}: {}",
+                artifact.kind,
+                artifact.path.display()
+            ),
+            Self::Count {
+                kind,
+                expected,
+                actual,
+            } => format!("expected {expected} {kind:?} artifact(s), found {actual}"),
+            Self::NativeLinuxTag { path } => format!(
+                "wheel uses a native Linux platform tag rejected by PyPI: {}",
+                path.display()
+            ),
+            Self::ForbiddenMember { artifact, member } => {
+                format!("{}: forbidden archive member {member}", artifact.display())
+            }
+            Self::MissingDeclaredLicense { artifact, license } => format!(
+                "{}: missing declared license file: {license}",
+                artifact.display()
+            ),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ArtifactReport {
+    pub artifacts: Vec<Artifact>,
+    pub violations: Vec<ArtifactViolation>,
+}
+
+pub fn verify_artifacts(
     dist_dir: &Path,
+    expectation: ArtifactExpectation,
     forbidden_prefixes: Option<Vec<String>>,
-) -> Result<(), DevError> {
-    if !dist_dir.exists() {
+) -> Result<ArtifactReport, DevError> {
+    if !dist_dir.is_dir() {
         return Err(DevError::MissingDistributionDirectory {
             path: dist_dir.to_path_buf(),
         });
@@ -31,46 +120,135 @@ pub fn verify_artifact_contents(
             .map(|prefix| (*prefix).to_owned())
             .collect()
     });
-    let violations = collect_violations(dist_dir, &forbidden_prefixes)?;
-    if violations.is_empty() {
-        return Ok(());
+    let mut report = collect_report(dist_dir, &forbidden_prefixes)?;
+    validate_artifact_set(&mut report, expectation);
+    if report.violations.is_empty() {
+        return Ok(report);
     }
 
-    let details = violations
+    let details = report
+        .violations
         .iter()
-        .map(|violation| format!("- {}: {}", violation.artifact.display(), violation.member))
+        .map(|violation| format!("- {}", violation.describe()))
         .collect::<Vec<_>>()
         .join("\n");
     Err(DevError::ArtifactPolicyViolation { details })
 }
 
-fn collect_violations(
+fn collect_report(
     dist_dir: &Path,
     forbidden_prefixes: &[String],
-) -> Result<Vec<ArtifactViolation>, DevError> {
+) -> Result<ArtifactReport, DevError> {
+    let mut artifacts = Vec::new();
     let mut violations = Vec::new();
-
-    for entry in std::fs::read_dir(dist_dir).map_err(|source| DevError::Io {
-        path: dist_dir.to_path_buf(),
-        source,
-    })? {
-        let entry = entry.map_err(|source| DevError::Io {
+    let mut entries = std::fs::read_dir(dist_dir)
+        .map_err(|source| DevError::Io {
+            path: dist_dir.to_path_buf(),
+            source,
+        })?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|source| DevError::Io {
             path: dist_dir.to_path_buf(),
             source,
         })?;
-        let artifact_path = entry.path();
-        if artifact_path.is_dir() {
-            continue;
-        }
+    entries.sort_by_key(std::fs::DirEntry::path);
 
-        if has_extension(&artifact_path, "zip") || has_extension(&artifact_path, "whl") {
+    for entry in entries {
+        let artifact_path = entry.path();
+        let Some(kind) = classify_artifact(&artifact_path) else {
+            violations.push(ArtifactViolation::UnexpectedPath {
+                path: artifact_path,
+            });
+            continue;
+        };
+        let artifact = Artifact {
+            path: artifact_path.clone(),
+            kind,
+        };
+        artifacts.push(artifact);
+
+        if matches!(kind, ArtifactKind::NativeLinuxWheel) {
+            violations.push(ArtifactViolation::NativeLinuxTag {
+                path: artifact_path.clone(),
+            });
+        }
+        if has_extension(&artifact_path, "whl") {
             violations.extend(find_zip_violations(&artifact_path, forbidden_prefixes)?);
         } else if is_tar_gz(&artifact_path) {
             violations.extend(find_tar_gz_violations(&artifact_path, forbidden_prefixes)?);
         }
     }
 
-    Ok(violations)
+    Ok(ArtifactReport {
+        artifacts,
+        violations,
+    })
+}
+
+fn classify_artifact(path: &Path) -> Option<ArtifactKind> {
+    if is_tar_gz(path) {
+        return Some(ArtifactKind::Sdist);
+    }
+    if !has_extension(path, "whl") {
+        return None;
+    }
+    let name = path.file_name()?.to_str()?.to_ascii_lowercase();
+    Some(
+        if name.contains("manylinux") || name.contains("musllinux") {
+            ArtifactKind::Wheel(WheelPlatform::PortableLinux)
+        } else if name.contains("linux") {
+            ArtifactKind::NativeLinuxWheel
+        } else if name.contains("macosx") && name.ends_with("x86_64.whl") {
+            ArtifactKind::Wheel(WheelPlatform::MacosX86_64)
+        } else if name.contains("macosx") && name.ends_with("arm64.whl") {
+            ArtifactKind::Wheel(WheelPlatform::MacosArm64)
+        } else if name.ends_with("win_amd64.whl") {
+            ArtifactKind::Wheel(WheelPlatform::WindowsX86_64)
+        } else {
+            ArtifactKind::UnsupportedWheel
+        },
+    )
+}
+
+fn validate_artifact_set(report: &mut ArtifactReport, expectation: ArtifactExpectation) {
+    let expected = expected_counts(expectation);
+    let mut actual = BTreeMap::new();
+    for artifact in &report.artifacts {
+        *actual.entry(artifact.kind).or_insert(0) += 1;
+        if !expected.contains_key(&artifact.kind) {
+            report.violations.push(ArtifactViolation::UnexpectedKind {
+                artifact: artifact.clone(),
+            });
+        }
+    }
+    for (kind, expected_count) in expected {
+        let actual_count = actual.get(&kind).copied().unwrap_or(0);
+        if actual_count != expected_count {
+            report.violations.push(ArtifactViolation::Count {
+                kind,
+                expected: expected_count,
+                actual: actual_count,
+            });
+        }
+    }
+}
+
+fn expected_counts(expectation: ArtifactExpectation) -> BTreeMap<ArtifactKind, usize> {
+    let kinds = match expectation {
+        ArtifactExpectation::SdistOnly => vec![ArtifactKind::Sdist],
+        ArtifactExpectation::WheelOnly(platform) => vec![ArtifactKind::Wheel(platform)],
+        ArtifactExpectation::SdistAndWheel(platform) => {
+            vec![ArtifactKind::Sdist, ArtifactKind::Wheel(platform)]
+        }
+        ArtifactExpectation::FullRelease => vec![
+            ArtifactKind::Sdist,
+            ArtifactKind::Wheel(WheelPlatform::PortableLinux),
+            ArtifactKind::Wheel(WheelPlatform::MacosX86_64),
+            ArtifactKind::Wheel(WheelPlatform::MacosArm64),
+            ArtifactKind::Wheel(WheelPlatform::WindowsX86_64),
+        ],
+    };
+    kinds.into_iter().map(|kind| (kind, 1)).collect()
 }
 
 fn find_zip_violations(
@@ -97,7 +275,7 @@ fn find_zip_violations(
         let member_name = member.name().to_owned();
         members.push(member_name.clone());
         if is_forbidden_member(&member_name, forbidden_prefixes) {
-            violations.push(ArtifactViolation {
+            violations.push(ArtifactViolation::ForbiddenMember {
                 artifact: artifact_path.to_path_buf(),
                 member: member_name.clone(),
             });
@@ -151,7 +329,7 @@ fn find_tar_gz_violations(
             .to_string();
         members.push(member_name.clone());
         if is_forbidden_member(&member_name, forbidden_prefixes) {
-            violations.push(ArtifactViolation {
+            violations.push(ArtifactViolation::ForbiddenMember {
                 artifact: artifact_path.to_path_buf(),
                 member: member_name.clone(),
             });
@@ -222,9 +400,9 @@ fn find_missing_declared_license_files(
                 .iter()
                 .any(|member| member_matches_declared_license_file(member, license_file))
         })
-        .map(|license_file| ArtifactViolation {
+        .map(|license_file| ArtifactViolation::MissingDeclaredLicense {
             artifact: artifact_path.to_path_buf(),
-            member: format!("missing declared license file: {license_file}"),
+            license: license_file.clone(),
         })
         .collect()
 }

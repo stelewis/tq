@@ -339,7 +339,6 @@ fn is_known_path(path: &str) -> bool {
                 | ".github/labels.toml"
                 | ".github/pull_request_template.md"
                 | ".github/release.yml"
-                | ".github/scripts/verify-release-artifact-set.sh"
         )
         || is_known_workflow_or_action(path)
 }

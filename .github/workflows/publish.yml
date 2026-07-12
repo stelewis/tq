@@ -133,12 +133,8 @@ jobs:
           run-id: ${{ needs.prepare.outputs.source_run_id }}
           github-token: ${{ github.token }}
 
-      - name: Verify downloaded release artifacts are present
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          bash .github/scripts/verify-release-artifact-set.sh dist
+      - name: Verify downloaded release artifacts
+        run: cargo dev release verify-artifacts --dist-dir dist --profile full-release
 
       - name: Verify CI artifact attestations
         env:
@@ -156,9 +152,6 @@ jobs:
 
       - name: Verify release policy
         run: cargo dev policy verify-release --repo-root .
-
-      - name: Verify artifact contents policy
-        run: cargo dev release verify-artifacts --dist-dir dist
 
       - name: Validate package metadata
         run: uv run --isolated --no-project --with twine -- twine check dist/*

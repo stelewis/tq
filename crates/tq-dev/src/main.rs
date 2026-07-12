@@ -227,10 +227,41 @@ struct RuntimeDepsArgs {
     head_ref: String,
 }
 
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+enum ArtifactProfile {
+    Sdist,
+    LinuxWheel,
+    MacosX86_64Wheel,
+    MacosArm64Wheel,
+    WindowsX86_64Wheel,
+    LinuxPair,
+    FullRelease,
+}
+
+impl ArtifactProfile {
+    const fn expectation(self) -> artifacts::ArtifactExpectation {
+        use artifacts::{ArtifactExpectation, WheelPlatform};
+
+        match self {
+            Self::Sdist => ArtifactExpectation::SdistOnly,
+            Self::LinuxWheel => ArtifactExpectation::WheelOnly(WheelPlatform::PortableLinux),
+            Self::MacosX86_64Wheel => ArtifactExpectation::WheelOnly(WheelPlatform::MacosX86_64),
+            Self::MacosArm64Wheel => ArtifactExpectation::WheelOnly(WheelPlatform::MacosArm64),
+            Self::WindowsX86_64Wheel => {
+                ArtifactExpectation::WheelOnly(WheelPlatform::WindowsX86_64)
+            }
+            Self::LinuxPair => ArtifactExpectation::SdistAndWheel(WheelPlatform::PortableLinux),
+            Self::FullRelease => ArtifactExpectation::FullRelease,
+        }
+    }
+}
+
 #[derive(Debug, clap::Args)]
 struct VerifyArtifactsArgs {
     #[arg(long, default_value = "dist")]
     dist_dir: PathBuf,
+    #[arg(long, value_enum)]
+    profile: ArtifactProfile,
     #[arg(long = "forbidden-prefix")]
     forbidden_prefixes: Vec<String>,
 }
@@ -389,15 +420,16 @@ fn run_release(command: &ReleaseCommand) -> Result<Outcome, DevError> {
             );
             Ok(Outcome::Clean)
         }
-        ReleaseCommand::VerifyArtifacts(args) => artifacts::verify_artifact_contents(
+        ReleaseCommand::VerifyArtifacts(args) => artifacts::verify_artifacts(
             &args.dist_dir,
+            args.profile.expectation(),
             if args.forbidden_prefixes.is_empty() {
                 None
             } else {
                 Some(args.forbidden_prefixes.clone())
             },
         )
-        .map(|()| Outcome::Clean),
+        .map(|_| Outcome::Clean),
     }
 }
 

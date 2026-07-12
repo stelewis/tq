@@ -261,25 +261,8 @@ jobs:
           rm -rf dist
           uv build --sdist
 
-      - name: Verify artifact contents policy
-        run: cargo dev release verify-artifacts --dist-dir dist
-
-      - name: Verify built source distribution artifact set
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          wheel_count="$(find dist -maxdepth 1 -type f -name '*.whl' | wc -l | tr -d ' ')"
-          if [ "$wheel_count" -ne 0 ]; then
-            echo "Expected no wheel artifacts in dist/, found $wheel_count"
-            exit 1
-          fi
-
-          sdist_count="$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l | tr -d ' ')"
-          if [ "$sdist_count" -ne 1 ]; then
-            echo "Expected exactly one source distribution artifact in dist/, found $sdist_count"
-            exit 1
-          fi
+      - name: Verify source distribution
+        run: cargo dev release verify-artifacts --dist-dir dist --profile sdist
 
       - name: Smoke check built source distribution entrypoints
         shell: bash
@@ -315,25 +298,25 @@ jobs:
           - label: Linux x86_64
             runs_on: ubuntu-latest
             artifact_name: wheel-manylinux-x86_64
-            expected_wheel_pattern: '*manylinux*.whl|*musllinux*.whl'
+            artifact_profile: linux-wheel
             maturin_requirement: maturin_zig
             extra_build_args: --compatibility pypi --zig
           - label: macOS x86_64
             runs_on: macos-15-intel
             artifact_name: wheel-macos-x86_64
-            expected_wheel_pattern: '*macosx*x86_64.whl'
+            artifact_profile: macos-x86-64-wheel
             maturin_requirement: maturin
             extra_build_args: ""
           - label: macOS arm64
             runs_on: macos-14
             artifact_name: wheel-macos-arm64
-            expected_wheel_pattern: '*macosx*arm64.whl'
+            artifact_profile: macos-arm64-wheel
             maturin_requirement: maturin
             extra_build_args: ""
           - label: Windows x86_64
             runs_on: windows-latest
             artifact_name: wheel-windows-x86_64
-            expected_wheel_pattern: '*win_amd64.whl'
+            artifact_profile: windows-x86-64-wheel
             maturin_requirement: maturin
             extra_build_args: ""
     steps:
@@ -379,43 +362,11 @@ jobs:
             maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml \
             --bindings bin --out dist -i python "${extra_build_args[@]}"
 
-      - name: Verify artifact contents policy
-        shell: bash
-        run: cargo dev release verify-artifacts --dist-dir dist
-
-      - name: Verify built wheel artifact set
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          wheel_count="$(find dist -maxdepth 1 -type f -name '*.whl' | wc -l | tr -d ' ')"
-          if [ "$wheel_count" -ne 1 ]; then
-            echo "Expected exactly one wheel artifact in dist/, found $wheel_count"
-            exit 1
-          fi
-
-          sdist_count="$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l | tr -d ' ')"
-          if [ "$sdist_count" -ne 0 ]; then
-            echo "Expected no source distribution artifacts in dist/, found $sdist_count"
-            exit 1
-          fi
-
-          wheel_path="$(find dist -maxdepth 1 -type f -name '*.whl' | head -n 1)"
-          wheel_name="$(basename "$wheel_path")"
-
-          case "$wheel_name" in
-            ${{ matrix.expected_wheel_pattern }})
-              ;;
-            *)
-              echo "Wheel '$wheel_name' does not match expected pattern ${{ matrix.expected_wheel_pattern }}"
-              exit 1
-              ;;
-          esac
-
-          if [[ "$wheel_name" == *linux_* && "$wheel_name" != *manylinux* && "$wheel_name" != *musllinux* ]]; then
-            echo "Wheel '$wheel_name' uses a native linux platform tag that PyPI will reject"
-            exit 1
-          fi
+      - name: Verify wheel
+        run: >-
+          cargo dev release verify-artifacts
+          --dist-dir dist
+          --profile '${{ matrix.artifact_profile }}'
 
       - name: Smoke check built wheel entrypoints
         shell: bash
@@ -456,6 +407,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
       - name: Reset artifact directory
         run: rm -rf dist
 
@@ -466,12 +420,8 @@ jobs:
           merge-multiple: true
           path: dist
 
-      - name: Verify downloaded release artifacts are present
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          bash .github/scripts/verify-release-artifact-set.sh dist
+      - name: Verify downloaded release artifacts
+        run: cargo dev release verify-artifacts --dist-dir dist --profile full-release
 
       - name: Generate artifact attestations for validated distributions
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
@@ -527,29 +477,8 @@ jobs:
           maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml
           --bindings bin --out dist -i python --compatibility pypi --zig
 
-      - name: Verify built release artifact set
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          wheel_count="$(find dist -maxdepth 1 -type f -name '*.whl' | wc -l | tr -d ' ')"
-          if [ "$wheel_count" -ne 1 ]; then
-            echo "Expected exactly one wheel artifact in dist/, found $wheel_count"
-            exit 1
-          fi
-
-          sdist_count="$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l | tr -d ' ')"
-          if [ "$sdist_count" -ne 1 ]; then
-            echo "Expected exactly one source distribution artifact in dist/, found $sdist_count"
-            exit 1
-          fi
-
-          wheel_path="$(find dist -maxdepth 1 -type f -name '*.whl' | head -n 1)"
-          wheel_name="$(basename "$wheel_path")"
-          if [[ "$wheel_name" == *linux_* && "$wheel_name" != *manylinux* && "$wheel_name" != *musllinux* ]]; then
-            echo "Wheel '$wheel_name' uses a native linux platform tag that PyPI will reject"
-            exit 1
-          fi
+      - name: Verify built release artifacts
+        run: cargo dev release verify-artifacts --dist-dir dist --profile linux-pair
 
       - name: Smoke check built package entrypoints
         shell: bash
