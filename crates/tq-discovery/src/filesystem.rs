@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::index::normalize_existing_dir;
 use crate::{AnalysisIndex, DiscoveryError};
+use tq_core::{is_python_module, is_python_test_file};
 
 pub fn build_analysis_index(
     source_root: &Path,
@@ -11,8 +12,8 @@ pub fn build_analysis_index(
     let source_root = normalize_existing_dir(source_root)?;
     let test_root = normalize_existing_dir(test_root)?;
 
-    let source_files = scan_files(&source_root, is_source_module)?;
-    let test_files = scan_files(&test_root, is_test_module)?;
+    let source_files = scan_files(&source_root, is_python_module)?;
+    let test_files = scan_files(&test_root, is_python_test_file)?;
 
     AnalysisIndex::create(&source_root, &test_root, source_files, test_files)
 }
@@ -72,19 +73,6 @@ fn scan_recursive(
     Ok(())
 }
 
-fn is_source_module(path: &Path) -> bool {
-    path.extension().is_some_and(|extension| extension == "py")
-}
-
-fn is_test_module(path: &Path) -> bool {
-    let is_python = path.extension().is_some_and(|extension| extension == "py");
-    let is_test_name = path
-        .file_name()
-        .and_then(std::ffi::OsStr::to_str)
-        .is_some_and(|name| name.starts_with("test_"));
-    is_python && is_test_name
-}
-
 fn is_ignored_path(path: &Path) -> bool {
     path.components().any(|component| {
         component
@@ -124,6 +112,23 @@ mod tests {
             index.test_files(),
             &[PathBuf::from("tq/engine/test_runner.py")]
         );
+    }
+
+    #[test]
+    fn build_analysis_index_ignores_non_canonical_python_extensions() {
+        let temp = tempdir().expect("tempdir");
+        let source_root = temp.path().join("src").join("tq");
+        let test_root = temp.path().join("tests");
+
+        write(&source_root.join("ignored.PY"));
+        write(&source_root.join("module.py"));
+        write(&test_root.join("tq").join("test_ignored.PY"));
+        write(&test_root.join("tq").join("test_module.py"));
+
+        let index = build_analysis_index(&source_root, &test_root).expect("index should build");
+
+        assert_eq!(index.source_files(), &[PathBuf::from("module.py")]);
+        assert_eq!(index.test_files(), &[PathBuf::from("tq/test_module.py")]);
     }
 
     #[test]

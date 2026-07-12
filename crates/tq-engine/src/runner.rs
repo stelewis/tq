@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
-use crate::context::path_to_forward_slashes;
+use tq_core::path_to_forward_slashes;
+
 use crate::{AnalysisContext, EngineError, EngineResult, Finding, RuleId, Severity};
 
 pub trait Rule {

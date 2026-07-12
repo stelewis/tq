@@ -1,4 +1,6 @@
 mod domain;
+mod paths;
+mod python;
 
 use std::borrow::Cow;
 
@@ -176,3 +178,10 @@ mod tests {
         assert_eq!(STATIC_RULE_ID.as_str(), "mapping-missing-test");
     }
 }
+
+pub use paths::path_to_forward_slashes;
+pub use python::{
+    DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES, is_python_module, is_python_test_file,
+    python_module_name, python_test_module_name, source_directory_for_unit_test,
+    unit_test_path_for_source,
+};

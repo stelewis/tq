@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use tq_core::{InitModulesMode, QualifierStrategy, RuleId};
+use tq_core::{DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES, InitModulesMode, QualifierStrategy, RuleId};
 use tq_engine::Rule;
 
 use crate::error::RulesError;
@@ -146,7 +146,7 @@ impl Default for BuiltinRuleOptions {
     fn default() -> Self {
         Self {
             init_modules: InitModulesMode::Include,
-            max_test_file_non_blank_lines: 600,
+            max_test_file_non_blank_lines: DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES,
             qualifier_strategy: QualifierStrategy::AnySuffix,
             allowed_qualifiers: BTreeSet::new(),
         }
@@ -290,17 +290,4 @@ pub fn is_non_unit_test_path(test_file: &Path) -> bool {
             .to_str()
             .is_some_and(|segment| segment == "integration" || segment == "e2e")
     })
-}
-
-#[must_use]
-pub fn is_unit_test_filename(file_name: &str) -> bool {
-    file_name.starts_with("test_")
-        && Path::new(file_name)
-            .extension()
-            .is_some_and(|extension| extension.eq_ignore_ascii_case("py"))
-}
-
-#[must_use]
-pub fn path_to_forward_slashes(path: &Path) -> String {
-    path.to_string_lossy().replace('\\', "/")
 }

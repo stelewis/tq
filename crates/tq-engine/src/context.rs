@@ -192,8 +192,3 @@ impl PlannedTargetRun {
         &self.context
     }
 }
-
-#[must_use]
-pub fn path_to_forward_slashes(path: &Path) -> String {
-    path.to_string_lossy().replace('\\', "/")
-}

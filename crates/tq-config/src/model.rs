@@ -8,7 +8,6 @@ use tq_core::{
 use crate::paths::normalize_absolute;
 
 pub const DEFAULT_INIT_MODULES: InitModulesMode = InitModulesMode::Include;
-pub const DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES: u64 = 600;
 
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct PartialRuleConfig {
@@ -116,10 +115,6 @@ impl CliOverrides {
         self.init_modules
     }
 
-    pub(crate) const fn max_test_file_non_blank_lines(&self) -> Option<u64> {
-        self.max_test_file_non_blank_lines
-    }
-
     pub(crate) const fn qualifier_strategy(&self) -> Option<QualifierStrategy> {
         self.qualifier_strategy
     }
@@ -146,6 +141,10 @@ impl CliOverrides {
 
     pub(crate) fn clone_severity_overrides(&self) -> Option<BTreeMap<RuleId, Severity>> {
         self.severity_overrides.clone()
+    }
+
+    pub(crate) const fn max_test_file_non_blank_lines(&self) -> Option<u64> {
+        self.max_test_file_non_blank_lines
     }
 }
 
@@ -197,11 +196,6 @@ impl TqTargetConfig {
     }
 
     #[must_use]
-    pub const fn max_test_file_non_blank_lines(&self) -> u64 {
-        self.max_test_file_non_blank_lines
-    }
-
-    #[must_use]
     pub const fn qualifier_strategy(&self) -> QualifierStrategy {
         self.qualifier_strategy
     }
@@ -234,6 +228,11 @@ impl TqTargetConfig {
     #[must_use]
     pub fn source_package_root(&self) -> PathBuf {
         normalize_absolute(&self.source_root.join(self.package_path().as_path()))
+    }
+
+    #[must_use]
+    pub const fn max_test_file_non_blank_lines(&self) -> u64 {
+        self.max_test_file_non_blank_lines
     }
 }
 

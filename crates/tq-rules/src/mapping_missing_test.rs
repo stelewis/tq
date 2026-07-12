@@ -1,11 +1,14 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-use tq_core::InitModulesMode;
+use tq_core::{
+    InitModulesMode, path_to_forward_slashes, python_module_name, python_test_module_name,
+    unit_test_path_for_source,
+};
 use tq_engine::{AnalysisContext, Finding, Rule, RuleId};
 
 use crate::QualifierStrategy;
-use crate::builtin::{BuiltinRule, path_to_forward_slashes};
+use crate::builtin::BuiltinRule;
 use crate::candidate_module_names;
 use crate::error::RulesError;
 
@@ -40,30 +43,19 @@ impl MappingMissingTestRule {
         test_files: &[PathBuf],
         package_path: &Path,
     ) -> bool {
-        let expected_path = expected_test_path(source_file, package_path);
-        let source_stem = source_file
-            .file_stem()
-            .and_then(std::ffi::OsStr::to_str)
-            .unwrap_or_default();
+        let Some(expected_path) = unit_test_path_for_source(source_file, package_path) else {
+            return false;
+        };
+        let source_stem = python_module_name(source_file).unwrap_or_default();
 
         for test_file in test_files {
             if test_file.parent() != expected_path.parent() {
                 continue;
             }
 
-            let Some(file_name) = test_file.file_name().and_then(std::ffi::OsStr::to_str) else {
+            let Some(module_stem) = python_test_module_name(test_file) else {
                 continue;
             };
-            if !file_name.starts_with("test_") {
-                continue;
-            }
-
-            let module_stem = test_file
-                .file_stem()
-                .and_then(std::ffi::OsStr::to_str)
-                .unwrap_or_default()
-                .strip_prefix("test_")
-                .unwrap_or_default();
             let candidates = candidate_module_names(
                 module_stem,
                 self.qualifier_strategy,
@@ -102,7 +94,10 @@ impl Rule for MappingMissingTestRule {
                 continue;
             }
 
-            let expected_test_path = expected_test_path(source_file, package_path);
+            let Some(expected_test_path) = unit_test_path_for_source(source_file, package_path)
+            else {
+                continue;
+            };
             findings.push(Finding::new(
                 self.rule_id.clone(),
                 BuiltinRule::MappingMissingTest.default_severity(),
@@ -122,25 +117,4 @@ impl Rule for MappingMissingTestRule {
 
         Ok(findings)
     }
-}
-
-fn expected_test_path(source_file: &Path, package_path: &Path) -> PathBuf {
-    let stem = if source_file
-        .file_name()
-        .is_some_and(|name| name == std::ffi::OsStr::new("__init__.py"))
-    {
-        "test___init__".to_owned()
-    } else {
-        format!(
-            "test_{}",
-            source_file
-                .file_stem()
-                .and_then(std::ffi::OsStr::to_str)
-                .unwrap_or_default()
-        )
-    };
-
-    package_path
-        .join(source_file.parent().unwrap_or_else(|| Path::new("")))
-        .join(format!("{stem}.py"))
 }

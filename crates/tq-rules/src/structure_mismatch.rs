@@ -1,13 +1,13 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-use tq_core::RelativePathBuf;
+use tq_core::{
+    RelativePathBuf, is_python_test_file, path_to_forward_slashes, python_test_module_name,
+    source_directory_for_unit_test,
+};
 use tq_engine::{AnalysisContext, Finding, Rule, RuleId};
 
-use crate::builtin::{
-    BuiltinRule, is_non_unit_test_path, is_unit_test_filename, path_to_forward_slashes,
-    starts_with_path_prefix,
-};
+use crate::builtin::{BuiltinRule, is_non_unit_test_path, starts_with_path_prefix};
 
 pub struct StructureMismatchRule {
     rule_id: RuleId,
@@ -42,16 +42,13 @@ impl Rule for StructureMismatchRule {
 
         let mut findings = Vec::new();
         for test_file in context.index().test_files() {
-            if is_non_unit_test_path(test_file) {
+            if is_non_unit_test_path(test_file) || !is_python_test_file(test_file) {
                 continue;
             }
 
-            let Some(file_name) = test_file.file_name().and_then(std::ffi::OsStr::to_str) else {
+            let Some(file_name) = test_file.file_name() else {
                 continue;
             };
-            if !is_unit_test_filename(file_name) {
-                continue;
-            }
 
             if !starts_with_path_prefix(test_file, package_path) {
                 if belongs_to_other_target(test_file, package_path, known_target_paths) {
@@ -120,10 +117,7 @@ fn resolve_source_candidate(
     source_files: &BTreeSet<PathBuf>,
     package_path: &Path,
 ) -> Option<PathBuf> {
-    let module_stem = test_file
-        .file_stem()
-        .and_then(std::ffi::OsStr::to_str)
-        .and_then(|stem| stem.strip_prefix("test_"))?;
+    let module_stem = python_test_module_name(test_file)?;
     for candidate in candidate_source_paths(test_file, module_stem, package_path) {
         if source_files.contains(&candidate) {
             return Some(candidate);
@@ -150,21 +144,9 @@ fn candidate_source_paths(
     module_stem: &str,
     package_path: &Path,
 ) -> Vec<PathBuf> {
-    let prefix_len = package_path.components().count();
-    let test_components = test_file.components().collect::<Vec<_>>();
-    let relative_components = test_components
-        .iter()
-        .skip(prefix_len)
-        .take(test_components.len().saturating_sub(prefix_len + 1))
-        .copied()
-        .collect::<Vec<_>>();
-
-    let relative_source_dir = relative_components
-        .iter()
-        .fold(PathBuf::new(), |path, component| {
-            path.join(component.as_os_str())
-        });
-
+    let Some(relative_source_dir) = source_directory_for_unit_test(test_file, package_path) else {
+        return Vec::new();
+    };
     let direct_source = relative_source_dir.join(format!("{module_stem}.py"));
     if !module_stem.contains('_') {
         return vec![direct_source];

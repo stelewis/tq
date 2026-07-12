@@ -1,9 +1,10 @@
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 
+use tq_core::path_to_forward_slashes;
 use tq_engine::{AnalysisContext, Finding, Rule, RuleId};
 
-use crate::builtin::{BuiltinRule, path_to_forward_slashes};
+use crate::builtin::BuiltinRule;
 use crate::error::RulesError;
 
 pub struct TestFileTooLargeRule {

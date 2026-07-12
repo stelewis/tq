@@ -1,14 +1,42 @@
 use std::path::Path;
 
 use tq_config::{
-    CliOverrides, InitModulesMode, QualifierStrategy, resolve_tq_config,
-    resolve_tq_config_with_user_config,
+    CliOverrides, DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES, InitModulesMode, QualifierStrategy,
+    resolve_tq_config, resolve_tq_config_with_user_config,
 };
 
 fn write(path: &Path, content: &str) {
     std::fs::create_dir_all(path.parent().expect("parent directory"))
         .expect("create parent directory");
     std::fs::write(path, content).expect("write file");
+}
+
+#[test]
+fn resolve_uses_shared_default_test_file_limit() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let config_path = temp.path().join("pyproject.toml");
+    write(
+        &config_path,
+        "[tool.tq]\n\
+         [[tool.tq.targets]]\n\
+         name = \"app\"\n\
+         package = \"pkg\"\n\
+         source_root = \"src\"\n\
+         test_root = \"tests\"\n",
+    );
+
+    let resolved = resolve_tq_config(
+        temp.path(),
+        Some(&config_path),
+        true,
+        &CliOverrides::default(),
+    )
+    .expect("config should resolve");
+
+    assert_eq!(
+        resolved.targets()[0].max_test_file_non_blank_lines(),
+        DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES
+    );
 }
 
 #[test]
