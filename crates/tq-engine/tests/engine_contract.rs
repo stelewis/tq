@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use tempfile::tempdir;
 use tq_core::{RelativePathBuf, TargetName};
-use tq_discovery::AnalysisIndex;
+use tq_discovery::{AnalysisIndex, AnalyzedTestFile};
 use tq_engine::{
     AnalysisContext, EngineError, EngineResult, Finding, Rule, RuleEngine, RuleId, Severity,
     TargetContext, aggregate_results,
@@ -208,7 +208,7 @@ fn test_context() -> AnalysisContext {
         &source_root,
         &test_root,
         vec![PathBuf::from("foo.py")],
-        vec![PathBuf::from("tq/test_foo.py")],
+        vec![AnalyzedTestFile::new(PathBuf::from("tq/test_foo.py"), 0)],
     )
     .expect("index should be created");
 

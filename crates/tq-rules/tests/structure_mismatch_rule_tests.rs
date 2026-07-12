@@ -3,7 +3,7 @@ mod support;
 use std::path::PathBuf;
 
 use tq_core::{RelativePathBuf, TargetName};
-use tq_discovery::AnalysisIndex;
+use tq_discovery::{AnalysisIndex, AnalyzedTestFile};
 use tq_engine::Rule;
 use tq_engine::{AnalysisContext, TargetContext};
 use tq_rules::StructureMismatchRule;
@@ -122,7 +122,7 @@ fn structure_rule_preserves_nested_test_root_in_suggestion() {
         &source_root,
         &test_root,
         vec![PathBuf::from("engine/runner.py")],
-        vec![PathBuf::from("tq/test_runner.py")],
+        vec![AnalyzedTestFile::new(PathBuf::from("tq/test_runner.py"), 0)],
     )
     .expect("index should be created");
     let context = AnalysisContext::with_target(

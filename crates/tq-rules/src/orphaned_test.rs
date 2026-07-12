@@ -78,6 +78,7 @@ impl Rule for OrphanedTestRule {
         let mut findings = Vec::new();
 
         for test_file in context.index().test_files() {
+            let test_file = test_file.path();
             if is_non_unit_test_path(test_file) || !tq_core::is_python_test_file(test_file) {
                 continue;
             }

@@ -1,8 +1,9 @@
-use std::fs;
+use std::fs::{self, File};
+use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use crate::index::normalize_existing_dir;
-use crate::{AnalysisIndex, DiscoveryError};
+use crate::{AnalysisIndex, AnalyzedTestFile, DiscoveryError};
 use tq_core::{is_python_module, is_python_test_file};
 
 pub fn build_analysis_index(
@@ -13,9 +14,35 @@ pub fn build_analysis_index(
     let test_root = normalize_existing_dir(test_root)?;
 
     let source_files = scan_files(&source_root, is_python_module)?;
-    let test_files = scan_files(&test_root, is_python_test_file)?;
+    let test_files = scan_files(&test_root, is_python_test_file)?
+        .into_iter()
+        .map(|path| analyze_test_file(&test_root, path))
+        .collect::<Result<Vec<_>, _>>()?;
 
-    AnalysisIndex::create(&source_root, &test_root, source_files, test_files)
+    AnalysisIndex::from_normalized_roots(source_root, test_root, source_files, test_files)
+}
+
+fn analyze_test_file(root: &Path, path: PathBuf) -> Result<AnalyzedTestFile, DiscoveryError> {
+    let full_path = root.join(&path);
+    let file = File::open(&full_path).map_err(|source| DiscoveryError::Io {
+        operation: "read_test_file",
+        path: full_path.clone(),
+        source,
+    })?;
+    let mut non_blank_non_comment_lines = 0;
+    for line in BufReader::new(file).lines() {
+        let line = line.map_err(|source| DiscoveryError::Io {
+            operation: "read_test_file",
+            path: full_path.clone(),
+            source,
+        })?;
+        let stripped = line.trim();
+        if !stripped.is_empty() && !stripped.starts_with('#') {
+            non_blank_non_comment_lines += 1;
+        }
+    }
+
+    Ok(AnalyzedTestFile::new(path, non_blank_non_comment_lines))
 }
 
 fn scan_files(root: &Path, matcher: fn(&Path) -> bool) -> Result<Vec<PathBuf>, DiscoveryError> {
@@ -49,6 +76,10 @@ fn scan_recursive(
             path: path.clone(),
             source,
         })?;
+
+        if file_type.is_symlink() {
+            continue;
+        }
 
         if is_ignored_path(&path) {
             continue;
@@ -88,7 +119,7 @@ mod tests {
 
     use tempfile::tempdir;
 
-    use crate::build_analysis_index;
+    use crate::{AnalysisIndex, build_analysis_index};
 
     fn write(path: &Path) {
         std::fs::create_dir_all(path.parent().expect("file parent path must exist"))
@@ -109,9 +140,56 @@ mod tests {
 
         assert_eq!(index.source_files(), &[PathBuf::from("engine/runner.py")]);
         assert_eq!(
-            index.test_files(),
+            test_paths(&index),
             &[PathBuf::from("tq/engine/test_runner.py")]
         );
+        assert_eq!(index.test_files()[0].non_blank_non_comment_lines(), 1);
+    }
+
+    #[test]
+    fn build_analysis_index_fails_when_test_file_cannot_be_decoded() {
+        let temp = tempdir().expect("tempdir");
+        let source_root = temp.path().join("src").join("tq");
+        let test_root = temp.path().join("tests");
+        write(&source_root.join("module.py"));
+        let test_file = test_root.join("tq").join("test_module.py");
+        std::fs::create_dir_all(test_file.parent().expect("test file parent"))
+            .expect("create test package dir");
+        std::fs::write(&test_file, [0xff, 0xfe, 0xfa]).expect("write invalid UTF-8");
+        let canonical_test_file =
+            std::fs::canonicalize(&test_file).expect("canonicalize test fixture");
+
+        let error = build_analysis_index(&source_root, &test_root)
+            .expect_err("invalid UTF-8 must fail discovery");
+
+        assert!(matches!(
+            error,
+            crate::DiscoveryError::Io {
+                operation: "read_test_file",
+                path,
+                ..
+            } if path == canonical_test_file
+        ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn build_analysis_index_ignores_symlink_entries() {
+        use std::os::unix::fs::symlink;
+
+        let temp = tempdir().expect("tempdir");
+        let source_root = temp.path().join("src").join("tq");
+        let test_root = temp.path().join("tests");
+        write(&source_root.join("module.py"));
+        std::fs::create_dir_all(test_root.join("tq")).expect("create test package dir");
+        let external_test = temp.path().join("external").join("test_module.py");
+        write(&external_test);
+        symlink(&external_test, test_root.join("tq").join("test_module.py"))
+            .expect("create test symlink");
+
+        let index = build_analysis_index(&source_root, &test_root).expect("index should build");
+
+        assert!(index.test_files().is_empty());
     }
 
     #[test]
@@ -128,7 +206,7 @@ mod tests {
         let index = build_analysis_index(&source_root, &test_root).expect("index should build");
 
         assert_eq!(index.source_files(), &[PathBuf::from("module.py")]);
-        assert_eq!(index.test_files(), &[PathBuf::from("tq/test_module.py")]);
+        assert_eq!(test_paths(&index), &[PathBuf::from("tq/test_module.py")]);
     }
 
     #[test]
@@ -146,8 +224,16 @@ mod tests {
 
         assert_eq!(index.source_files(), &[PathBuf::from("engine/runner.py")]);
         assert_eq!(
-            index.test_files(),
+            test_paths(&index),
             &[PathBuf::from("tq/engine/test_runner.py")]
         );
+    }
+
+    fn test_paths(index: &AnalysisIndex) -> Vec<PathBuf> {
+        index
+            .test_files()
+            .iter()
+            .map(|file| file.path().to_path_buf())
+            .collect()
     }
 }

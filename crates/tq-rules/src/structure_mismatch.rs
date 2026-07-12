@@ -42,10 +42,10 @@ impl Rule for StructureMismatchRule {
 
         let mut findings = Vec::new();
         for test_file in context.index().test_files() {
+            let test_file = test_file.path();
             if is_non_unit_test_path(test_file) || !is_python_test_file(test_file) {
                 continue;
             }
-
             let Some(file_name) = test_file.file_name() else {
                 continue;
             };

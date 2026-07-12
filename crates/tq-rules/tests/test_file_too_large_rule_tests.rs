@@ -5,25 +5,19 @@ use std::path::PathBuf;
 use tq_engine::Rule;
 use tq_rules::TestFileTooLargeRule;
 
-use crate::support::{context_with_target, create_dirs, fixture_workspace};
+use crate::support::{context_with_test_metrics, create_dirs, fixture_workspace};
 
 #[test]
-fn file_too_large_rule_counts_non_blank_non_comment_lines() {
+fn file_too_large_rule_uses_discovery_line_metrics() {
     let temp = fixture_workspace();
     let (source_root, test_root) = create_dirs(temp.path());
-    let test_file = test_root.join("tq").join("test_big.py");
-    std::fs::create_dir_all(test_root.join("tq")).expect("create test package dir");
-    std::fs::write(
-        test_file,
-        "\n# comment\n\ndef test_one():\n    assert True\n\ndef test_two():\n    assert True\n",
-    )
-    .expect("write test file");
+    let test_path = PathBuf::from("tq/test_big.py");
 
-    let context = context_with_target(
+    let context = context_with_test_metrics(
         &source_root,
         &test_root,
         vec![PathBuf::from("alpha.py")],
-        vec![PathBuf::from("tq/test_big.py")],
+        vec![(test_path, 4)],
         "tq",
         vec!["tq".to_owned()],
     );
@@ -39,34 +33,30 @@ fn file_too_large_rule_counts_non_blank_non_comment_lines() {
 }
 
 #[test]
-fn file_too_large_rule_emits_warning_for_unreadable_file() {
+fn file_too_large_rule_does_not_read_files_during_evaluation() {
     let temp = fixture_workspace();
     let (source_root, test_root) = create_dirs(temp.path());
-    std::fs::create_dir_all(test_root.join("tq")).expect("create test package dir");
-    std::fs::write(
-        test_root.join("tq").join("test_bad_encoding.py"),
-        [0xff, 0xfe, 0xfa],
-    )
-    .expect("write unreadable bytes");
+    let relative_path = PathBuf::from("tq/test_removed.py");
+    let full_path = test_root.join(&relative_path);
+    std::fs::create_dir_all(full_path.parent().expect("test file parent"))
+        .expect("create test package dir");
+    std::fs::write(&full_path, "def test_one():\n    assert True\n").expect("write test file");
 
-    let context = context_with_target(
+    let context = context_with_test_metrics(
         &source_root,
         &test_root,
         vec![PathBuf::from("alpha.py")],
-        vec![PathBuf::from("tq/test_bad_encoding.py")],
+        vec![(relative_path, 4)],
         "tq",
         vec!["tq".to_owned()],
     );
+    std::fs::remove_file(full_path).expect("remove file after discovery snapshot");
 
     let rule = TestFileTooLargeRule::new(3).expect("rule should be valid");
     let findings = rule
         .evaluate(&context)
-        .expect("rule evaluation should succeed");
+        .expect("rule evaluation should use snapshot data");
 
     assert_eq!(findings.len(), 1);
-    assert!(
-        findings[0]
-            .message()
-            .contains("Could not read test file for size check")
-    );
+    assert!(findings[0].path().ends_with("test_removed.py"));
 }

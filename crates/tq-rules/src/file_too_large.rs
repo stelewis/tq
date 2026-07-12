@@ -1,7 +1,3 @@
-use std::fs::File;
-use std::io::{self, BufRead, BufReader};
-
-use tq_core::path_to_forward_slashes;
 use tq_engine::{AnalysisContext, Finding, Rule, RuleId};
 
 use crate::builtin::BuiltinRule;
@@ -36,60 +32,25 @@ impl Rule for TestFileTooLargeRule {
         let mut findings = Vec::new();
 
         for test_file in context.index().test_files() {
-            let full_path = context.index().test_root().join(test_file);
-            match count_non_blank_non_comment_lines(&full_path) {
-                Ok(line_count) => {
-                    if line_count <= self.max_non_blank_lines {
-                        continue;
-                    }
-
-                    findings.push(Finding::new(
-                        self.rule_id.clone(),
-                        BuiltinRule::TestFileTooLarge.default_severity(),
-                        format!(
-                            "Test file is too large ({line_count} lines, limit: {})",
-                            self.max_non_blank_lines
-                        ),
-                        full_path,
-                        None,
-                        Some("Split this module into smaller focused test files".to_owned()),
-                        None,
-                    )?);
-                }
-                Err(_) => {
-                    findings.push(Finding::new(
-                        self.rule_id.clone(),
-                        BuiltinRule::TestFileTooLarge.default_severity(),
-                        format!(
-                            "Could not read test file for size check (path: {})",
-                            path_to_forward_slashes(test_file)
-                        ),
-                        full_path,
-                        None,
-                        Some("Ensure file exists and is UTF-8 decodable".to_owned()),
-                        None,
-                    )?);
-                }
+            let line_count = test_file.non_blank_non_comment_lines();
+            if line_count <= self.max_non_blank_lines {
+                continue;
             }
+
+            findings.push(Finding::new(
+                self.rule_id.clone(),
+                BuiltinRule::TestFileTooLarge.default_severity(),
+                format!(
+                    "Test file is too large ({line_count} lines, limit: {})",
+                    self.max_non_blank_lines
+                ),
+                context.index().test_root().join(test_file.path()),
+                None,
+                Some("Split this module into smaller focused test files".to_owned()),
+                None,
+            )?);
         }
 
         Ok(findings)
     }
-}
-
-fn count_non_blank_non_comment_lines(path: &std::path::Path) -> io::Result<u64> {
-    let file = File::open(path)?;
-    let reader = BufReader::new(file);
-
-    let mut line_count = 0;
-    for line in reader.lines() {
-        let line = line?;
-        let stripped = line.trim();
-        if stripped.is_empty() || stripped.starts_with('#') {
-            continue;
-        }
-        line_count += 1;
-    }
-
-    Ok(line_count)
 }

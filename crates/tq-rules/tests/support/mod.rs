@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use tempfile::TempDir;
 use tq_core::{RelativePathBuf, TargetName};
-use tq_discovery::AnalysisIndex;
+use tq_discovery::{AnalysisIndex, AnalyzedTestFile};
 use tq_engine::{AnalysisContext, TargetContext};
 
 pub fn fixture_workspace() -> TempDir {
@@ -17,6 +17,7 @@ pub fn create_dirs(root: &Path) -> (PathBuf, PathBuf) {
     (source_root, test_root)
 }
 
+#[allow(dead_code)]
 pub fn context_with_target(
     source_root: &Path,
     test_root: &Path,
@@ -25,6 +26,28 @@ pub fn context_with_target(
     package_path: &str,
     known_target_package_paths: Vec<String>,
 ) -> AnalysisContext {
+    context_with_test_metrics(
+        source_root,
+        test_root,
+        source_files,
+        test_files.into_iter().map(|path| (path, 0)).collect(),
+        package_path,
+        known_target_package_paths,
+    )
+}
+
+#[allow(dead_code)]
+pub fn context_with_test_metrics(
+    source_root: &Path,
+    test_root: &Path,
+    source_files: Vec<PathBuf>,
+    test_files: Vec<(PathBuf, u64)>,
+    package_path: &str,
+    known_target_package_paths: Vec<String>,
+) -> AnalysisContext {
+    let test_files = test_files
+        .into_iter()
+        .map(|(path, line_count)| AnalyzedTestFile::new(path, line_count));
     let index = AnalysisIndex::create(source_root, test_root, source_files, test_files)
         .expect("index should be created");
     let test_root_display = source_root

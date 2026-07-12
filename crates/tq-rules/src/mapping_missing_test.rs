@@ -1,10 +1,11 @@
 use std::collections::BTreeSet;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use tq_core::{
     InitModulesMode, path_to_forward_slashes, python_module_name, python_test_module_name,
     unit_test_path_for_source,
 };
+use tq_discovery::AnalyzedTestFile;
 use tq_engine::{AnalysisContext, Finding, Rule, RuleId};
 
 use crate::QualifierStrategy;
@@ -40,7 +41,7 @@ impl MappingMissingTestRule {
     fn has_matching_test(
         &self,
         source_file: &Path,
-        test_files: &[PathBuf],
+        test_files: &[AnalyzedTestFile],
         package_path: &Path,
     ) -> bool {
         let Some(expected_path) = unit_test_path_for_source(source_file, package_path) else {
@@ -49,6 +50,7 @@ impl MappingMissingTestRule {
         let source_stem = python_module_name(source_file).unwrap_or_default();
 
         for test_file in test_files {
+            let test_file = test_file.path();
             if test_file.parent() != expected_path.parent() {
                 continue;
             }
