@@ -331,6 +331,65 @@ fn aggregate_results_merges_and_sorts_findings() {
 }
 
 #[test]
+fn aggregate_results_uses_domain_stable_finding_order() {
+    let path = PathBuf::from("tests/tq/test_alpha.py");
+    let findings = vec![
+        Finding::new(
+            RuleId::parse("rule-b").expect("valid rule id"),
+            Severity::Info,
+            "a",
+            path.clone(),
+            Some(3),
+            Some("second suggestion".to_owned()),
+            None,
+        )
+        .expect("valid finding"),
+        Finding::new(
+            RuleId::parse("rule-a").expect("valid rule id"),
+            Severity::Warning,
+            "longer message",
+            path.clone(),
+            Some(3),
+            None,
+            None,
+        )
+        .expect("valid finding"),
+        Finding::new(
+            RuleId::parse("rule-b").expect("valid rule id"),
+            Severity::Info,
+            "a",
+            path,
+            Some(3),
+            Some("first suggestion".to_owned()),
+            None,
+        )
+        .expect("valid finding"),
+    ];
+
+    let merged = aggregate_results(&[EngineResult::new(findings)]);
+    let ordered = merged
+        .findings()
+        .iter()
+        .map(|finding| {
+            (
+                finding.rule_id().as_str(),
+                finding.message(),
+                finding.suggestion(),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        ordered,
+        vec![
+            ("rule-a", "longer message", None),
+            ("rule-b", "a", Some("first suggestion")),
+            ("rule-b", "a", Some("second suggestion")),
+        ]
+    );
+}
+
+#[test]
 fn engine_propagates_rule_errors_without_partial_results() {
     let context = test_context();
     let engine = RuleEngine::new(vec![

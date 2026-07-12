@@ -56,18 +56,29 @@ pub fn aggregate_results(results: &[EngineResult]) -> EngineResult {
     EngineResult::new(findings)
 }
 
-fn finding_sort_key(finding: &Finding) -> (String, String, u32, Severity, String, usize, String) {
-    (
-        finding
+#[derive(Eq, Ord, PartialEq, PartialOrd)]
+struct FindingOrderKey {
+    target: String,
+    path: String,
+    line: u32,
+    rule_id: String,
+    severity: Severity,
+    message: String,
+    suggestion: Option<String>,
+}
+
+fn finding_sort_key(finding: &Finding) -> FindingOrderKey {
+    FindingOrderKey {
+        target: finding
             .target()
             .map_or_else(String::new, ToString::to_string),
-        path_to_forward_slashes(finding.path()),
-        finding.line().unwrap_or(0),
-        finding.severity(),
-        finding.rule_id().as_str().to_owned(),
-        finding.message().len(),
-        finding.message().to_owned(),
-    )
+        path: path_to_forward_slashes(finding.path()),
+        line: finding.line().unwrap_or(0),
+        rule_id: finding.rule_id().as_str().to_owned(),
+        severity: finding.severity(),
+        message: finding.message().to_owned(),
+        suggestion: finding.suggestion().map(ToOwned::to_owned),
+    }
 }
 
 #[must_use]
