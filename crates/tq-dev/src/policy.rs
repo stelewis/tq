@@ -19,6 +19,7 @@ pub fn verify_tool_pins(repo_root: &Path) -> Result<(), DevError> {
     verify_cargo_msrv(repo_root, &manifest, &mut violations)?;
     verify_mise_tools(repo_root, &manifest, &mut violations)?;
     verify_node_package(repo_root, &manifest, &mut violations)?;
+    verify_mise_docs_action(repo_root, &manifest, &mut violations)?;
     verify_python_uv_action(repo_root, &manifest, &mut violations)?;
     verify_rust_maintenance_action(repo_root, &manifest, &mut violations)?;
     verify_maturin_release_builder(repo_root, &mut violations)?;
@@ -122,6 +123,29 @@ fn verify_node_package(
         "package.json engines.npm",
         manifest.npm.as_str(),
         &parse::required_json_string(&document, &["engines", "npm"], &path)?,
+    );
+    Ok(())
+}
+
+fn verify_mise_docs_action(
+    repo_root: &Path,
+    manifest: &DevToolsManifest,
+    violations: &mut Vec<String>,
+) -> Result<(), DevError> {
+    let path = repo_root.join(".github/actions/setup-mise-docs/action.yml");
+    let contents = parse::read_to_string(&path)?;
+    let inputs = parse::action_inputs(&contents, &path)?;
+    require_equal(
+        violations,
+        ".github/actions/setup-mise-docs/action.yml mise-version default",
+        manifest.mise.as_str(),
+        &parse::required_action_input_default(&inputs, "mise-version", &path)?,
+    );
+    require_equal(
+        violations,
+        ".github/actions/setup-mise-docs/action.yml mise-action version input",
+        "${{ inputs.mise-version }}",
+        &parse::required_action_step_with_value(&contents, "jdx/mise-action@", "version", &path)?,
     );
     Ok(())
 }

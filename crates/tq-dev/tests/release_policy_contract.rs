@@ -125,6 +125,22 @@ fn verify_release_policy_passes_when_workspace_and_dependabot_policies_pass() {
     write(
         &temp
             .path()
+            .join(".github/actions/setup-mise-docs/action.yml"),
+        concat!(
+            "inputs:\n",
+            "  mise-version:\n",
+            "    default: \"2026.7.5\"\n",
+            "runs:\n",
+            "  using: composite\n",
+            "  steps:\n",
+            "    - uses: jdx/mise-action@example\n",
+            "      with:\n",
+            "        version: ${{ inputs.mise-version }}\n",
+        ),
+    );
+    write(
+        &temp
+            .path()
             .join(".github/actions/setup-python-uv/action.yml"),
         concat!(
             "inputs:\n",

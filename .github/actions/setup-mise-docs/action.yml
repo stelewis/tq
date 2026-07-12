@@ -2,6 +2,10 @@ name: Setup mise docs toolchain
 description: Configure mise and install docs dependencies
 
 inputs:
+  mise-version:
+    description: Exact mise version to install
+    required: false
+    default: "2026.7.5"
   install-dependencies:
     description: Install docs npm dependencies after setting up mise
     required: false
@@ -12,8 +16,10 @@ runs:
   steps:
     - name: Set up mise
       uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+      with:
+        version: ${{ inputs.mise-version }}
 
     - name: Install docs dependencies
       if: ${{ inputs.install-dependencies == 'true' }}
       shell: bash
-      run: mise exec -- npm ci
+      run: mise exec -- npm ci --ignore-scripts

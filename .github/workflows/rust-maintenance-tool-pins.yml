@@ -67,6 +67,7 @@ jobs:
     if: ${{ github.event_name == 'schedule' }}
     needs: audit-maintenance-tool-pins
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       issues: write
@@ -98,6 +99,7 @@ jobs:
     if: ${{ needs.audit-maintenance-tool-pins.outputs.drift_detected == 'true' }}
     needs: audit-maintenance-tool-pins
     runs-on: ubuntu-latest
+    timeout-minutes: 1
     permissions: {}
     steps:
       - name: Fail on drift
