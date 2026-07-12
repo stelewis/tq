@@ -61,6 +61,11 @@ pub fn audit_security(repo_root: &Path) -> Result<AuditReport, DevError> {
                 signal: FindingsSignal::ExitCodeOne,
             },
             AuditCommand {
+                name: "uv-audit",
+                invocation: Invocation::new("uv", ["audit", "--locked"]),
+                signal: FindingsSignal::ExitCodeOne,
+            },
+            AuditCommand {
                 name: "npm-audit",
                 invocation: Invocation::new("npm", ["audit", "--audit-level", "moderate"]),
                 signal: FindingsSignal::ExitCodeOne,
