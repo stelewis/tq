@@ -9,6 +9,12 @@ use thiserror::Error;
 pub use domain::{
     PackageName, PackageNameError, RelativePathBuf, RelativePathError, TargetName, TargetNameError,
 };
+pub use paths::path_to_forward_slashes;
+pub use python::{
+    DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES, is_python_module, is_python_test_file,
+    python_module_name, python_test_module_name, source_directory_for_unit_test,
+    unit_test_path_for_source,
+};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Default)]
 pub enum Severity {
@@ -98,6 +104,7 @@ impl QualifierStrategy {
 pub struct RuleId(Cow<'static, str>);
 
 impl RuleId {
+    #[must_use]
     pub const fn from_static(value: &'static str) -> Self {
         assert!(has_valid_rule_id_format(value), "invalid static rule id");
         Self(Cow::Borrowed(value))
@@ -128,7 +135,7 @@ pub enum RuleIdError {
     InvalidFormat,
 }
 
-fn validate_rule_id(value: &str) -> Result<(), RuleIdError> {
+const fn validate_rule_id(value: &str) -> Result<(), RuleIdError> {
     if value.is_empty() {
         return Err(RuleIdError::Empty);
     }
@@ -178,10 +185,3 @@ mod tests {
         assert_eq!(STATIC_RULE_ID.as_str(), "mapping-missing-test");
     }
 }
-
-pub use paths::path_to_forward_slashes;
-pub use python::{
-    DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES, is_python_module, is_python_test_file,
-    python_module_name, python_test_module_name, source_directory_for_unit_test,
-    unit_test_path_for_source,
-};

@@ -15,10 +15,16 @@ pub struct StructureMismatchRule {
 
 impl StructureMismatchRule {
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             rule_id: BuiltinRule::StructureMismatch.rule_id(),
         }
+    }
+}
+
+impl Default for StructureMismatchRule {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
