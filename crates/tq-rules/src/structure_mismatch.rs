@@ -14,10 +14,11 @@ pub struct StructureMismatchRule {
 }
 
 impl StructureMismatchRule {
-    pub fn new() -> Result<Self, crate::error::RulesError> {
-        Ok(Self {
-            rule_id: BuiltinRule::StructureMismatch.rule_id()?,
-        })
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            rule_id: BuiltinRule::StructureMismatch.rule_id(),
+        }
     }
 }
 

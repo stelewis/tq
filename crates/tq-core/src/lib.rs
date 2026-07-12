@@ -96,6 +96,11 @@ impl QualifierStrategy {
 pub struct RuleId(Cow<'static, str>);
 
 impl RuleId {
+    pub const fn from_static(value: &'static str) -> Self {
+        assert!(has_valid_rule_id_format(value), "invalid static rule id");
+        Self(Cow::Borrowed(value))
+    }
+
     pub fn parse(value: &str) -> Result<Self, RuleIdError> {
         validate_rule_id(value)?;
         Ok(Self(Cow::Owned(value.to_owned())))
@@ -126,35 +131,48 @@ fn validate_rule_id(value: &str) -> Result<(), RuleIdError> {
         return Err(RuleIdError::Empty);
     }
 
-    let mut chars = value.chars();
-    let Some(first) = chars.next() else {
-        return Err(RuleIdError::Empty);
-    };
-
-    if !first.is_ascii_lowercase() {
-        return Err(RuleIdError::InvalidFormat);
-    }
-
-    let mut previous_was_dash = false;
-    for character in chars {
-        if character == '-' {
-            if previous_was_dash {
-                return Err(RuleIdError::InvalidFormat);
-            }
-            previous_was_dash = true;
-            continue;
-        }
-
-        if !character.is_ascii_lowercase() && !character.is_ascii_digit() {
-            return Err(RuleIdError::InvalidFormat);
-        }
-
-        previous_was_dash = false;
-    }
-
-    if previous_was_dash {
+    if !has_valid_rule_id_format(value) {
         return Err(RuleIdError::InvalidFormat);
     }
 
     Ok(())
+}
+
+const fn has_valid_rule_id_format(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.is_empty() || !bytes[0].is_ascii_lowercase() {
+        return false;
+    }
+
+    let mut index = 1;
+    let mut previous_was_dash = false;
+    while index < bytes.len() {
+        let byte = bytes[index];
+        if byte == b'-' {
+            if previous_was_dash {
+                return false;
+            }
+            previous_was_dash = true;
+        } else {
+            if !byte.is_ascii_lowercase() && !byte.is_ascii_digit() {
+                return false;
+            }
+            previous_was_dash = false;
+        }
+        index += 1;
+    }
+
+    !previous_was_dash
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RuleId;
+
+    const STATIC_RULE_ID: RuleId = RuleId::from_static("mapping-missing-test");
+
+    #[test]
+    fn static_rule_id_uses_valid_borrowed_literal() {
+        assert_eq!(STATIC_RULE_ID.as_str(), "mapping-missing-test");
+    }
 }

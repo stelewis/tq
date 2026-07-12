@@ -27,7 +27,7 @@ impl MappingMissingTestRule {
         }
 
         Ok(Self {
-            rule_id: BuiltinRule::MappingMissingTest.rule_id()?,
+            rule_id: BuiltinRule::MappingMissingTest.rule_id(),
             init_modules,
             qualifier_strategy,
             allowed_qualifiers,

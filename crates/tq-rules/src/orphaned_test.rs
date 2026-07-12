@@ -27,7 +27,7 @@ impl OrphanedTestRule {
         }
 
         Ok(Self {
-            rule_id: BuiltinRule::OrphanedTest.rule_id()?,
+            rule_id: BuiltinRule::OrphanedTest.rule_id(),
             qualifier_strategy,
             allowed_qualifiers,
         })

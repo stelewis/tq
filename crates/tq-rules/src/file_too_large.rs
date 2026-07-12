@@ -18,7 +18,7 @@ impl TestFileTooLargeRule {
         }
 
         Ok(Self {
-            rule_id: BuiltinRule::TestFileTooLarge.rule_id()?,
+            rule_id: BuiltinRule::TestFileTooLarge.rule_id(),
             max_non_blank_lines,
         })
     }
