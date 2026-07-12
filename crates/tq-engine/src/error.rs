@@ -1,5 +1,4 @@
 use thiserror::Error;
-use tq_discovery::DiscoveryError;
 
 #[derive(Debug, Error)]
 pub enum EngineError {
@@ -9,6 +8,4 @@ pub enum EngineError {
     EmptyFindingMessage,
     #[error("Finding line must be >= 1 when provided")]
     InvalidFindingLine,
-    #[error(transparent)]
-    Discovery(#[from] DiscoveryError),
 }

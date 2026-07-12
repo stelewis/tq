@@ -11,7 +11,8 @@ use tq_config::{
     CliOverrides, InitModulesMode, QualifierStrategy, RuleId, Severity, TqTargetConfig,
     resolve_tq_config,
 };
-use tq_engine::{RuleEngine, TargetPlanInput, aggregate_results, plan_target_runs};
+use tq_discovery::build_analysis_index;
+use tq_engine::{AnalysisContext, RuleEngine, TargetContext, aggregate_results};
 use tq_reporting::{JsonReporter, TextReporter, TextStyling};
 use tq_rules::{
     BuiltinRuleOptions, BuiltinRuleRegistry, RuleSelection, validate_severity_override_rule_ids,
@@ -72,12 +73,25 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
     let active_targets = select_targets(config.targets(), &args.target_names)?;
     validate_active_targets(&active_targets)?;
 
-    let configured_targets = build_target_inputs(config.targets())?;
-    let active_target_inputs = build_target_inputs(&active_targets)?;
-    let planned_runs = plan_target_runs(&configured_targets, &active_target_inputs)?;
+    let known_target_package_paths = config
+        .targets()
+        .iter()
+        .map(|target| target.package_path().clone())
+        .collect::<Vec<_>>();
+    let mut target_results = Vec::with_capacity(active_targets.len());
+    for target_config in &active_targets {
+        let index = build_analysis_index(
+            &target_config.source_package_root(),
+            target_config.test_root(),
+        )?;
+        let target_context = TargetContext::new(
+            target_config.name().clone(),
+            target_config.package_path().clone(),
+            known_target_package_paths.clone(),
+            target_config.test_root_display().to_path_buf(),
+        );
+        let analysis_context = AnalysisContext::with_target(index, target_context);
 
-    let mut target_results = Vec::with_capacity(planned_runs.len());
-    for (target_config, planned_run) in active_targets.iter().zip(planned_runs) {
         let options = BuiltinRuleOptions::new(
             target_config.init_modules(),
             target_config.max_test_file_non_blank_lines(),
@@ -91,7 +105,7 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
         let rules = BuiltinRuleRegistry::build_rules(&selection, &options)?;
         let engine = RuleEngine::new(rules)?;
         let result = engine
-            .run(planned_run.context())?
+            .run(&analysis_context)?
             .with_severity_overrides(target_config.severity_overrides());
         target_results.push(result);
     }
@@ -218,21 +232,6 @@ fn validate_target_paths(target: &TqTargetConfig) -> Result<()> {
     }
 
     Ok(())
-}
-
-fn build_target_inputs(targets: &[TqTargetConfig]) -> Result<Vec<TargetPlanInput>> {
-    targets
-        .iter()
-        .map(|target| {
-            Ok(TargetPlanInput::new(
-                target.name().clone(),
-                target.package_path().clone(),
-                target.source_package_root(),
-                target.test_root().to_path_buf(),
-                target.test_root_display().to_path_buf(),
-            ))
-        })
-        .collect()
 }
 
 const fn map_cli_qualifier_strategy(strategy: QualifierStrategyArg) -> QualifierStrategy {

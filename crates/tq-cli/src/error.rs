@@ -2,6 +2,7 @@ use std::path::Path;
 
 use thiserror::Error;
 use tq_config::ConfigError;
+use tq_discovery::DiscoveryError;
 use tq_engine::EngineError;
 use tq_reporting::ReportingError;
 use tq_rules::RulesError;
@@ -24,6 +25,8 @@ pub enum CliError {
     MissingTestRoot { target: String, path: String },
     #[error(transparent)]
     Config(#[from] ConfigError),
+    #[error(transparent)]
+    Discovery(#[from] DiscoveryError),
     #[error(transparent)]
     Engine(#[from] EngineError),
     #[error(transparent)]

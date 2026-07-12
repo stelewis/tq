@@ -530,6 +530,7 @@ dependencies = [
  "thiserror",
  "tq-config",
  "tq-core",
+ "tq-discovery",
  "tq-engine",
  "tq-reporting",
  "tq-rules",
