@@ -40,19 +40,19 @@ Use breaking internal API changes freely. Do not add compatibility wrappers, fal
 - [x] Add or move shared vocabulary into `tq-core` for path display normalization, Python test-file naming, test/source path mapping, and default rule options. Downstream crates should import the shared owner rather than reimplementing local helpers.
 - [x] Delete duplicate implementations of `path_to_forward_slashes`, `is_test_module`/`is_unit_test_filename`, `strip_prefix("test_")` mapping logic, and the hardcoded `600` max-test-file default from downstream crates.
 - [x] Decide and document symlink behavior in `tq-discovery`: either report skipped symlinks as diagnostics or explicitly model them as ignored entries. Keep traversal defenses strict for `..`, absolute paths, symlinks, and root escape.
-- [ ] Tighten ordering semantics in `tq-engine` reporting if needed. If the current message-length sort is intentional, name the ordering contract; otherwise replace it with a domain-stable sort key.
+- [x] Tighten ordering semantics in `tq-engine` reporting if needed. If the current message-length sort is intentional, name the ordering contract; otherwise replace it with a domain-stable sort key.
 - [x] Add cross-crate tests for shared test-file vocabulary, default propagation, pure engine planning with prebuilt analysis context, and discovery symlink behavior.
 
 ### 4. Move remaining workflow policy logic into `tq-dev`
 
-- Replace the inline `change-scope` classifier in [.github/workflows/ci.yml](../../.github/workflows/ci.yml) with a tested `cargo dev` command that returns typed scope results for docs-only, runtime dependency, security, and release-relevant changes. Treat unknown paths as requiring the broader gate, not as safe to skip.
-- Replace the frozen pre-commit policy Ruby in [.github/workflows/frozen-pre-commit-policy.yml](../../.github/workflows/frozen-pre-commit-policy.yml) with a `cargo dev policy` subcommand that reuses the YAML parsing boundary documented in [ADR 0003](../adr/0003-hand-rolled-yaml-parsing-in-tq-dev.md).
-- Replace the pinned-actions sed/bash policy in [.github/workflows/pinned-actions-policy.yml](../../.github/workflows/pinned-actions-policy.yml) with a `cargo dev policy` subcommand that shares the external action reference scanner with the scheduled drift audit.
-- Move release artifact set validation from [.github/scripts/verify-release-artifact-set.sh](../../.github/scripts/verify-release-artifact-set.sh) into `cargo dev release verify-artifacts`, alongside artifact content policy. The Rust verifier should validate both the expected artifact set and forbidden archive members in one typed report.
-- Remove obsolete scripts and workflow heredocs after each replacement lands. Do not keep the shell/Ruby versions as fallback paths.
-- Scope docs Pages permissions to the deploy job in [.github/workflows/docs-pages.yml](../../.github/workflows/docs-pages.yml), and consider `npm ci --ignore-scripts` for docs dependency installation unless the docs build proves lifecycle scripts are required.
-- Add missing workflow `timeout-minutes` values for drift issue sync/fail jobs and Copilot setup where they are currently absent.
-- Add integration tests for each new `tq-dev` workflow command, including fail-closed behavior for unknown change paths, malformed action refs, non-SHA pre-commit revisions, and malformed artifact sets.
+- [x] Replace the inline `change-scope` classifier in [.github/workflows/ci.yml](../../.github/workflows/ci.yml) with a tested `cargo dev` command that returns typed scope results for docs-only, runtime dependency, security, and release-relevant changes. Treat unknown paths as requiring the broader gate, not as safe to skip.
+- [x] Replace the frozen pre-commit policy Ruby in [.github/workflows/frozen-pre-commit-policy.yml](../../.github/workflows/frozen-pre-commit-policy.yml) with a `cargo dev policy` subcommand that reuses the YAML parsing boundary documented in [ADR 0003](../adr/0003-hand-rolled-yaml-parsing-in-tq-dev.md).
+- [x] Replace the pinned-actions sed/bash policy in [.github/workflows/pinned-actions-policy.yml](../../.github/workflows/pinned-actions-policy.yml) with a `cargo dev policy` subcommand that shares the external action reference scanner with the scheduled drift audit.
+- [x] Move release artifact set validation from the deleted `verify-release-artifact-set.sh` script into `cargo dev release verify-artifacts`, alongside artifact content policy. The Rust verifier should validate both the expected artifact set and forbidden archive members in one typed report.
+- [x] Remove obsolete scripts and workflow heredocs after each replacement lands. Do not keep the shell/Ruby versions as fallback paths.
+- [x] Scope docs Pages permissions to the deploy job in [.github/workflows/docs-pages.yml](../../.github/workflows/docs-pages.yml), and consider `npm ci --ignore-scripts` for docs dependency installation unless the docs build proves lifecycle scripts are required.
+- [x] Add missing workflow `timeout-minutes` values for drift issue sync/fail jobs and Copilot setup where they are currently absent.
+- [x] Add integration tests for each new `tq-dev` workflow command, including fail-closed behavior for unknown change paths, malformed action refs, non-SHA pre-commit revisions, and malformed artifact sets.
 
 ## Verification
 
@@ -60,7 +60,7 @@ Use breaking internal API changes freely. Do not add compatibility wrappers, fal
 - Run `cargo clippy --workspace --all-targets --locked -- -D warnings` after each Rust tranche.
 - Run `cargo test --workspace --locked` after each Rust tranche and after workflow-command migrations.
 - Run `cargo dev policy verify-pins --repo-root .` after changing tool pins, release build commands, or workflow surfaces that consume `.github/dev-tools.toml`.
-- Run `cargo dev release build --dry-run --repo-root .` and `cargo dev release verify-artifacts --dist-dir dist` for release-plan and artifact-verifier changes. For verifier changes, include synthetic fixture coverage rather than relying only on live `dist/` contents.
+- Run `cargo dev release build --dry-run --repo-root .` and `cargo dev release verify-artifacts --dist-dir dist --profile <expected-profile>` for release-plan and artifact-verifier changes. For verifier changes, include synthetic fixture coverage rather than relying only on live `dist/` contents.
 - Run `cargo dev check --profile full all --repo-root .` before considering the plan complete.
 - Review workflow diffs for permissions, checkout credentials, SHA pinning, timeout coverage, and absence of inline parsing logic.
 - Confirm that deleted fallback paths are actually gone with targeted searches for `maturin>=`, `refs/tags/${{`, `if let Ok(finding)`, workflow Ruby heredocs, pinned-action sed parsing, and `verify-release-artifact-set.sh` references.

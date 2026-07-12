@@ -139,7 +139,7 @@ Forbidden repository paths in wheel and sdist artifacts:
 
 Enforcement:
 
-- CI and publish checks run `cargo dev release verify-artifacts --dist-dir dist`
+- CI and publish checks run `cargo dev release verify-artifacts --dist-dir dist --profile <expected-profile>` to validate the expected artifact topology and archive contents together
 
 Why this matters:
 

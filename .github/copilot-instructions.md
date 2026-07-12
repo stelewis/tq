@@ -34,7 +34,7 @@ Use the Rust workspace for product code and `uv` for packaging and repository au
   - Runtime dependency change check: `cargo dev runtime-deps --repo-root . --base-ref <base> --head-ref <head>`
   - Release build plan: `cargo dev release build --dry-run --repo-root .`
   - Release build: `cargo dev release build --repo-root .`
-  - Release artifact policy: `cargo dev release verify-artifacts --dist-dir dist`
+  - Release artifact policy: `cargo dev release verify-artifacts --dist-dir dist --profile <expected-profile>`
 - Python: `uv run python <args>`
 - File system operations: `git mv`, `git rm`, `mv`, `rm`
 - For complex multiline shell input that causes terminal wrapping issues, write a temporary script in `tmp/` instead.

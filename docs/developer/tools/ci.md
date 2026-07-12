@@ -43,7 +43,7 @@ The workspace uses the pinned MSRV from `rust-toolchain.toml`. CI installs `carg
 
 The docs dependency audit uses `npm audit --package-lock-only` and only reruns in main CI when the Node or docs-toolchain surface changes. The scheduled docs security workflow covers advisory churn for the VitePress toolchain between repository changes. The docs sync and docs build jobs follow the same model: they are skipped unless docs content, docs generator inputs, generated reference outputs, or docs-toolchain files changed.
 
-When you add a new dependency manifest, lockfile, security-policy file, or workflow/composite action that owns scanner behavior, update the `change-scope` path gates in `.github/workflows/ci.yml`. Ordinary source or docs files under already covered directories do not usually require gate changes.
+The `cargo dev change-scope` command owns CI path classification. Its tracked-path contract requires every repository path family to be classified explicitly, and unknown paths enable the broad gate rather than skipping security or documentation checks.
 
 The stale dependency workflow installs `cargo-outdated` separately from the product toolchain and checks only root workspace dependencies. This complements Dependabot and other policy checks: `cargo audit` catches published advisories, `cargo deny` enforces explicit bans plus license and source policy, `npm audit --package-lock-only` covers the docs lockfile, and `cargo outdated` surfaces ordinary version drift.
 
@@ -53,4 +53,4 @@ The maintenance-tool pin workflow covers the embedded versions in `.github/actio
 
 On SemVer tag pushes, the unprivileged CI build jobs validate and upload release-candidate wheel and sdist artifacts, then a separate tag-only CI job downloads the full artifact set, generates provenance attestations, and uploads the final `validated-dist` artifact for promotion.
 
-The publish workflow runs after that successful tag-triggered CI run, downloads the validated wheels and sdist from CI, verifies the CI-generated provenance attestations, rejects native `linux_*` wheel tags before upload, re-runs artifact content policy validation with `cargo dev release verify-artifacts`, smoke-tests the Linux wheel and sdist on the publish runner, publishes to PyPI with `uv publish`, verifies the consumer-facing Linux wheel, and uploads the release assets and checksums to the GitHub release for the SemVer tag.
+The publish workflow runs after that successful tag-triggered CI run, downloads the validated wheels and sdist from CI, re-runs full artifact-set and archive-content policy validation with `cargo dev release verify-artifacts --dist-dir dist --profile full-release`, verifies the CI-generated provenance attestations, smoke-tests the Linux wheel and sdist on the publish runner, publishes to PyPI with `uv publish`, verifies the consumer-facing Linux wheel, and uploads the release assets and checksums to the GitHub release for the SemVer tag.

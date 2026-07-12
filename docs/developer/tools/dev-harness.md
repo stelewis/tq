@@ -63,6 +63,8 @@ Verifies repository policy invariants.
 | `cargo dev policy verify-release --repo-root .` | Runs the aggregate release policy gate. |
 | `cargo dev policy verify-dependabot --repo-root .` | Verifies Dependabot coverage. |
 | `cargo dev policy verify-workspace-version --repo-root .` | Verifies workspace version consistency. |
+| `cargo dev policy verify-action-pins --repo-root .` | Verifies external GitHub Actions use full commit SHAs. |
+| `cargo dev policy verify-pre-commit-pins --repo-root .` | Verifies external pre-commit repositories use full commit SHAs. |
 | `cargo dev policy audit-external-pins --repo-root .` | Reports drift in frozen GitHub Action and pre-commit pins. |
 
 Policy verification commands are CI-safe and do not mutate the repository.
@@ -75,7 +77,9 @@ Builds and verifies release artifacts.
 | --- | --- |
 | `cargo dev release build --repo-root .` | Builds the local release sdist and host wheel. |
 | `cargo dev release build-tool-requirements --repo-root .` | Prints the exact Python build tool requirements from `.github/dev-tools.toml` as GitHub output. |
-| `cargo dev release verify-artifacts --dist-dir dist` | Verifies release artifact contents against repository policy. |
+| `cargo dev release verify-artifacts --dist-dir dist --profile <expected-profile>` | Verifies the expected artifact set, platform tags, and archive contents. |
+
+Artifact profiles cover an sdist, each platform wheel, a platform wheel with an sdist, and the complete publishable release set. Use `cargo dev release verify-artifacts --help` for the accepted profile names.
 
 Use `--dry-run` with `release build` to print the artifact build plan without changing `dist/`.
 

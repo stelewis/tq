@@ -45,11 +45,11 @@ Repository-policy and release artifact checks are enforced by the `tq-dev` harne
 
 - `cargo dev check all --repo-root .`
 - `cargo dev check --profile full all --repo-root .`
-- `cargo dev release verify-artifacts --dist-dir dist`
+- `cargo dev release verify-artifacts --dist-dir dist --profile <expected-profile>`
 
 The release-policy verifier checks workspace versioning policy, GitHub Actions Dependabot coverage policy, and release build tool pinning together.
 
-The artifact verifier inspects built wheels and sdists for repository-only paths such as `scripts/`, `tests/`, `docs/`, `tmp/`, and `.github/`. Wheel installer script locations under `.data/scripts/` are allowed because that is where the packaged `tq` executable lives.
+The artifact verifier checks the profile-specific wheel and sdist set, rejects unsupported or native Linux wheel tags, and inspects archives for repository-only paths such as `scripts/`, `tests/`, `docs/`, `tmp/`, and `.github/`. Wheel installer script locations under `.data/scripts/` are allowed because that is where the packaged `tq` executable lives.
 
 ## Release artifact shape
 

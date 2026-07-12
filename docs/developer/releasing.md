@@ -23,7 +23,7 @@ The workflow performs:
 - download of the validated wheels and sdist produced by the successful tag CI run
 - promotion of artifacts that were built in an unprivileged CI job and attested in a separate tag-only CI job
 - verification of the CI-generated artifact attestations
-- artifact content policy validation via `cargo dev release verify-artifacts`
+- full artifact-set and archive-content policy validation via `cargo dev release verify-artifacts --dist-dir dist --profile full-release`
 - package metadata validation (`twine check dist/*`)
 - smoke checks against the validated Linux wheel and sdist entrypoints
 - fixture smoke validation with the validated Linux wheel
