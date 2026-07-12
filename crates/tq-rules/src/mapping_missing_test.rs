@@ -79,11 +79,13 @@ impl MappingMissingTestRule {
 }
 
 impl Rule for MappingMissingTestRule {
+    type Error = RulesError;
+
     fn rule_id(&self) -> &RuleId {
         &self.rule_id
     }
 
-    fn evaluate(&self, context: &AnalysisContext) -> Vec<Finding> {
+    fn evaluate(&self, context: &AnalysisContext) -> Result<Vec<Finding>, Self::Error> {
         let package_path = context.package_path();
         let mut findings = Vec::new();
 
@@ -101,7 +103,7 @@ impl Rule for MappingMissingTestRule {
             }
 
             let expected_test_path = expected_test_path(source_file, package_path);
-            if let Ok(finding) = Finding::new(
+            findings.push(Finding::new(
                 self.rule_id.clone(),
                 BuiltinRule::MappingMissingTest.default_severity(),
                 format!(
@@ -115,12 +117,10 @@ impl Rule for MappingMissingTestRule {
                     path_to_forward_slashes(&expected_test_path)
                 )),
                 None,
-            ) {
-                findings.push(finding);
-            }
+            )?);
         }
 
-        findings
+        Ok(findings)
     }
 }
 

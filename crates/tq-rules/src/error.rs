@@ -1,6 +1,6 @@
 use thiserror::Error;
 use tq_core::RuleIdError;
-use tq_engine::RuleId;
+use tq_engine::{EngineError, RuleId};
 
 #[derive(Debug, Error)]
 pub enum RulesError {
@@ -18,6 +18,8 @@ pub enum RulesError {
     UnknownBuiltinRuleIds { ids: String },
     #[error("Rules registry defines duplicate built-in rule IDs")]
     DuplicateBuiltinRuleIds,
+    #[error("Rule produced an invalid finding: {0}")]
+    InvalidFinding(#[from] EngineError),
 }
 
 impl RulesError {

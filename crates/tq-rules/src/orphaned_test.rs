@@ -74,11 +74,13 @@ impl OrphanedTestRule {
 }
 
 impl Rule for OrphanedTestRule {
+    type Error = RulesError;
+
     fn rule_id(&self) -> &RuleId {
         &self.rule_id
     }
 
-    fn evaluate(&self, context: &AnalysisContext) -> Vec<Finding> {
+    fn evaluate(&self, context: &AnalysisContext) -> Result<Vec<Finding>, Self::Error> {
         let package_path = context.package_path();
         let source_files = context
             .index()
@@ -108,7 +110,7 @@ impl Rule for OrphanedTestRule {
                 continue;
             }
 
-            if let Ok(finding) = Finding::new(
+            findings.push(Finding::new(
                 self.rule_id.clone(),
                 BuiltinRule::OrphanedTest.default_severity(),
                 format!(
@@ -122,11 +124,9 @@ impl Rule for OrphanedTestRule {
                         .to_owned(),
                 ),
                 None,
-            ) {
-                findings.push(finding);
-            }
+            )?);
         }
 
-        findings
+        Ok(findings)
     }
 }

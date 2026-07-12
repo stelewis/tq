@@ -65,7 +65,10 @@ impl BuiltinRule {
         }
     }
 
-    fn build(self, options: &BuiltinRuleOptions) -> Result<Box<dyn Rule>, RulesError> {
+    fn build(
+        self,
+        options: &BuiltinRuleOptions,
+    ) -> Result<Box<dyn Rule<Error = RulesError>>, RulesError> {
         match self {
             Self::MappingMissingTest => Ok(Box::new(MappingMissingTestRule::new(
                 options.init_modules(),
@@ -179,10 +182,11 @@ impl BuiltinRuleRegistry {
     pub fn build_rules(
         selection: &RuleSelection,
         options: &BuiltinRuleOptions,
-    ) -> Result<Vec<Box<dyn Rule>>, RulesError> {
+    ) -> Result<Vec<Box<dyn Rule<Error = RulesError>>>, RulesError> {
         let active_rules = resolve_active_rules(selection)?;
 
-        let mut rules: Vec<Box<dyn Rule>> = Vec::with_capacity(active_rules.len());
+        let mut rules: Vec<Box<dyn Rule<Error = RulesError>>> =
+            Vec::with_capacity(active_rules.len());
         for builtin_rule in active_rules {
             rules.push(builtin_rule.build(options)?);
         }

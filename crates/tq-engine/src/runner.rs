@@ -4,17 +4,19 @@ use crate::context::path_to_forward_slashes;
 use crate::{AnalysisContext, EngineError, EngineResult, Finding, RuleId, Severity};
 
 pub trait Rule {
+    type Error;
+
     fn rule_id(&self) -> &RuleId;
-    fn evaluate(&self, context: &AnalysisContext) -> Vec<Finding>;
+    fn evaluate(&self, context: &AnalysisContext) -> Result<Vec<Finding>, Self::Error>;
 }
 
 #[derive(Default)]
-pub struct RuleEngine {
-    rules: Vec<Box<dyn Rule>>,
+pub struct RuleEngine<E> {
+    rules: Vec<Box<dyn Rule<Error = E>>>,
 }
 
-impl RuleEngine {
-    pub fn new(rules: Vec<Box<dyn Rule>>) -> Result<Self, EngineError> {
+impl<E> RuleEngine<E> {
+    pub fn new(rules: Vec<Box<dyn Rule<Error = E>>>) -> Result<Self, EngineError> {
         let rule_ids = rules
             .iter()
             .map(|rule| rule.rule_id().clone())
@@ -26,12 +28,11 @@ impl RuleEngine {
         Ok(Self { rules })
     }
 
-    #[must_use]
-    pub fn run(&self, context: &AnalysisContext) -> EngineResult {
+    pub fn run(&self, context: &AnalysisContext) -> Result<EngineResult, E> {
         let mut findings = Vec::new();
 
         for rule in &self.rules {
-            let rule_findings = rule.evaluate(context);
+            let rule_findings = rule.evaluate(context)?;
             findings.extend(
                 rule_findings
                     .iter()
@@ -40,7 +41,7 @@ impl RuleEngine {
         }
 
         findings.sort_by_key(finding_sort_key);
-        EngineResult::new(findings)
+        Ok(EngineResult::new(findings))
     }
 }
 

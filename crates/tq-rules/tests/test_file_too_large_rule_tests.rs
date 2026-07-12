@@ -29,7 +29,9 @@ fn file_too_large_rule_counts_non_blank_non_comment_lines() {
     );
 
     let rule = TestFileTooLargeRule::new(3).expect("rule should be valid");
-    let findings = rule.evaluate(&context);
+    let findings = rule
+        .evaluate(&context)
+        .expect("rule evaluation should succeed");
 
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].rule_id().as_str(), "test-file-too-large");
@@ -57,7 +59,9 @@ fn file_too_large_rule_emits_warning_for_unreadable_file() {
     );
 
     let rule = TestFileTooLargeRule::new(3).expect("rule should be valid");
-    let findings = rule.evaluate(&context);
+    let findings = rule
+        .evaluate(&context)
+        .expect("rule evaluation should succeed");
 
     assert_eq!(findings.len(), 1);
     assert!(

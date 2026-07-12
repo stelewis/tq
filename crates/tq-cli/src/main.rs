@@ -91,7 +91,7 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
         let rules = BuiltinRuleRegistry::build_rules(&selection, &options)?;
         let engine = RuleEngine::new(rules)?;
         let result = engine
-            .run(planned_run.context())
+            .run(planned_run.context())?
             .with_severity_overrides(target_config.severity_overrides());
         target_results.push(result);
     }

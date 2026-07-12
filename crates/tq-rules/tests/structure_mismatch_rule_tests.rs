@@ -25,7 +25,9 @@ fn structure_rule_emits_warning_for_misplaced_test() {
     );
 
     let rule = StructureMismatchRule::new().expect("rule should be valid");
-    let findings = rule.evaluate(&context);
+    let findings = rule
+        .evaluate(&context)
+        .expect("rule evaluation should succeed");
 
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].rule_id().as_str(), "structure-mismatch");
@@ -51,7 +53,9 @@ fn structure_rule_allows_correctly_placed_test() {
     );
 
     let rule = StructureMismatchRule::new().expect("rule should be valid");
-    let findings = rule.evaluate(&context);
+    let findings = rule
+        .evaluate(&context)
+        .expect("rule evaluation should succeed");
 
     assert!(findings.is_empty());
 }
@@ -74,7 +78,9 @@ fn structure_rule_skips_non_unit_scopes() {
     );
 
     let rule = StructureMismatchRule::new().expect("rule should be valid");
-    let findings = rule.evaluate(&context);
+    let findings = rule
+        .evaluate(&context)
+        .expect("rule evaluation should succeed");
 
     assert!(findings.is_empty());
 }
@@ -97,7 +103,9 @@ fn structure_rule_ignores_sibling_target_tests() {
     );
 
     let rule = StructureMismatchRule::new().expect("rule should be valid");
-    let findings = rule.evaluate(&context);
+    let findings = rule
+        .evaluate(&context)
+        .expect("rule evaluation should succeed");
 
     assert!(findings.is_empty());
 }
@@ -128,7 +136,9 @@ fn structure_rule_preserves_nested_test_root_in_suggestion() {
     );
 
     let rule = StructureMismatchRule::new().expect("rule should be valid");
-    let findings = rule.evaluate(&context);
+    let findings = rule
+        .evaluate(&context)
+        .expect("rule evaluation should succeed");
 
     assert_eq!(findings.len(), 1);
     assert_eq!(

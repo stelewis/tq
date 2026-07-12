@@ -25,11 +25,13 @@ impl TestFileTooLargeRule {
 }
 
 impl Rule for TestFileTooLargeRule {
+    type Error = RulesError;
+
     fn rule_id(&self) -> &RuleId {
         &self.rule_id
     }
 
-    fn evaluate(&self, context: &AnalysisContext) -> Vec<Finding> {
+    fn evaluate(&self, context: &AnalysisContext) -> Result<Vec<Finding>, Self::Error> {
         let mut findings = Vec::new();
 
         for test_file in context.index().test_files() {
@@ -40,7 +42,7 @@ impl Rule for TestFileTooLargeRule {
                         continue;
                     }
 
-                    if let Ok(finding) = Finding::new(
+                    findings.push(Finding::new(
                         self.rule_id.clone(),
                         BuiltinRule::TestFileTooLarge.default_severity(),
                         format!(
@@ -51,12 +53,10 @@ impl Rule for TestFileTooLargeRule {
                         None,
                         Some("Split this module into smaller focused test files".to_owned()),
                         None,
-                    ) {
-                        findings.push(finding);
-                    }
+                    )?);
                 }
                 Err(_) => {
-                    if let Ok(finding) = Finding::new(
+                    findings.push(Finding::new(
                         self.rule_id.clone(),
                         BuiltinRule::TestFileTooLarge.default_severity(),
                         format!(
@@ -67,14 +67,12 @@ impl Rule for TestFileTooLargeRule {
                         None,
                         Some("Ensure file exists and is UTF-8 decodable".to_owned()),
                         None,
-                    ) {
-                        findings.push(finding);
-                    }
+                    )?);
                 }
             }
         }
 
-        findings
+        Ok(findings)
     }
 }
 

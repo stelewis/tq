@@ -22,11 +22,13 @@ impl StructureMismatchRule {
 }
 
 impl Rule for StructureMismatchRule {
+    type Error = crate::error::RulesError;
+
     fn rule_id(&self) -> &RuleId {
         &self.rule_id
     }
 
-    fn evaluate(&self, context: &AnalysisContext) -> Vec<Finding> {
+    fn evaluate(&self, context: &AnalysisContext) -> Result<Vec<Finding>, Self::Error> {
         let package_path = context.package_path();
         let test_root_display = context.test_root_display();
         let known_target_paths = context.known_target_package_paths();
@@ -56,7 +58,7 @@ impl Rule for StructureMismatchRule {
                 }
 
                 let suggestion_path = test_root_display.join(package_path).join(file_name);
-                if let Ok(finding) = Finding::new(
+                findings.push(Finding::new(
                     self.rule_id.clone(),
                     BuiltinRule::StructureMismatch.default_severity(),
                     "Unit test is not located under the package test root",
@@ -67,9 +69,7 @@ impl Rule for StructureMismatchRule {
                         path_to_forward_slashes(&suggestion_path)
                     )),
                     None,
-                ) {
-                    findings.push(finding);
-                }
+                )?);
                 continue;
             }
 
@@ -82,7 +82,7 @@ impl Rule for StructureMismatchRule {
                 continue;
             }
 
-            if let Ok(finding) = Finding::new(
+            findings.push(Finding::new(
                 self.rule_id.clone(),
                 BuiltinRule::StructureMismatch.default_severity(),
                 "Test file is not in the expected location",
@@ -93,12 +93,10 @@ impl Rule for StructureMismatchRule {
                     path_to_forward_slashes(&test_root_display.join(expected_path))
                 )),
                 None,
-            ) {
-                findings.push(finding);
-            }
+            )?);
         }
 
-        findings
+        Ok(findings)
     }
 }
 
