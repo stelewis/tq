@@ -11,6 +11,7 @@ use clap::{Parser, Subcommand};
 
 use tq_dev::action::ActionPlan;
 use tq_dev::audit::AuditReport;
+use tq_dev::change_scope::{ChangeSource, classify_git_changes};
 use tq_dev::check::{CheckProfile, CheckTarget};
 use tq_dev::error::DevError;
 use tq_dev::render::{self, OutputMode};
@@ -54,6 +55,11 @@ enum Command {
         #[command(subcommand)]
         command: ReleaseCommand,
     },
+    #[command(
+        name = "change-scope",
+        about = "Classify a CI change range into typed policy scopes"
+    )]
+    ChangeScope(ChangeScopeArgs),
     #[command(
         name = "runtime-deps",
         about = "Detect shipped runtime dependency changes between git refs"
@@ -178,6 +184,28 @@ struct RepoRootArgs {
     repo_root: PathBuf,
 }
 
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+enum ChangeEvent {
+    #[value(name = "pull_request")]
+    PullRequest,
+    Push,
+    #[value(name = "workflow_dispatch")]
+    WorkflowDispatch,
+}
+
+#[derive(Debug, clap::Args)]
+struct ChangeScopeArgs {
+    /// Repository root used to resolve workspace files.
+    #[arg(long, default_value = ".")]
+    repo_root: PathBuf,
+    #[arg(long, value_enum)]
+    event: ChangeEvent,
+    #[arg(long, default_value = "")]
+    base_ref: String,
+    #[arg(long, default_value = "")]
+    head_ref: String,
+}
+
 #[derive(Debug, clap::Args)]
 struct RuntimeDepsArgs {
     /// Repository root used to resolve workspace files.
@@ -221,6 +249,7 @@ fn run(cli: Cli) -> Result<Outcome, DevError> {
         Command::Health { command } => run_health(&command),
         Command::Policy { command } => run_policy(&command),
         Command::Release { command } => run_release(&command),
+        Command::ChangeScope(args) => run_change_scope(&args),
         Command::RuntimeDeps(args) => run_runtime_deps(&args),
         Command::Setup(args) => {
             if !args.dry_run {
@@ -315,6 +344,23 @@ fn run_policy(command: &PolicyCommand) -> Result<Outcome, DevError> {
             })
         }
     }
+}
+
+fn run_change_scope(args: &ChangeScopeArgs) -> Result<Outcome, DevError> {
+    let source = match args.event {
+        ChangeEvent::WorkflowDispatch => ChangeSource::All,
+        ChangeEvent::PullRequest => ChangeSource::PullRequest {
+            base_ref: &args.base_ref,
+            head_ref: &args.head_ref,
+        },
+        ChangeEvent::Push => ChangeSource::Push {
+            base_ref: &args.base_ref,
+            head_ref: &args.head_ref,
+        },
+    };
+    let scope = classify_git_changes(&args.repo_root, source)?;
+    print!("{}", scope.github_output());
+    Ok(Outcome::Clean)
 }
 
 fn run_release(command: &ReleaseCommand) -> Result<Outcome, DevError> {
