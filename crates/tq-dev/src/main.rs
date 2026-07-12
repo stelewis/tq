@@ -229,12 +229,25 @@ struct RuntimeDepsArgs {
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
 enum ArtifactProfile {
+    #[value(name = "sdist")]
     Sdist,
+    #[value(name = "linux-wheel")]
     LinuxWheel,
+    #[value(name = "macos-x86-64-wheel")]
     MacosX86_64Wheel,
+    #[value(name = "macos-arm64-wheel")]
     MacosArm64Wheel,
+    #[value(name = "windows-x86-64-wheel")]
     WindowsX86_64Wheel,
+    #[value(name = "linux-pair")]
     LinuxPair,
+    #[value(name = "macos-x86-64-pair")]
+    MacosX86_64Pair,
+    #[value(name = "macos-arm64-pair")]
+    MacosArm64Pair,
+    #[value(name = "windows-x86-64-pair")]
+    WindowsX86_64Pair,
+    #[value(name = "full-release")]
     FullRelease,
 }
 
@@ -251,6 +264,11 @@ impl ArtifactProfile {
                 ArtifactExpectation::WheelOnly(WheelPlatform::WindowsX86_64)
             }
             Self::LinuxPair => ArtifactExpectation::SdistAndWheel(WheelPlatform::PortableLinux),
+            Self::MacosX86_64Pair => ArtifactExpectation::SdistAndWheel(WheelPlatform::MacosX86_64),
+            Self::MacosArm64Pair => ArtifactExpectation::SdistAndWheel(WheelPlatform::MacosArm64),
+            Self::WindowsX86_64Pair => {
+                ArtifactExpectation::SdistAndWheel(WheelPlatform::WindowsX86_64)
+            }
             Self::FullRelease => ArtifactExpectation::FullRelease,
         }
     }

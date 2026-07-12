@@ -155,6 +155,12 @@ fn collect_report(
 
     for entry in entries {
         let artifact_path = entry.path();
+        if artifact_path
+            .file_name()
+            .is_some_and(|name| name == ".gitignore")
+        {
+            continue;
+        }
         let Some(kind) = classify_artifact(&artifact_path) else {
             violations.push(ArtifactViolation::UnexpectedPath {
                 path: artifact_path,

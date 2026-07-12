@@ -172,6 +172,7 @@ fn verify_artifacts_accepts_exact_full_release_platform_set() {
     let temp = tempfile::tempdir().expect("tempdir");
     let dist_dir = temp.path().join("dist");
     fs::create_dir_all(&dist_dir).expect("create dist dir");
+    fs::write(dist_dir.join(".gitignore"), "*\n").expect("write uv housekeeping file");
 
     write_tar_gz(&dist_dir.join("pkg-0.1.0.tar.gz"), &[("pkg-0.1.0/tq", "")]);
     for wheel in [
