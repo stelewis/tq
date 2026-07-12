@@ -26,22 +26,22 @@ Use breaking internal API changes freely. Do not add compatibility wrappers, fal
 
 ### 2. Make rule evaluation fallible and eliminate impossible constructors
 
-- Change the `Rule` trait in [crates/tq-rules/src/lib.rs](../../crates/tq-rules/src/lib.rs) or its owning module so `evaluate` returns `Result<Vec<Finding>, RulesError>` instead of `Vec<Finding>`.
-- Update every rule module in [crates/tq-rules/src/](../../crates/tq-rules/src) to use `?` when constructing findings. Delete every `if let Ok(finding)` branch that can silently drop a diagnostic.
-- Update `tq-engine` runner code to preserve and report rule-evaluation failures as typed execution errors rather than partial success. A failed rule evaluation should fail the check run unless a future explicit policy says otherwise.
-- Replace runtime parsing of builtin rule IDs with const or static construction. Use the existing `RuleId` owned/static representation, or add a deliberately named `RuleId::from_static_unchecked` only if the invariant is confined to literal builtins and tested. Remove `RulesError::InvalidBuiltinRuleId` if it becomes impossible.
-- Simplify builtin rule constructors so static builtins are infallible. Propagate that cleanup through registry construction, CLI wiring, tests, and documentation.
-- Add regression tests proving invalid `Finding` construction fails a rule run instead of disappearing from output, and proving builtin registry construction cannot fail for static IDs.
+- [x] Change the `Rule` trait in [crates/tq-rules/src/lib.rs](../../crates/tq-rules/src/lib.rs) or its owning module so `evaluate` returns `Result<Vec<Finding>, RulesError>` instead of `Vec<Finding>`.
+- [x] Update every rule module in [crates/tq-rules/src/](../../crates/tq-rules/src) to use `?` when constructing findings. Delete every `if let Ok(finding)` branch that can silently drop a diagnostic.
+- [x] Update `tq-engine` runner code to preserve and report rule-evaluation failures as typed execution errors rather than partial success. A failed rule evaluation should fail the check run unless a future explicit policy says otherwise.
+- [x] Replace runtime parsing of builtin rule IDs with const or static construction. Use the existing `RuleId` owned/static representation, or add a deliberately named `RuleId::from_static_unchecked` only if the invariant is confined to literal builtins and tested. Remove `RulesError::InvalidBuiltinRuleId` if it becomes impossible.
+- [x] Simplify builtin rule constructors so static builtins are infallible. Propagate that cleanup through registry construction, CLI wiring, tests, and documentation.
+- [x] Add regression tests proving invalid `Finding` construction fails a rule run instead of disappearing from output, and proving builtin registry construction cannot fail for static IDs.
 
 ### 3. Make engine planning pure and centralize shared domain vocabulary
 
-- Move filesystem discovery out of `tq-engine` planning. The CLI or another composition-root boundary should call [crates/tq-discovery](../../crates/tq-discovery) and pass typed analysis context into `tq-engine`.
-- Redesign the target flow to remove the near-isomorphic `TqTargetConfig` → `TargetPlanInput` → `TargetContext` shuttle. Keep separate types only where they prove a boundary invariant; otherwise collapse or introduce one validated target planning input owned by the right crate.
-- Add or move shared vocabulary into `tq-core` for path display normalization, Python test-file naming, test/source path mapping, and default rule options. Downstream crates should import the shared owner rather than reimplementing local helpers.
-- Delete duplicate implementations of `path_to_forward_slashes`, `is_test_module`/`is_unit_test_filename`, `strip_prefix("test_")` mapping logic, and the hardcoded `600` max-test-file default from downstream crates.
-- Decide and document symlink behavior in `tq-discovery`: either report skipped symlinks as diagnostics or explicitly model them as ignored entries. Keep traversal defenses strict for `..`, absolute paths, symlinks, and root escape.
-- Tighten ordering semantics in `tq-engine` reporting if needed. If the current message-length sort is intentional, name the ordering contract; otherwise replace it with a domain-stable sort key.
-- Add cross-crate tests for shared test-file vocabulary, default propagation, pure engine planning with prebuilt analysis context, and discovery symlink behavior.
+- [x] Move filesystem discovery out of `tq-engine` planning. The CLI or another composition-root boundary should call [crates/tq-discovery](../../crates/tq-discovery) and pass typed analysis context into `tq-engine`.
+- [x] Redesign the target flow to remove the near-isomorphic `TqTargetConfig` → `TargetPlanInput` → `TargetContext` shuttle. Keep separate types only where they prove a boundary invariant; otherwise collapse or introduce one validated target planning input owned by the right crate.
+- [x] Add or move shared vocabulary into `tq-core` for path display normalization, Python test-file naming, test/source path mapping, and default rule options. Downstream crates should import the shared owner rather than reimplementing local helpers.
+- [x] Delete duplicate implementations of `path_to_forward_slashes`, `is_test_module`/`is_unit_test_filename`, `strip_prefix("test_")` mapping logic, and the hardcoded `600` max-test-file default from downstream crates.
+- [x] Decide and document symlink behavior in `tq-discovery`: either report skipped symlinks as diagnostics or explicitly model them as ignored entries. Keep traversal defenses strict for `..`, absolute paths, symlinks, and root escape.
+- [ ] Tighten ordering semantics in `tq-engine` reporting if needed. If the current message-length sort is intentional, name the ordering contract; otherwise replace it with a domain-stable sort key.
+- [x] Add cross-crate tests for shared test-file vocabulary, default propagation, pure engine planning with prebuilt analysis context, and discovery symlink behavior.
 
 ### 4. Move remaining workflow policy logic into `tq-dev`
 
