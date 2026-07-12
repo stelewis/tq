@@ -28,6 +28,19 @@ impl Invocation {
     }
 
     #[must_use]
+    pub fn with_args<I, A>(program: &str, args: I) -> Self
+    where
+        I: IntoIterator<Item = A>,
+        A: Into<String>,
+    {
+        Self {
+            program: program.to_owned(),
+            args: args.into_iter().map(Into::into).collect(),
+            env: Vec::new(),
+        }
+    }
+
+    #[must_use]
     pub fn with_env(mut self, env: Vec<(String, String)>) -> Self {
         self.env = env;
         self

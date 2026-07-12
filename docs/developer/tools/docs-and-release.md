@@ -11,7 +11,7 @@ Distribution contract:
 - canonical command: `tq`
 - canonical install flows: `uv add`, `uv tool install`, `uvx --from tqlint tq`
 
-The build backend is `maturin` targeting the Rust CLI crate. Published artifacts install the compiled `tq` executable.
+The build backend is `maturin` targeting the Rust CLI crate. Local and CI release builds consume the exact `maturin` pin from `.github/dev-tools.toml` through `cargo dev release build-tool-requirements --repo-root .`. Published artifacts install the compiled `tq` executable.
 
 ## Docs generation
 
@@ -47,7 +47,7 @@ Repository-policy and release artifact checks are enforced by the `tq-dev` harne
 - `cargo dev check --profile full all --repo-root .`
 - `cargo dev release verify-artifacts --dist-dir dist`
 
-The release-policy verifier checks workspace versioning policy and the GitHub Actions Dependabot coverage policy together.
+The release-policy verifier checks workspace versioning policy, GitHub Actions Dependabot coverage policy, and release build tool pinning together.
 
 The artifact verifier inspects built wheels and sdists for repository-only paths such as `scripts/`, `tests/`, `docs/`, `tmp/`, and `.github/`. Wheel installer script locations under `.data/scripts/` are allowed because that is where the packaged `tq` executable lives.
 

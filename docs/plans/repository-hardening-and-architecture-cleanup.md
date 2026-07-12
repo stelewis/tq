@@ -5,13 +5,9 @@ date_created: 2026-07-12
 
 # Implementation Plan: Repository hardening and architecture cleanup
 
-Address the eight material findings from the repository-wide audit in four ordered tranches: harden the release boundary first, repair rule-evaluation correctness, move discovery and shared vocabularies to their proper owners, then migrate the remaining workflow policy scripts into the Rust developer harness. The goal is not only to close individual defects, but to remove the design shapes that made them possible: mutable release inputs, untyped policy logic in YAML, hidden IO in domain planning, duplicated vocabularies, and infallible contracts that force silent error handling.
+Address the eight material findings from the repository-wide audit. The goal is not only to close individual defects, but to remove the design shapes that made them possible: mutable release inputs, untyped policy logic in YAML, hidden IO in domain planning, duplicated vocabularies, and infallible contracts that force silent error handling.
 
 ## Architecture and design
-
-Release security work comes first because it protects the provenance chain and published artifacts. Release builds must be tied to immutable commits, build tools must be exact-pinned through the same manifest as the rest of the developer toolchain, and attestation should only describe artifacts from fully validated runs.
-
-Product-code cleanup follows the dependency direction of the workspace. Rules become fallible before engine planning is made pure, because surfacing rule errors changes the engine contract. Shared domain vocabulary moves into `tq-core` before duplicate predicates and defaults are deleted from downstream crates. Workflow consolidation happens last so the harness has the typed APIs needed to replace inline shell, Ruby, and bash parsing without moving fragile logic from one weak boundary to another.
 
 Use breaking internal API changes freely. Do not add compatibility wrappers, fallback call paths, or transitional aliases. Each tranche should delete the old shape in the same change that introduces the replacement.
 
@@ -19,14 +15,14 @@ Use breaking internal API changes freely. Do not add compatibility wrappers, fal
 
 ### 1. Harden the release boundary
 
-- Pin publish checkout to the validated commit: update [.github/workflows/publish.yml](../../.github/workflows/publish.yml) so the publish job checks out the `workflow_run.head_sha` or an equivalent immutable SHA captured by `prepare`, not `refs/tags/<release_tag>`. Keep the SemVer tag validation, but treat the tag as release metadata rather than the checkout authority.
-- Add a publish concurrency group keyed by release tag in [.github/workflows/publish.yml](../../.github/workflows/publish.yml) so reruns or duplicate `workflow_run` completions cannot race through release creation.
-- Exact-pin `maturin` in [.github/dev-tools.toml](../../.github/dev-tools.toml), including any required `zig`/extra policy needed for cross-platform wheels. The pin manifest should be the source of truth for CI wheel builds and local release builds.
-- Update `tq-dev` release planning in [crates/tq-dev/src/release.rs](../../crates/tq-dev/src/release.rs) to read the manifest and construct `uv run --isolated --with ...` from the pinned tool version instead of embedding `maturin>=1.11,<2.0`.
-- Update wheel build steps in [.github/workflows/ci.yml](../../.github/workflows/ci.yml) to use the pinned maturin version consistently. Prefer routing through `cargo dev release build` when feasible; otherwise generate the exact `--with` value from one manifest-owned constant surfaced by `tq-dev`.
-- Extend pin verification in [crates/tq-dev/src/policy.rs](../../crates/tq-dev/src/policy.rs) so the maturin pin is enforced across the manifest, local release plan, CI wheel-build commands, and any docs or action surfaces that mention the release builder.
-- Widen the artifact attestation job dependencies in [.github/workflows/ci.yml](../../.github/workflows/ci.yml) so attestations are created only after the same quality, policy, and security jobs required for publish have passed.
-- Add contract tests in `crates/tq-dev/tests/` for release plan rendering, maturin pin verification, and publish checkout validation.
+- [x] Pin publish checkout to the validated commit: update [.github/workflows/publish.yml](../../.github/workflows/publish.yml) so the publish job checks out the `workflow_run.head_sha` or an equivalent immutable SHA captured by `prepare`, not `refs/tags/<release_tag>`. Keep the SemVer tag validation, but treat the tag as release metadata rather than the checkout authority.
+- [x] Add a publish concurrency group keyed by release tag in [.github/workflows/publish.yml](../../.github/workflows/publish.yml) so reruns or duplicate `workflow_run` completions cannot race through release creation.
+- [x] Exact-pin `maturin` in [.github/dev-tools.toml](../../.github/dev-tools.toml), including any required `zig`/extra policy needed for cross-platform wheels. The pin manifest should be the source of truth for CI wheel builds and local release builds.
+- [x] Update `tq-dev` release planning in [crates/tq-dev/src/release.rs](../../crates/tq-dev/src/release.rs) to read the manifest and construct `uv run --isolated --with ...` from the pinned tool version instead of embedding `maturin>=1.11,<2.0`.
+- [x] Update wheel build steps in [.github/workflows/ci.yml](../../.github/workflows/ci.yml) to use the pinned maturin version consistently. Prefer routing through `cargo dev release build` when feasible; otherwise generate the exact `--with` value from one manifest-owned constant surfaced by `tq-dev`.
+- [x] Extend pin verification in [crates/tq-dev/src/policy.rs](../../crates/tq-dev/src/policy.rs) so the maturin pin is enforced across the manifest, local release plan, CI wheel-build commands, and any docs or action surfaces that mention the release builder.
+- [x] Widen the artifact attestation job dependencies in [.github/workflows/ci.yml](../../.github/workflows/ci.yml) so attestations are created only after the same quality, policy, and security jobs required for publish have passed.
+- [x] Add contract tests in `crates/tq-dev/tests/` for release plan rendering, maturin pin verification, and publish checkout validation.
 
 ### 2. Make rule evaluation fallible and eliminate impossible constructors
 

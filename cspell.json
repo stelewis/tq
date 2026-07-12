@@ -39,6 +39,7 @@
     "lifecycles",
     "Lockfiles",
     "mapfile",
+    "maturin",
     "misparse",
     "mnda",
     "monkeypatch",

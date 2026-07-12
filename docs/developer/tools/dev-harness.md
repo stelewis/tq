@@ -74,6 +74,7 @@ Builds and verifies release artifacts.
 | Command | Purpose |
 | --- | --- |
 | `cargo dev release build --repo-root .` | Builds the local release sdist and host wheel. |
+| `cargo dev release build-tool-requirements --repo-root .` | Prints the exact Python build tool requirements from `.github/dev-tools.toml` as GitHub output. |
 | `cargo dev release verify-artifacts --dist-dir dist` | Verifies release artifact contents against repository policy. |
 
 Use `--dry-run` with `release build` to print the artifact build plan without changing `dist/`.

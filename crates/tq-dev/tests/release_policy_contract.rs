@@ -90,6 +90,7 @@ fn verify_release_policy_passes_when_workspace_and_dependabot_policies_pass() {
             "node = \"26.4.0\"\n",
             "npm = \"11.17.0\"\n",
             "mise = \"2026.7.5\"\n",
+            "maturin = \"1.11.0\"\n",
             "\n",
             "[rust-maintenance]\n",
             "cargo-outdated = \"0.17.0\"\n",
@@ -157,7 +158,21 @@ fn verify_release_policy_passes_when_workspace_and_dependabot_policies_pass() {
         &temp.path().join(".github/actions/setup-rust/action.yml"),
         "name: Setup Rust\n",
     );
-    write(&temp.path().join(".github/workflows/ci.yml"), "name: CI\n");
+    write(
+        &temp.path().join(".github/workflows/ci.yml"),
+        concat!(
+            "name: CI\n",
+            "jobs:\n",
+            "  release-wheels:\n",
+            "    steps:\n",
+            "      - id: release-tools\n",
+            "        run: cargo dev release build-tool-requirements --repo-root .\n",
+            "      - run: maturin_requirement='${{ steps.release-tools.outputs.maturin }}'\n",
+            "      - run: maturin_requirement='${{ steps.release-tools.outputs.maturin_zig }}'\n",
+            "      - run: uv run --isolated --with \"$maturin_requirement\" -- maturin build\n",
+            "      - run: uv run --isolated --with \"${{ steps.release-tools.outputs.maturin_zig }}\" -- maturin build --zig\n",
+        ),
+    );
 
     tq_dev::policy::verify_release_policy(temp.path()).expect("release policy should pass");
 }

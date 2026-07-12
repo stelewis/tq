@@ -394,34 +394,26 @@ jobs:
             runs_on: ubuntu-latest
             artifact_name: wheel-manylinux-x86_64
             expected_wheel_pattern: '*manylinux*.whl|*musllinux*.whl'
-            build_command: >-
-              uv run --isolated --with 'maturin[zig]>=1.11,<2.0' --
-              maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml
-              --bindings bin --out dist -i python --compatibility pypi --zig
+            maturin_requirement: maturin_zig
+            extra_build_args: --compatibility pypi --zig
           - label: macOS x86_64
             runs_on: macos-15-intel
             artifact_name: wheel-macos-x86_64
             expected_wheel_pattern: '*macosx*x86_64.whl'
-            build_command: >-
-              uv run --isolated --with 'maturin>=1.11,<2.0' --
-              maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml
-              --bindings bin --out dist -i python
+            maturin_requirement: maturin
+            extra_build_args: ""
           - label: macOS arm64
             runs_on: macos-14
             artifact_name: wheel-macos-arm64
             expected_wheel_pattern: '*macosx*arm64.whl'
-            build_command: >-
-              uv run --isolated --with 'maturin>=1.11,<2.0' --
-              maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml
-              --bindings bin --out dist -i python
+            maturin_requirement: maturin
+            extra_build_args: ""
           - label: Windows x86_64
             runs_on: windows-latest
             artifact_name: wheel-windows-x86_64
             expected_wheel_pattern: '*win_amd64.whl'
-            build_command: >-
-              uv run --isolated --with 'maturin>=1.11,<2.0' --
-              maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml
-              --bindings bin --out dist -i python
+            maturin_requirement: maturin
+            extra_build_args: ""
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -436,13 +428,34 @@ jobs:
         with:
           sync-project: "false"
 
+      - name: Resolve release build tool requirements
+        id: release-tools
+        shell: bash
+        run: cargo dev release build-tool-requirements --repo-root . >> "$GITHUB_OUTPUT"
+
       - name: Build release wheel
         shell: bash
         run: |
           set -euo pipefail
 
+          case '${{ matrix.maturin_requirement }}' in
+            maturin)
+              maturin_requirement='${{ steps.release-tools.outputs.maturin }}'
+              ;;
+            maturin_zig)
+              maturin_requirement='${{ steps.release-tools.outputs.maturin_zig }}'
+              ;;
+            *)
+              echo "Unknown maturin requirement output '${{ matrix.maturin_requirement }}'"
+              exit 1
+              ;;
+          esac
+
+          extra_build_args=(${{ matrix.extra_build_args }})
           rm -rf dist
-          ${{ matrix.build_command }}
+          uv run --isolated --with "$maturin_requirement" -- \
+            maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml \
+            --bindings bin --out dist -i python "${extra_build_args[@]}"
 
       - name: Verify artifact contents policy
         shell: bash
@@ -508,7 +521,7 @@ jobs:
   tag-release-artifacts:
     name: Tag release artifact attestation
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
-    needs: [build, release-wheels]
+    needs: [commit-messages, hygiene, format, lint, tests, build, release-wheels, security, package-compatibility]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     permissions:
@@ -576,6 +589,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
           sync-project: "false"
 
+      - name: Resolve release build tool requirements
+        id: release-tools
+        shell: bash
+        run: cargo dev release build-tool-requirements --repo-root . >> "$GITHUB_OUTPUT"
+
       - name: Build Python source distribution
         run: |
           rm -rf dist
@@ -583,7 +601,7 @@ jobs:
 
       - name: Build publishable Linux wheel
         run: >-
-          uv run --isolated --with 'maturin[zig]>=1.11,<2.0' --
+          uv run --isolated --with "${{ steps.release-tools.outputs.maturin_zig }}" --
           maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml
           --bindings bin --out dist -i python --compatibility pypi --zig
 

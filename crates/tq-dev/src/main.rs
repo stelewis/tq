@@ -134,6 +134,11 @@ enum PolicyCommand {
 enum ReleaseCommand {
     #[command(about = "Build release artifacts through the harness")]
     Build(MutationArgs),
+    #[command(
+        name = "build-tool-requirements",
+        about = "Print exact release build tool requirements as GitHub output"
+    )]
+    BuildToolRequirements(RepoRootArgs),
     #[command(name = "verify-artifacts", about = "Verify release artifact contents")]
     VerifyArtifacts(VerifyArtifactsArgs),
 }
@@ -314,7 +319,14 @@ fn run_policy(command: &PolicyCommand) -> Result<Outcome, DevError> {
 
 fn run_release(command: &ReleaseCommand) -> Result<Outcome, DevError> {
     match command {
-        ReleaseCommand::Build(args) => run_mutation(args, &release::plan(&args.common.repo_root)),
+        ReleaseCommand::Build(args) => run_mutation(args, &release::plan(&args.common.repo_root)?),
+        ReleaseCommand::BuildToolRequirements(args) => {
+            print!(
+                "{}",
+                release::build_tool_requirements(&args.repo_root)?.github_output()
+            );
+            Ok(Outcome::Clean)
+        }
         ReleaseCommand::VerifyArtifacts(args) => artifacts::verify_artifact_contents(
             &args.dist_dir,
             if args.forbidden_prefixes.is_empty() {

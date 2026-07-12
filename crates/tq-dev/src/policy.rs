@@ -7,7 +7,7 @@ use std::path::Path;
 use crate::error::DevError;
 use crate::manifest::DevToolsManifest;
 use crate::parse;
-use crate::{dependabot, workspace_version};
+use crate::{dependabot, release, workspace_version};
 
 /// Verifies every repository surface that pins a developer tool version
 /// against `.github/dev-tools.toml`.
@@ -21,6 +21,7 @@ pub fn verify_tool_pins(repo_root: &Path) -> Result<(), DevError> {
     verify_node_package(repo_root, &manifest, &mut violations)?;
     verify_python_uv_action(repo_root, &manifest, &mut violations)?;
     verify_rust_maintenance_action(repo_root, &manifest, &mut violations)?;
+    verify_maturin_release_builder(repo_root, &mut violations)?;
     verify_dependabot_ecosystems(repo_root, &mut violations)?;
 
     if violations.is_empty() {
@@ -182,6 +183,65 @@ fn verify_rust_maintenance_action(
     Ok(())
 }
 
+fn verify_maturin_release_builder(
+    repo_root: &Path,
+    violations: &mut Vec<String>,
+) -> Result<(), DevError> {
+    let tools = release::build_tool_requirements(repo_root)?;
+
+    let release_plan = release::plan(repo_root)?;
+    let release_commands = release_plan
+        .actions
+        .iter()
+        .map(|action| action.action.detail())
+        .collect::<Vec<_>>()
+        .join("\n");
+    require_contains(
+        violations,
+        "cargo dev release build plan",
+        &release_commands,
+        &format!("--with {} -- maturin build", tools.maturin),
+    );
+
+    let ci_path = repo_root.join(".github/workflows/ci.yml");
+    let ci = parse::read_to_string(&ci_path)?;
+    for forbidden in ["maturin>=", "maturin[zig]>=", "maturin==", "maturin[zig]=="] {
+        require_not_contains(violations, ".github/workflows/ci.yml", &ci, forbidden);
+    }
+    require_contains(
+        violations,
+        ".github/workflows/ci.yml",
+        &ci,
+        "cargo dev release build-tool-requirements --repo-root .",
+    );
+    require_contains(
+        violations,
+        ".github/workflows/ci.yml",
+        &ci,
+        "maturin_requirement='${{ steps.release-tools.outputs.maturin }}'",
+    );
+    require_contains(
+        violations,
+        ".github/workflows/ci.yml",
+        &ci,
+        "maturin_requirement='${{ steps.release-tools.outputs.maturin_zig }}'",
+    );
+    require_contains(
+        violations,
+        ".github/workflows/ci.yml",
+        &ci,
+        "--with \"$maturin_requirement\" --",
+    );
+    require_contains(
+        violations,
+        ".github/workflows/ci.yml",
+        &ci,
+        "--with \"${{ steps.release-tools.outputs.maturin_zig }}\" --",
+    );
+
+    Ok(())
+}
+
 fn verify_dependabot_ecosystems(
     repo_root: &Path,
     violations: &mut Vec<String>,
@@ -220,5 +280,22 @@ fn require_array_contains(
 ) {
     if !values.iter().any(|value| value == expected) {
         violations.push(format!("{field} must contain {expected:?}"));
+    }
+}
+
+fn require_contains(violations: &mut Vec<String>, field: &str, contents: &str, expected: &str) {
+    if !contents.contains(expected) {
+        violations.push(format!("{field} must contain {expected:?}"));
+    }
+}
+
+fn require_not_contains(
+    violations: &mut Vec<String>,
+    field: &str,
+    contents: &str,
+    forbidden: &str,
+) {
+    if contents.contains(forbidden) {
+        violations.push(format!("{field} must not contain {forbidden:?}"));
     }
 }

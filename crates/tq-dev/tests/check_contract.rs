@@ -24,6 +24,7 @@ fn write_dev_tools_manifest(repo_root: &Path) {
             "node = \"26.4.0\"\n",
             "npm = \"11.17.0\"\n",
             "mise = \"2026.7.5\"\n",
+            "maturin = \"1.11.0\"\n",
             "\n",
             "[rust-maintenance]\n",
             "cargo-outdated = \"0.17.0\"\n",
@@ -78,7 +79,8 @@ fn all_check_plan_keeps_release_build_in_the_full_profile() {
 #[test]
 fn release_build_plan_clears_dist_then_builds_sdist_and_wheel() {
     let temp = tempfile::tempdir().expect("tempdir");
-    let plan = tq_dev::release::plan(temp.path());
+    write_dev_tools_manifest(temp.path());
+    let plan = tq_dev::release::plan(temp.path()).expect("release build plan should resolve");
 
     let details = plan
         .actions
@@ -91,10 +93,26 @@ fn release_build_plan_clears_dist_then_builds_sdist_and_wheel() {
         [
             format!("remove {}", temp.path().join("dist").display()),
             "uv build --sdist".to_owned(),
-            "uv run --isolated --with maturin>=1.11,<2.0 -- maturin build --release --locked \
+            "uv run --isolated --with maturin==1.11.0 -- maturin build --release --locked \
              --manifest-path crates/tq-cli/Cargo.toml --bindings bin --out dist -i python"
                 .to_owned(),
         ]
+    );
+}
+
+#[test]
+fn release_build_tool_requirements_are_exact_pins_from_manifest() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    write_dev_tools_manifest(temp.path());
+
+    let tools = tq_dev::release::build_tool_requirements(temp.path())
+        .expect("release build tools should resolve");
+
+    assert_eq!(tools.maturin, "maturin==1.11.0");
+    assert_eq!(tools.maturin_zig, "maturin[zig]==1.11.0");
+    assert_eq!(
+        tools.github_output(),
+        "maturin=maturin==1.11.0\nmaturin_zig=maturin[zig]==1.11.0\n"
     );
 }
 

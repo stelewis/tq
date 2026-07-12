@@ -22,6 +22,7 @@ jobs:
     outputs:
       should_publish: ${{ steps.release.outputs.should_publish }}
       release_tag: ${{ steps.release.outputs.release_tag }}
+      source_head_sha: ${{ steps.release.outputs.source_head_sha }}
       source_run_id: ${{ steps.release.outputs.source_run_id }}
     steps:
       - name: Verify source CI run produced validated release artifacts
@@ -88,6 +89,7 @@ jobs:
 
           echo "should_publish=true" >> "$GITHUB_OUTPUT"
           echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+          echo "source_head_sha=$head_sha" >> "$GITHUB_OUTPUT"
           echo "source_run_id=${{ github.event.workflow_run.id }}" >> "$GITHUB_OUTPUT"
 
   publish:
@@ -97,6 +99,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     environment: ${{ vars.PYPI_ENVIRONMENT || 'pypi' }}
+    concurrency:
+      group: publish-${{ needs.prepare.outputs.release_tag }}
+      cancel-in-progress: false
     permissions:
       actions: read
       contents: write
@@ -105,10 +110,10 @@ jobs:
       - name: Reset transient directories
         run: rm -rf dist tmp/release-smoke tmp/pypi-verify
 
-      - name: Checkout tagged revision
+      - name: Checkout validated CI revision
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: refs/tags/${{ needs.prepare.outputs.release_tag }}
+          ref: ${{ needs.prepare.outputs.source_head_sha }}
           persist-credentials: false
 
       - name: Setup Rust toolchain
