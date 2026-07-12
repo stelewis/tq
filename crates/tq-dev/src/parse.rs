@@ -5,7 +5,7 @@
 //! repository commits. See ADR 0003 for the supply-chain rationale.
 
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use toml::Value;
 
@@ -113,7 +113,215 @@ fn missing_value(source: &Path, path: &[&str]) -> DevError {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct ReferenceSource {
+    pub path: PathBuf,
+    pub line: usize,
+}
+
+impl ReferenceSource {
+    #[must_use]
+    pub fn display(&self) -> String {
+        format!("{}:{}", self.path.display(), self.line)
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct CommitSha(String);
+
+impl CommitSha {
+    fn parse(value: &str) -> Option<Self> {
+        (value.len() == 40
+            && value
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)))
+        .then(|| Self(value.to_owned()))
+    }
+
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum PinnedRevision {
+    Missing,
+    Commit(CommitSha),
+    Unfrozen(String),
+}
+
+impl PinnedRevision {
+    fn parse(value: Option<&str>) -> Self {
+        value.map_or(Self::Missing, |value| {
+            CommitSha::parse(value).map_or_else(|| Self::Unfrozen(value.to_owned()), Self::Commit)
+        })
+    }
+
+    #[must_use]
+    pub fn raw(&self) -> Option<&str> {
+        match self {
+            Self::Missing => None,
+            Self::Commit(sha) => Some(sha.as_str()),
+            Self::Unfrozen(value) => Some(value),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum ActionReference {
+    Local {
+        source: ReferenceSource,
+        reference: String,
+    },
+    Docker {
+        source: ReferenceSource,
+        reference: String,
+    },
+    External {
+        source: ReferenceSource,
+        name: String,
+        revision: PinnedRevision,
+    },
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct PreCommitRepository {
+    pub source: ReferenceSource,
+    pub repository: String,
+    pub revision: PinnedRevision,
+}
+
+impl PreCommitRepository {
+    #[must_use]
+    pub fn is_local(&self) -> bool {
+        self.repository == "local"
+    }
+}
+
+pub fn action_references(contents: &str, source: &Path) -> Result<Vec<ActionReference>, DevError> {
+    let mut references = Vec::new();
+    for (index, line) in contents.lines().enumerate() {
+        let Some((_, key, value)) = yaml_key_value(line) else {
+            continue;
+        };
+        if key != "uses" {
+            continue;
+        }
+        let reference = yaml_scalar(value);
+        let reference_source = ReferenceSource {
+            path: source.to_path_buf(),
+            line: index + 1,
+        };
+        if reference.is_empty() {
+            return Err(DevError::InvalidInput {
+                path: source.to_path_buf(),
+                message: format!("line {} has an empty uses reference", index + 1),
+            });
+        }
+        if reference.starts_with("./") {
+            references.push(ActionReference::Local {
+                source: reference_source,
+                reference: reference.to_owned(),
+            });
+            continue;
+        }
+        if reference.starts_with("docker://") {
+            references.push(ActionReference::Docker {
+                source: reference_source,
+                reference: reference.to_owned(),
+            });
+            continue;
+        }
+
+        let (name, revision) = reference
+            .split_once('@')
+            .map_or((reference, PinnedRevision::Missing), |(name, revision)| {
+                (name, PinnedRevision::parse(Some(revision)))
+            });
+        if name.is_empty() {
+            return Err(DevError::InvalidInput {
+                path: source.to_path_buf(),
+                message: format!("line {} has an action reference without a name", index + 1),
+            });
+        }
+        references.push(ActionReference::External {
+            source: reference_source,
+            name: name.to_owned(),
+            revision,
+        });
+    }
+    Ok(references)
+}
+
+pub fn pre_commit_repositories(
+    contents: &str,
+    source: &Path,
+) -> Result<Vec<PreCommitRepository>, DevError> {
+    struct PendingRepository {
+        source: ReferenceSource,
+        repository: String,
+        revision: Option<String>,
+    }
+
+    fn finish(repositories: &mut Vec<PreCommitRepository>, pending: PendingRepository) {
+        repositories.push(PreCommitRepository {
+            source: pending.source,
+            repository: pending.repository,
+            revision: PinnedRevision::parse(pending.revision.as_deref()),
+        });
+    }
+
+    let mut repositories = Vec::new();
+    let mut pending: Option<PendingRepository> = None;
+    for (index, line) in contents.lines().enumerate() {
+        let Some((indent, key, value)) = yaml_key_value(line) else {
+            continue;
+        };
+        if indent == 2 && key == "repo" {
+            if let Some(previous) = pending.take() {
+                finish(&mut repositories, previous);
+            }
+            let repository = yaml_scalar(value);
+            if repository.is_empty() {
+                return Err(DevError::InvalidInput {
+                    path: source.to_path_buf(),
+                    message: format!("line {} has an empty pre-commit repository", index + 1),
+                });
+            }
+            pending = Some(PendingRepository {
+                source: ReferenceSource {
+                    path: source.to_path_buf(),
+                    line: index + 1,
+                },
+                repository: repository.to_owned(),
+                revision: None,
+            });
+            continue;
+        }
+        if indent == 4 && key == "rev" {
+            let Some(repository) = pending.as_mut() else {
+                return Err(DevError::InvalidInput {
+                    path: source.to_path_buf(),
+                    message: format!("line {} has rev before repo", index + 1),
+                });
+            };
+            if repository.revision.is_some() {
+                return Err(DevError::InvalidInput {
+                    path: source.to_path_buf(),
+                    message: format!("line {} duplicates a repository rev", index + 1),
+                });
+            }
+            repository.revision = Some(yaml_scalar(value).to_owned());
+        }
+    }
+    if let Some(previous) = pending {
+        finish(&mut repositories, previous);
+    }
+    Ok(repositories)
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ActionInput {
     pub default: Option<String>,
 }
@@ -260,7 +468,10 @@ pub fn yaml_scalar(value: &str) -> &str {
 mod tests {
     use std::path::Path;
 
-    use super::{action_inputs, required_action_input_default, required_action_step_with_value};
+    use super::{
+        ActionReference, PinnedRevision, action_inputs, action_references, pre_commit_repositories,
+        required_action_input_default, required_action_step_with_value,
+    };
 
     #[test]
     fn parses_action_input_defaults_and_step_with_values() {
@@ -289,6 +500,48 @@ mod tests {
             required_action_step_with_value(contents, "astral-sh/setup-uv@", "version", source)
                 .expect("setup-uv version input should exist"),
             "${{ inputs.uv-version }}"
+        );
+    }
+
+    #[test]
+    fn parses_external_local_and_docker_action_references() {
+        let contents = concat!(
+            "steps:\n",
+            "  - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0\n",
+            "  - uses: ./local-action\n",
+            "  - uses: docker://alpine:3.20\n",
+        );
+        let references = action_references(contents, Path::new("workflow.yml"))
+            .expect("action references should parse");
+
+        assert!(matches!(
+            &references[0],
+            ActionReference::External {
+                revision: PinnedRevision::Commit(_),
+                ..
+            }
+        ));
+        assert!(matches!(&references[1], ActionReference::Local { .. }));
+        assert!(matches!(&references[2], ActionReference::Docker { .. }));
+    }
+
+    #[test]
+    fn preserves_missing_and_unfrozen_pre_commit_revisions() {
+        let contents = concat!(
+            "repos:\n",
+            "  - repo: https://github.com/example/missing\n",
+            "    hooks: []\n",
+            "  - repo: https://github.com/example/tagged\n",
+            "    rev: v1.2.3\n",
+            "    hooks: []\n",
+        );
+        let repositories = pre_commit_repositories(contents, Path::new(".pre-commit-config.yaml"))
+            .expect("pre-commit repositories should parse");
+
+        assert_eq!(repositories[0].revision, PinnedRevision::Missing);
+        assert_eq!(
+            repositories[1].revision,
+            PinnedRevision::Unfrozen("v1.2.3".to_owned())
         );
     }
 }

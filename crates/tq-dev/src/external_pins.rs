@@ -53,7 +53,7 @@ struct ExternalPinRef {
     source: String,
     name: String,
     remote: Option<String>,
-    pinned: Option<String>,
+    revision: parse::PinnedRevision,
     lookup_message: Option<String>,
 }
 
@@ -81,6 +81,45 @@ pub fn audit_external_pin_drift(repo_root: &Path) -> Result<ExternalPinReport, D
     })
 }
 
+pub fn verify_action_pins(repo_root: &Path) -> Result<(), DevError> {
+    verify_frozen_refs(action_refs(repo_root)?)
+}
+
+pub fn verify_pre_commit_pins(repo_root: &Path) -> Result<(), DevError> {
+    let path = repo_root.join(".pre-commit-config.yaml");
+    if !path.is_file() {
+        return Err(DevError::InvalidInput {
+            path,
+            message: "pre-commit configuration is required".to_owned(),
+        });
+    }
+    verify_frozen_refs(pre_commit_refs(repo_root)?)
+}
+
+fn verify_frozen_refs(refs: Vec<ExternalPinRef>) -> Result<(), DevError> {
+    let violations = refs
+        .into_iter()
+        .filter_map(|pin| match pin.revision {
+            parse::PinnedRevision::Commit(_) => None,
+            parse::PinnedRevision::Missing => Some(format!(
+                "{}: {} is missing a pinned revision",
+                pin.source, pin.name
+            )),
+            parse::PinnedRevision::Unfrozen(revision) => Some(format!(
+                "{}: {} must use a full lowercase 40-character commit SHA, found {revision:?}",
+                pin.source, pin.name
+            )),
+        })
+        .collect::<Vec<_>>();
+    if violations.is_empty() {
+        Ok(())
+    } else {
+        Err(DevError::PolicyViolation {
+            details: violations.join("\n"),
+        })
+    }
+}
+
 fn action_refs(repo_root: &Path) -> Result<Vec<ExternalPinRef>, DevError> {
     let files = git_ls_files(
         repo_root,
@@ -94,24 +133,23 @@ fn action_refs(repo_root: &Path) -> Result<Vec<ExternalPinRef>, DevError> {
     let mut refs = Vec::new();
 
     for file in files {
-        let path = repo_root.join(&file);
-        let contents = parse::read_to_string(&path)?;
-        for line in contents.lines() {
-            let Some(reference) = parse_action_uses(line) else {
+        let contents = parse::read_to_string(&repo_root.join(&file))?;
+        for reference in parse::action_references(&contents, Path::new(&file))? {
+            let parse::ActionReference::External {
+                source,
+                name,
+                revision,
+            } = reference
+            else {
                 continue;
             };
-            if reference.starts_with("./") || reference.starts_with("docker://") {
-                continue;
-            }
-
-            let (name, pinned) = split_pin(&reference);
             let remote = github_action_remote(&name);
             refs.push(ExternalPinRef {
                 surface: ExternalPinSurface::GitHubAction,
-                source: file.clone(),
-                name: name.clone(),
+                source: source.display(),
+                name,
                 remote: remote.clone(),
-                pinned,
+                revision,
                 lookup_message: remote.is_none().then(|| {
                     "unsupported GitHub Action reference for automated drift lookup".to_owned()
                 }),
@@ -123,45 +161,29 @@ fn action_refs(repo_root: &Path) -> Result<Vec<ExternalPinRef>, DevError> {
 }
 
 fn pre_commit_refs(repo_root: &Path) -> Result<Vec<ExternalPinRef>, DevError> {
-    let source = ".pre-commit-config.yaml";
+    let source = Path::new(".pre-commit-config.yaml");
     let path = repo_root.join(source);
     if !path.exists() {
         return Ok(Vec::new());
     }
     let contents = parse::read_to_string(&path)?;
-    let mut refs = Vec::new();
-    let mut current_repo: Option<String> = None;
-
-    for line in contents.lines() {
-        let trimmed = line.trim();
-        if let Some(repo) = trimmed.strip_prefix("- repo:") {
-            current_repo = Some(parse::yaml_scalar(repo).to_owned());
-            continue;
-        }
-
-        let Some(rev) = trimmed.strip_prefix("rev:") else {
-            continue;
-        };
-        let Some(repo) = current_repo.take() else {
-            continue;
-        };
-        if repo == "local" {
-            continue;
-        }
-
-        let remote = github_remote_from_pre_commit(&repo);
-        refs.push(ExternalPinRef {
-            surface: ExternalPinSurface::PreCommitHook,
-            source: source.to_owned(),
-            name: repo.clone(),
-            remote: remote.clone(),
-            pinned: Some(parse::yaml_scalar(rev).to_owned()),
-            lookup_message: remote.is_none().then(|| {
-                "unsupported pre-commit repository URL for automated drift lookup".to_owned()
-            }),
-        });
-    }
-
+    let refs = parse::pre_commit_repositories(&contents, source)?
+        .into_iter()
+        .filter(|repository| !repository.is_local())
+        .map(|repository| {
+            let remote = github_remote_from_pre_commit(&repository.repository);
+            ExternalPinRef {
+                surface: ExternalPinSurface::PreCommitHook,
+                source: repository.source.display(),
+                name: repository.repository,
+                remote: remote.clone(),
+                revision: repository.revision,
+                lookup_message: remote.is_none().then(|| {
+                    "unsupported pre-commit repository URL for automated drift lookup".to_owned()
+                }),
+            }
+        })
+        .collect();
     Ok(refs)
 }
 
@@ -170,22 +192,25 @@ fn resolve_pin(
     pin: &ExternalPinRef,
     cache: &mut BTreeMap<String, Result<Option<ReleaseRef>, String>>,
 ) -> ExternalPinResult {
-    let Some(pinned) = pin.pinned.as_deref() else {
-        return result(
-            pin,
-            None,
-            ExternalPinStatus::InvalidPin,
-            Some("missing @ref".to_owned()),
-        );
+    let pinned = match &pin.revision {
+        parse::PinnedRevision::Missing => {
+            return result(
+                pin,
+                None,
+                ExternalPinStatus::InvalidPin,
+                Some("missing pinned revision".to_owned()),
+            );
+        }
+        parse::PinnedRevision::Unfrozen(_) => {
+            return result(
+                pin,
+                None,
+                ExternalPinStatus::InvalidPin,
+                Some("pinned ref is not a full 40-character commit SHA".to_owned()),
+            );
+        }
+        parse::PinnedRevision::Commit(sha) => sha.as_str(),
     };
-    if !is_full_sha(pinned) {
-        return result(
-            pin,
-            None,
-            ExternalPinStatus::InvalidPin,
-            Some("pinned ref is not a full 40-character commit SHA".to_owned()),
-        );
-    }
 
     let Some(remote) = pin.remote.as_deref() else {
         return result(
@@ -232,7 +257,7 @@ fn result(
         source: pin.source.clone(),
         name: pin.name.clone(),
         remote: pin.remote.clone(),
-        pinned: pin.pinned.clone(),
+        pinned: pin.revision.raw().map(ToOwned::to_owned),
         latest,
         status,
         message,
@@ -310,23 +335,6 @@ fn semver_key(tag: &str) -> Option<(u64, u64, u64)> {
     Some((major, minor, patch))
 }
 
-fn parse_action_uses(line: &str) -> Option<String> {
-    let trimmed = line
-        .trim_start()
-        .strip_prefix('-')
-        .unwrap_or(line)
-        .trim_start();
-    let value = trimmed.strip_prefix("uses:")?.trim();
-    Some(parse::yaml_scalar(value).to_owned())
-}
-
-fn split_pin(reference: &str) -> (String, Option<String>) {
-    reference.split_once('@').map_or_else(
-        || (reference.to_owned(), None),
-        |(name, pinned)| (name.to_owned(), Some(pinned.to_owned())),
-    )
-}
-
 fn github_remote_from_pre_commit(repo: &str) -> Option<String> {
     let path = repo
         .strip_prefix("https://github.com/")
@@ -355,13 +363,6 @@ fn github_action_remote(name: &str) -> Option<String> {
     Some(format!("https://github.com/{owner}/{repo}.git"))
 }
 
-fn is_full_sha(value: &str) -> bool {
-    value.len() == 40
-        && value
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-}
-
 fn git_ls_files(repo_root: &Path, patterns: &[&str]) -> Result<Vec<String>, DevError> {
     let output = Command::new("git")
         .arg("ls-files")
@@ -387,20 +388,7 @@ fn git_ls_files(repo_root: &Path, patterns: &[&str]) -> Result<Vec<String>, DevE
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        github_action_remote, github_remote_from_pre_commit, is_full_sha, parse_action_uses,
-        semver_key,
-    };
-
-    #[test]
-    fn parses_action_uses_with_quotes_and_comment() {
-        assert_eq!(
-            parse_action_uses(
-                "  - uses: 'actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0' # frozen"
-            ),
-            Some("actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0".to_owned())
-        );
-    }
+    use super::{github_action_remote, github_remote_from_pre_commit, semver_key};
 
     #[test]
     fn normalizes_supported_pre_commit_github_remotes() {
@@ -428,12 +416,5 @@ mod tests {
         assert_eq!(semver_key("1.2.3"), Some((1, 2, 3)));
         assert_eq!(semver_key("v1.2"), None);
         assert_eq!(semver_key("v1.2.3-beta.1"), None);
-    }
-
-    #[test]
-    fn accepts_only_lowercase_full_commit_sha_pins() {
-        assert!(is_full_sha("9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0")); // pragma: allowlist secret
-        assert!(!is_full_sha("9C091BB21B7C1C1D1991BB908D89E4E9DDDFE3E0")); // pragma: allowlist secret
-        assert!(!is_full_sha("v1.2.3"));
     }
 }

@@ -130,6 +130,16 @@ enum PolicyCommand {
     )]
     VerifyWorkspaceVersion(RepoRootArgs),
     #[command(
+        name = "verify-action-pins",
+        about = "Verify external GitHub Actions use immutable commit SHAs"
+    )]
+    VerifyActionPins(RepoRootArgs),
+    #[command(
+        name = "verify-pre-commit-pins",
+        about = "Verify external pre-commit repositories use immutable commit SHAs"
+    )]
+    VerifyPreCommitPins(RepoRootArgs),
+    #[command(
         name = "audit-external-pins",
         about = "Report drift in pinned external repositories"
     )]
@@ -331,6 +341,12 @@ fn run_policy(command: &PolicyCommand) -> Result<Outcome, DevError> {
         }
         PolicyCommand::VerifyWorkspaceVersion(args) => {
             workspace_version::verify_workspace_version(&args.repo_root).map(|()| Outcome::Clean)
+        }
+        PolicyCommand::VerifyActionPins(args) => {
+            external_pins::verify_action_pins(&args.repo_root).map(|()| Outcome::Clean)
+        }
+        PolicyCommand::VerifyPreCommitPins(args) => {
+            external_pins::verify_pre_commit_pins(&args.repo_root).map(|()| Outcome::Clean)
         }
         PolicyCommand::AuditExternalPins(args) => {
             let report = external_pins::audit_external_pin_drift(&args.common.repo_root)?;

@@ -16,7 +16,7 @@ The Rust YAML ecosystem does not currently offer a parser that meets the [supply
 
 ## Decision
 
-Parse the three YAML surfaces with deliberately limited, line-oriented readers owned by `tq-dev` (`parse.rs` and the pre-commit reader in `external_pins.rs`), rather than admitting a YAML dependency.
+Parse the three YAML surfaces with deliberately limited, line-oriented readers owned by `tq-dev` in `parse.rs`, rather than admitting a YAML dependency. The shared boundary returns typed action references and pre-commit repositories with source locations and explicit pinned-revision states, so policy checks and drift audits consume the same parse result.
 
 The parsers support only the shapes this repository commits: two-space indentation, scalar values on the same line as their key, single- or double-quoted scalars, and `#` comments. They do not support block scalars, flow collections, anchors, aliases, or multi-line values.
 
@@ -27,7 +27,7 @@ Review this if a future YAML crate clears the admission bar, or if the repositor
 - No YAML crate enters the trusted computing base for repository automation.
 - The repository's own YAML must stay within the supported subset. The `cargo dev policy verify-pins` gate exercises these parsers against the live files in CI, so a formatting change that breaks parsing fails loudly rather than silently skipping a check.
 - Parsing is strict where it matters (missing keys and defaults are hard errors) but structurally naive: unusual formatting could misparse. This risk is bounded because the inputs are repository-owned files that pass through code review, not untrusted input.
-- If a YAML crate later clears the dependency admission bar, replacing these readers is a contained change: all YAML reading lives behind `parse.rs` and one function in `external_pins.rs`.
+- If a YAML crate later clears the dependency admission bar, replacing these readers is a contained change because all YAML reading lives behind `parse.rs`.
 
 ## Alternatives considered
 
