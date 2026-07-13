@@ -41,4 +41,3 @@ Review this if a future YAML crate clears the admission bar, or if the repositor
 
 - [Supply-chain security standards](../developer/standards/supply-chain-security.md)
 - `crates/tq-dev/src/parse.rs`
-- [We lost `serde_yaml`, what's the next one?](https://www.reddit.com/r/rust/comments/1bo5dle/we_lost_serdeyaml_whats_the_next_one/)
