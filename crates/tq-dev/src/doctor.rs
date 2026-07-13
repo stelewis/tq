@@ -246,7 +246,7 @@ fn python_check(expected: &ToolVersion) -> DoctorCheck {
             expected: expected.as_str().to_owned(),
             actual: Some(captured.output),
             status: ToolStatus::Missing,
-            remediation: Some(remediation.clone()),
+            remediation: Some(remediation),
         },
         Err(_) => DoctorCheck {
             tool: "python".to_owned(),

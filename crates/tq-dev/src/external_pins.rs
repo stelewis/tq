@@ -329,7 +329,7 @@ pub(crate) enum ReleaseSeries {
 }
 
 impl ReleaseSeries {
-    fn contains(self, version: (u64, u64, u64)) -> bool {
+    const fn contains(self, version: (u64, u64, u64)) -> bool {
         match self {
             Self::Any => true,
             Self::Major(major) => version.0 == major,

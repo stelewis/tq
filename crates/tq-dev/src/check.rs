@@ -313,7 +313,7 @@ mod tests {
             |_| {
                 calls += 1;
                 Ok(Captured {
-                    code: Some(if calls == 1 { 1 } else { 0 }),
+                    code: Some(i32::from(calls == 1)),
                     success: calls != 1,
                     output: if calls == 1 {
                         "formatting failed".to_owned()

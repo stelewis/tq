@@ -180,11 +180,10 @@ pub fn doctor_document(report: &DoctorReport) -> Document {
                         check.status.to_string(),
                         check.tool.clone(),
                         check.expected.clone(),
-                        check
-                            .actual
-                            .as_deref()
-                            .map(|actual| actual.replace('\n', "; "))
-                            .unwrap_or_else(|| "not found".to_owned()),
+                        check.actual.as_deref().map_or_else(
+                            || "not found".to_owned(),
+                            |actual| actual.replace('\n', "; "),
+                        ),
                     ]
                 })
                 .collect(),
