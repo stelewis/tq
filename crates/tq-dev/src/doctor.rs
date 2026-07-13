@@ -7,7 +7,7 @@ use serde::Serialize;
 use crate::error::DevError;
 use crate::invocation;
 use crate::label::labeled_enum;
-use crate::manifest::{DevToolsManifest, ToolVersion};
+use crate::manifest::{DevToolsManifest, NodeToolchain, ToolVersion};
 use crate::native_env;
 
 labeled_enum! {
@@ -86,12 +86,13 @@ impl DoctorSummary {
 
 pub fn diagnose(repo_root: &Path) -> Result<DoctorReport, DevError> {
     let manifest = DevToolsManifest::load(repo_root)?;
+    let node = NodeToolchain::load(repo_root)?;
     let mut checks = vec![
         version_check("rustc", &manifest.rust, "rustc", &["--version"]),
         version_check("cargo", &manifest.rust, "cargo", &["--version"]),
         version_check("uv", &manifest.uv, "uv", &["--version"]),
-        version_check("node", &manifest.node, "node", &["--version"]),
-        version_check("npm", &manifest.npm, "npm", &["--version"]),
+        version_check("node", &node.node, "node", &["--version"]),
+        version_check("npm", &node.npm, "npm", &["--version"]),
         version_check(
             "actionlint",
             &manifest.actionlint,

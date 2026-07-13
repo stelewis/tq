@@ -82,7 +82,58 @@ pub fn audit_external_pin_drift(repo_root: &Path) -> Result<ExternalPinReport, D
 }
 
 pub fn verify_action_pins(repo_root: &Path) -> Result<(), DevError> {
-    verify_frozen_refs(action_refs(repo_root)?)
+    verify_frozen_refs(action_refs(repo_root)?)?;
+    verify_docker_refs(repo_root)
+}
+
+fn verify_docker_refs(repo_root: &Path) -> Result<(), DevError> {
+    let files = git_ls_files(
+        repo_root,
+        &[
+            ".github/workflows/*.yml",
+            ".github/workflows/*.yaml",
+            ".github/actions/**/action.yml",
+            ".github/actions/**/action.yaml",
+        ],
+    )?;
+    let mut violations = Vec::new();
+
+    for file in files {
+        let contents = parse::read_to_string(&repo_root.join(&file))?;
+        for reference in parse::action_references(&contents, Path::new(&file))? {
+            let parse::ActionReference::Docker { source, reference } = reference else {
+                continue;
+            };
+            if !is_sha256_docker_reference(&reference) {
+                violations.push(format!(
+                    "{}: Docker action must use an immutable sha256 digest, found {reference:?}",
+                    source.display()
+                ));
+            }
+        }
+    }
+
+    if violations.is_empty() {
+        Ok(())
+    } else {
+        Err(DevError::PolicyViolation {
+            details: violations.join("\n"),
+        })
+    }
+}
+
+fn is_sha256_docker_reference(reference: &str) -> bool {
+    let Some((image, digest)) = reference
+        .strip_prefix("docker://")
+        .and_then(|reference| reference.split_once("@sha256:"))
+    else {
+        return false;
+    };
+    !image.is_empty()
+        && digest.len() == 64
+        && digest
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 pub fn verify_pre_commit_pins(repo_root: &Path) -> Result<(), DevError> {

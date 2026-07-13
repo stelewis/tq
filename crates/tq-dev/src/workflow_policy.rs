@@ -5,7 +5,7 @@ use crate::parse;
 
 const WORKFLOWS_ROOT: &str = ".github/workflows";
 const ACTIONS_ROOT: &str = ".github/actions";
-const NPM_INSTALL_OWNER: &str = ".github/actions/setup-mise-docs/action.yml";
+const NPM_INSTALL_OWNER: &str = ".github/actions/setup-docs/action.yml";
 
 #[derive(Debug, Eq, PartialEq)]
 enum WorkflowViolationKind {
@@ -244,10 +244,7 @@ fn inspect_npm_installs(contents: &str, source: &Path, violations: &mut Vec<Work
     }
 
     let is_owner = source.ends_with(NPM_INSTALL_OWNER);
-    let is_frozen = contains_token_sequence(
-        &tokens,
-        &["mise", "exec", "--", "npm", "ci", "--ignore-scripts"],
-    );
+    let is_frozen = contains_token_sequence(&tokens, &["npm", "ci", "--ignore-scripts"]);
     if !is_owner || !is_frozen {
         violations.push(WorkflowViolation {
             source: source.to_path_buf(),

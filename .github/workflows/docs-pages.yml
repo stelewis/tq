@@ -9,10 +9,10 @@ on:
       - "crates/tq-cli/**"
       - "package.json"
       - "package-lock.json"
-      - "mise.toml"
       - ".github/workflows/ci.yml"
       - ".github/workflows/docs-pages.yml"
-      - ".github/actions/setup-mise-docs/action.yml"
+      - ".github/actions/setup-node/action.yml"
+      - ".github/actions/setup-docs/action.yml"
   workflow_dispatch:
 
 permissions:
@@ -37,10 +37,10 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Setup docs toolchain
-        uses: ./.github/actions/setup-mise-docs
+        uses: ./.github/actions/setup-docs
 
       - name: Build docs
-        run: mise run docs-build
+        run: npm run docs:build
 
       - name: Configure Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0

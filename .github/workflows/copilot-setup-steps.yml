@@ -14,7 +14,6 @@ on:
       - uv.lock
       - package.json
       - package-lock.json
-      - mise.toml
   pull_request:
     paths:
       - .github/workflows/copilot-setup-steps.yml
@@ -27,7 +26,6 @@ on:
       - uv.lock
       - package.json
       - package-lock.json
-      - mise.toml
 
 permissions:
   contents: read
@@ -51,4 +49,4 @@ jobs:
         uses: ./.github/actions/setup-python-uv
 
       - name: Setup docs toolchain
-        uses: ./.github/actions/setup-mise-docs
+        uses: ./.github/actions/setup-docs

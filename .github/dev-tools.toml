@@ -5,11 +5,13 @@ version = 1
 rust = "1.96.1"
 python = "3.14.6"
 uv = "0.11.28"
-node = "26.4.0"
-npm = "11.17.0"
 maturin = "1.11.0"
 actionlint = "1.7.12"
 shellcheck = "0.11.0"
+
+[automation.actionlint-image]
+repository = "rhysd/actionlint"
+digest = "sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667"
 
 [rust-maintenance]
 cargo-outdated = "0.17.0"

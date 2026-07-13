@@ -177,10 +177,10 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Setup docs toolchain
-        uses: ./.github/actions/setup-mise-docs
+        uses: ./.github/actions/setup-docs
 
       - name: Build docs
-        run: mise run docs-build
+        run: npm run docs:build
 
   runtime-dep-check:
     name: Runtime dependency check (advisory)
@@ -543,13 +543,13 @@ jobs:
 
       - name: Setup docs toolchain
         if: ${{ needs.change-scope.outputs.docs_security == 'true' }}
-        uses: ./.github/actions/setup-mise-docs
+        uses: ./.github/actions/setup-docs
         with:
           install-dependencies: "false"
 
       - name: npm audit (docs toolchain)
         if: ${{ needs.change-scope.outputs.docs_security == 'true' }}
-        run: mise exec -- npm audit --package-lock-only
+        run: npm audit --package-lock-only
 
       - name: Summarize gated dependency scans
         shell: bash
@@ -580,11 +580,10 @@ jobs:
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
 
-      - name: Setup automation toolchain
-        uses: ./.github/actions/setup-mise
-
       - name: Validate GitHub Actions workflows
-        run: mise exec -- actionlint
+        uses: docker://rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: -color
 
       - name: Verify fail-closed automation policy
         run: cargo dev policy verify-automation --repo-root .

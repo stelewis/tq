@@ -17,7 +17,7 @@ pub fn verify_tool_pins(repo_root: &Path) -> Result<(), DevError> {
 
     verify_rust_toolchain(repo_root, &manifest, &mut violations)?;
     verify_cargo_msrv(repo_root, &manifest, &mut violations)?;
-    verify_node_package(repo_root, &manifest, &mut violations)?;
+    verify_actionlint_image(repo_root, &manifest, &mut violations)?;
     verify_python_uv_action(repo_root, &manifest, &mut violations)?;
     verify_rust_maintenance_action(repo_root, &manifest, &mut violations)?;
     verify_maturin_release_builder(repo_root, &mut violations)?;
@@ -88,30 +88,23 @@ fn verify_cargo_msrv(
     Ok(())
 }
 
-fn verify_node_package(
+fn verify_actionlint_image(
     repo_root: &Path,
     manifest: &DevToolsManifest,
     violations: &mut Vec<String>,
 ) -> Result<(), DevError> {
-    let path = repo_root.join("package.json");
-    let document = parse::read_json(&path)?;
-    require_equal(
+    let path = repo_root.join(".github/workflows/ci.yml");
+    let contents = parse::read_to_string(&path)?;
+    require_contains(
         violations,
-        "package.json packageManager",
-        &format!("npm@{}", manifest.npm),
-        &parse::required_json_string(&document, &["packageManager"], &path)?,
-    );
-    require_equal(
-        violations,
-        "package.json engines.node",
-        manifest.node.as_str(),
-        &parse::required_json_string(&document, &["engines", "node"], &path)?,
-    );
-    require_equal(
-        violations,
-        "package.json engines.npm",
-        manifest.npm.as_str(),
-        &parse::required_json_string(&document, &["engines", "npm"], &path)?,
+        ".github/workflows/ci.yml actionlint image",
+        &contents,
+        &format!(
+            "uses: {}",
+            manifest
+                .actionlint_image
+                .pinned_reference(&manifest.actionlint)
+        ),
     );
     Ok(())
 }

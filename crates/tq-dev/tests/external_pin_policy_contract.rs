@@ -38,12 +38,27 @@ fn action_policy_accepts_sha_pins_and_explicit_local_kinds() {
     write(
         &root.join(".github/workflows/ci.yml"),
         &format!(
-            "steps:\n  - uses: actions/checkout@{SHA}\n  - uses: ./local\n  - uses: docker://alpine:3.20\n"
+            "steps:\n  - uses: actions/checkout@{SHA}\n  - uses: ./local\n  - uses: docker://alpine@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
         ),
     );
     git(root, &["add", "--all"]);
 
     verify_action_pins(root).expect("all action references should be frozen");
+}
+
+#[test]
+fn action_policy_rejects_mutable_docker_tags() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let root = temp.path();
+    init_repo(root);
+    write(
+        &root.join(".github/workflows/ci.yml"),
+        "steps:\n  - uses: docker://alpine:3.20\n",
+    );
+    git(root, &["add", "--all"]);
+
+    let error = verify_action_pins(root).expect_err("mutable Docker tag must fail policy");
+    assert!(error.to_string().contains("immutable sha256 digest"));
 }
 
 #[test]

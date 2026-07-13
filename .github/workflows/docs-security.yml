@@ -27,9 +27,9 @@ jobs:
           persist-credentials: false
 
       - name: Setup docs audit toolchain
-        uses: ./.github/actions/setup-mise-docs
+        uses: ./.github/actions/setup-docs
         with:
           install-dependencies: "false"
 
       - name: npm audit (package-lock only)
-        run: mise exec -- npm audit --package-lock-only
+        run: npm audit --package-lock-only
