@@ -5,8 +5,6 @@ use tq_engine::{EngineError, RuleId};
 pub enum RulesError {
     #[error("allowed_qualifiers must be non-empty for allowlist strategy")]
     AllowlistRequiresQualifiers,
-    #[error("{setting} must be >= 1")]
-    ValueMustBePositive { setting: &'static str },
     #[error("Unknown built-in rule ID(s): {ids}")]
     UnknownBuiltinRuleIds { ids: String },
     #[error("Rule produced an invalid finding: {0}")]
@@ -16,10 +14,6 @@ pub enum RulesError {
 impl RulesError {
     pub(crate) const fn allowlist_requires_qualifiers() -> Self {
         Self::AllowlistRequiresQualifiers
-    }
-
-    pub(crate) const fn value_must_be_positive(setting: &'static str) -> Self {
-        Self::ValueMustBePositive { setting }
     }
 
     pub(crate) fn unknown_builtin_rule_ids(rule_ids: &[RuleId]) -> Self {

@@ -1,3 +1,5 @@
+use std::num::NonZeroU64;
+
 use tq_engine::{AnalysisContext, Finding, Rule, RuleId};
 
 use crate::builtin::BuiltinRule;
@@ -5,19 +7,16 @@ use crate::error::RulesError;
 
 pub struct TestFileTooLargeRule {
     rule_id: RuleId,
-    max_non_blank_lines: u64,
+    max_non_blank_lines: NonZeroU64,
 }
 
 impl TestFileTooLargeRule {
-    pub const fn new(max_non_blank_lines: u64) -> Result<Self, RulesError> {
-        if max_non_blank_lines < 1 {
-            return Err(RulesError::value_must_be_positive("max_non_blank_lines"));
-        }
-
-        Ok(Self {
+    #[must_use]
+    pub const fn new(max_non_blank_lines: NonZeroU64) -> Self {
+        Self {
             rule_id: BuiltinRule::TestFileTooLarge.rule_id(),
             max_non_blank_lines,
-        })
+        }
     }
 }
 
@@ -33,7 +32,7 @@ impl Rule for TestFileTooLargeRule {
 
         for test_file in context.index().test_files() {
             let line_count = test_file.non_blank_non_comment_lines();
-            if line_count <= self.max_non_blank_lines {
+            if line_count <= self.max_non_blank_lines.get() {
                 continue;
             }
 

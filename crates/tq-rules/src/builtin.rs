@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::num::NonZeroU64;
 use std::path::Path;
 
 use tq_core::{DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES, InitModulesMode, QualifierStrategy, RuleId};
@@ -78,7 +79,7 @@ impl BuiltinRule {
             Self::StructureMismatch => Ok(Box::new(StructureMismatchRule::new())),
             Self::TestFileTooLarge => Ok(Box::new(TestFileTooLargeRule::new(
                 options.max_test_file_non_blank_lines(),
-            )?)),
+            ))),
             Self::OrphanedTest => Ok(Box::new(OrphanedTestRule::new(
                 options.qualifier_strategy(),
                 options.allowed_qualifiers().clone(),
@@ -90,7 +91,7 @@ impl BuiltinRule {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct BuiltinRuleOptions {
     init_modules: InitModulesMode,
-    max_test_file_non_blank_lines: u64,
+    max_test_file_non_blank_lines: NonZeroU64,
     qualifier_strategy: QualifierStrategy,
     allowed_qualifiers: BTreeSet<String>,
 }
@@ -98,16 +99,10 @@ pub struct BuiltinRuleOptions {
 impl BuiltinRuleOptions {
     pub fn new(
         init_modules: InitModulesMode,
-        max_test_file_non_blank_lines: u64,
+        max_test_file_non_blank_lines: NonZeroU64,
         qualifier_strategy: QualifierStrategy,
         allowed_qualifiers: impl IntoIterator<Item = String>,
     ) -> Result<Self, RulesError> {
-        if max_test_file_non_blank_lines < 1 {
-            return Err(RulesError::value_must_be_positive(
-                "max_test_file_non_blank_lines",
-            ));
-        }
-
         let allowed_qualifiers = normalize_non_empty_trimmed_strings(allowed_qualifiers);
         if qualifier_strategy == QualifierStrategy::Allowlist && allowed_qualifiers.is_empty() {
             return Err(RulesError::allowlist_requires_qualifiers());
@@ -127,7 +122,7 @@ impl BuiltinRuleOptions {
     }
 
     #[must_use]
-    pub const fn max_test_file_non_blank_lines(&self) -> u64 {
+    pub const fn max_test_file_non_blank_lines(&self) -> NonZeroU64 {
         self.max_test_file_non_blank_lines
     }
 

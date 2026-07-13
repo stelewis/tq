@@ -91,17 +91,24 @@ struct CheckArgs {
 enum DepsCommand {
     #[command(
         name = "audit-latest",
-        about = "Report available dependency and tool updates"
+        about = "Report available dependency and tool updates (read-only)"
     )]
     AuditLatest(ReportArgs),
-    #[command(name = "audit-security", about = "Run dependency security audits")]
+    #[command(
+        name = "audit-security",
+        about = "Run dependency security audits (read-only)"
+    )]
     AuditSecurity(ReportArgs),
     #[command(
         name = "audit-maintenance-tools",
-        about = "Report drift in pinned Rust maintenance tools"
+        about = "Report drift in pinned Rust maintenance tools (read-only)"
     )]
     AuditMaintenanceTools(ReportArgs),
-    #[command(about = "Apply deterministic dependency and toolchain updates")]
+    #[command(
+        about = "Apply deterministic dependency and toolchain updates",
+        after_help = "Use --dry-run to preview the update plan without applying changes.\n\
+                      Audit subcommands are read-only and take no --dry-run."
+    )]
     Update(MutationArgs),
 }
 

@@ -36,5 +36,6 @@ These checks are only the baseline. Before adding or upgrading external dependen
 The language-specific pre-commit hooks are Rust-native:
 
 - `cargo fmt --all` on `pre-commit`
-- `cargo clippy --workspace --all-targets --locked -- -D warnings` on `pre-push`
-- `cargo test --workspace --locked` on `pre-push`
+- `cargo dev check routine` on `pre-push`
+
+The pre-push hook is the same routine gate CI runs, so a push that passes hooks does not fail CI on gate checks.

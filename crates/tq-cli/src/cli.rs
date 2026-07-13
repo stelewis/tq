@@ -1,3 +1,4 @@
+use std::num::NonZeroU64;
 use std::path::PathBuf;
 
 use clap::builder::Styles;
@@ -78,12 +79,11 @@ pub struct CheckArgs {
     pub init_modules: Option<InitModuleModeArg>,
     #[arg(
         long,
-        value_parser = clap::value_parser!(u64).range(1..),
         value_name = "COUNT",
         help_heading = "Rule configuration",
         help = "Maximum non-blank, non-comment lines per test file."
     )]
-    pub max_test_file_non_blank_lines: Option<u64>,
+    pub max_test_file_non_blank_lines: Option<NonZeroU64>,
     #[arg(
         long,
         value_enum,

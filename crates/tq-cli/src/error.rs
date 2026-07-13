@@ -2,6 +2,7 @@ use std::path::Path;
 
 use thiserror::Error;
 use tq_config::ConfigError;
+use tq_core::RuleIdError;
 use tq_discovery::DiscoveryError;
 use tq_engine::EngineError;
 use tq_reporting::ReportingError;
@@ -9,8 +10,22 @@ use tq_rules::RulesError;
 
 #[derive(Debug, Error)]
 pub enum CliError {
-    #[error("{message}")]
-    Validation { message: String },
+    #[error("Invalid rule ID {value:?}: {source}")]
+    InvalidRuleId {
+        value: String,
+        #[source]
+        source: RuleIdError,
+    },
+    #[error("Duplicate rule ID in CLI values: {rule_id}")]
+    DuplicateCliRuleId { rule_id: String },
+    #[error("Invalid --severity value '{value}': expected RULE_ID=SEVERITY")]
+    MalformedSeverityOverride { value: String },
+    #[error(
+        "Invalid severity '{severity}' in --severity {value}: expected error, warning, or info"
+    )]
+    UnknownSeverity { severity: String, value: String },
+    #[error("Unknown target name(s): {names}")]
+    UnknownTargetNames { names: String },
     #[error("configuration path does not exist: {path}")]
     MissingConfigPath { path: String },
     #[error("provided --config path is not a file: {path}")]
@@ -36,9 +51,16 @@ pub enum CliError {
 }
 
 impl CliError {
-    pub fn validation(message: impl Into<String>) -> Self {
-        Self::Validation {
-            message: message.into(),
+    pub fn invalid_rule_id(value: &str, source: RuleIdError) -> Self {
+        Self::InvalidRuleId {
+            value: value.to_owned(),
+            source,
+        }
+    }
+
+    pub fn duplicate_cli_rule_id(rule_id: impl Into<String>) -> Self {
+        Self::DuplicateCliRuleId {
+            rule_id: rule_id.into(),
         }
     }
 

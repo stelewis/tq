@@ -1,6 +1,8 @@
+use std::num::NonZeroU64;
 use std::path::{Path, PathBuf};
 
-pub const DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES: u64 = 600;
+pub const DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES: NonZeroU64 =
+    NonZeroU64::new(600).expect("default test file line limit is a non-zero literal");
 
 #[must_use]
 pub fn is_python_module(path: &Path) -> bool {

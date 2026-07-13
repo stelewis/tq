@@ -1,5 +1,6 @@
 mod support;
 
+use std::num::NonZeroU64;
 use std::path::PathBuf;
 
 use tq_engine::Rule;
@@ -22,7 +23,7 @@ fn file_too_large_rule_uses_discovery_line_metrics() {
         vec!["tq".to_owned()],
     );
 
-    let rule = TestFileTooLargeRule::new(3).expect("rule should be valid");
+    let rule = TestFileTooLargeRule::new(NonZeroU64::new(3).expect("non-zero literal"));
     let findings = rule
         .evaluate(&context)
         .expect("rule evaluation should succeed");
@@ -52,7 +53,7 @@ fn file_too_large_rule_does_not_read_files_during_evaluation() {
     );
     std::fs::remove_file(full_path).expect("remove file after discovery snapshot");
 
-    let rule = TestFileTooLargeRule::new(3).expect("rule should be valid");
+    let rule = TestFileTooLargeRule::new(NonZeroU64::new(3).expect("non-zero literal"));
     let findings = rule
         .evaluate(&context)
         .expect("rule evaluation should use snapshot data");

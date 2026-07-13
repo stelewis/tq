@@ -83,10 +83,18 @@ pub enum ConfigError {
         second_index: usize,
         path: PathBuf,
     },
-    #[error("failed to resolve current directory: {message}")]
-    CurrentDirectory { message: String },
-    #[error("failed to read config file {path}: {message}")]
-    Read { path: PathBuf, message: String },
-    #[error("invalid TOML in {path}: {message}")]
-    Parse { path: PathBuf, message: String },
+    #[error("working directory must be absolute: {path}")]
+    RelativeWorkingDirectory { path: PathBuf },
+    #[error("failed to read config file {path}: {source}")]
+    Read {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("invalid TOML in {path}: {source}")]
+    Parse {
+        path: PathBuf,
+        #[source]
+        source: toml::de::Error,
+    },
 }

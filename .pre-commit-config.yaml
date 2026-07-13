@@ -43,19 +43,10 @@ repos:
         pass_filenames: false
         require_serial: true
 
-      - id: cargo-clippy
-        name: cargo clippy
-        description: Lint the Rust workspace
-        entry: cargo clippy --workspace --all-targets --locked -- -D warnings
-        language: system
-        pass_filenames: false
-        require_serial: true
-        stages: [pre-push]
-
-      - id: cargo-test
-        name: cargo test
-        description: Test the Rust workspace
-        entry: cargo test --workspace --locked
+      - id: routine-gate
+        name: cargo dev check routine
+        description: Run the routine developer gate through the harness
+        entry: cargo dev check routine --repo-root .
         language: system
         pass_filenames: false
         require_serial: true

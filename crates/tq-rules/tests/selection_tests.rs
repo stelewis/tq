@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::num::NonZeroU64;
 
 use tq_core::InitModulesMode;
 use tq_engine::RuleId;
@@ -31,7 +32,7 @@ fn resolve_active_rule_ids_rejects_unknown_ids() {
 fn registry_builds_selected_rules_in_builtin_order() {
     let options = BuiltinRuleOptions::new(
         InitModulesMode::Ignore,
-        120,
+        NonZeroU64::new(120).expect("non-zero literal"),
         QualifierStrategy::Allowlist,
         ["regression".to_owned()],
     )
@@ -65,7 +66,7 @@ fn registry_builds_selected_rules_in_builtin_order() {
 fn options_validate_allowlist_requires_qualifiers() {
     let error = BuiltinRuleOptions::new(
         InitModulesMode::Include,
-        600,
+        NonZeroU64::new(600).expect("non-zero literal"),
         QualifierStrategy::Allowlist,
         BTreeSet::new(),
     )

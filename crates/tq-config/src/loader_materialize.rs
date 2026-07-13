@@ -56,7 +56,7 @@ pub fn materialize_config(
         }
         seen_names.insert(resolved.name().clone(), target_index);
 
-        let source_package_root = source_package_root_key(&resolved);
+        let source_package_root = source_package_root_key(&resolved)?;
         if let Some(first_index) = seen_roots.get(&source_package_root) {
             return Err(ConfigError::DuplicateSourcePackageRoot {
                 first_index: *first_index,
@@ -100,9 +100,20 @@ fn merge_rule_partial(
     }
 }
 
-fn source_package_root_key(target: &TqTargetConfig) -> PathBuf {
+/// Identity key for duplicate source-root detection.
+///
+/// Canonicalizes existing roots so aliased paths (symlinks, `..` segments)
+/// collide; roots that do not exist yet keep their normalized lexical form,
+/// and existence itself is enforced later at the CLI boundary.
+fn source_package_root_key(target: &TqTargetConfig) -> Result<PathBuf, ConfigError> {
     let lexical = target.source_package_root();
-    fs::canonicalize(&lexical).unwrap_or(lexical)
+    if !lexical.exists() {
+        return Ok(lexical);
+    }
+    fs::canonicalize(&lexical).map_err(|source| ConfigError::Read {
+        path: lexical,
+        source,
+    })
 }
 
 fn materialize_target(
