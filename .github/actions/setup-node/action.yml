@@ -5,35 +5,24 @@ description: Configure the package.json-pinned Node and npm toolchain
 runs:
   using: composite
   steps:
-    - name: Read Node toolchain requirements
-      id: requirements
-      shell: bash
-      run: |
-        set -euo pipefail
-
-        node_version="$(jq --exit-status --raw-output '.engines.node | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' package.json)"
-        npm_package="$(jq --exit-status --raw-output '.packageManager | select(test("^npm@[0-9]+\\.[0-9]+\\.[0-9]+$"))' package.json)"
-        npm_version="${npm_package#npm@}"
-
-        {
-          echo "node-version=$node_version"
-          echo "npm-version=$npm_version"
-        } >> "$GITHUB_OUTPUT"
-
     - name: Setup Node
       uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
       with:
-        node-version: ${{ steps.requirements.outputs.node-version }}
+        node-version-file: package.json
         cache: npm
 
     - name: Verify bundled npm
       shell: bash
-      env:
-        EXPECTED_NPM_VERSION: ${{ steps.requirements.outputs.npm-version }}
       run: |
         set -euo pipefail
+        npm_package="$(node --print "require('./package.json').packageManager")"
+        if [[ ! "$npm_package" =~ ^npm@([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+          echo "package.json packageManager must be an exact npm@major.minor.patch version" >&2
+          exit 1
+        fi
+        expected_npm_version="${BASH_REMATCH[1]}"
         actual_npm_version="$(npm --version)"
-        if [[ "$actual_npm_version" != "$EXPECTED_NPM_VERSION" ]]; then
-          echo "Expected npm $EXPECTED_NPM_VERSION from package.json, found $actual_npm_version" >&2
+        if [[ "$actual_npm_version" != "$expected_npm_version" ]]; then
+          echo "Expected npm $expected_npm_version from package.json, found $actual_npm_version" >&2
           exit 1
         fi

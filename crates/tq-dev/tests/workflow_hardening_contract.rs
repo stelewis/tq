@@ -36,8 +36,8 @@ fn node_and_docs_setup_have_separate_owners() {
     let docs = include_str!("../../../.github/actions/setup-docs/action.yml");
 
     assert!(node.contains("actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e"));
-    assert!(node.contains(".engines.node"));
-    assert!(node.contains(".packageManager"));
+    assert!(node.contains("node-version-file: package.json"));
+    assert!(node.contains("require('./package.json').packageManager"));
     assert!(docs.contains("uses: ./.github/actions/setup-node"));
     assert!(docs.contains("npm ci --ignore-scripts"));
     assert!(!docs.contains("actions/setup-node@"));
@@ -151,6 +151,7 @@ fn automation_workflows_fail_closed_on_tooling_and_state_errors() {
     let drift_action = include_str!("../../../.github/actions/sync-drift-issue/action.yml");
 
     assert!(ci.contains("uses: docker://rhysd/actionlint:1.7.12@sha256:"));
+    assert!(ci.contains("::add-matcher::.github/actionlint-matcher.json"));
     assert!(!ci.contains("git fetch --no-tags origin \"$BEFORE_SHA\" || true"));
     assert!(drift_action.contains("true|false)"));
     assert!(drift_action.contains("drift-detected must be exactly"));

@@ -359,6 +359,7 @@ fn is_known_path(path: &str) -> bool {
                 | "uv.lock"
                 | ".github/CODEOWNERS"
                 | ".github/SUPPORT.md"
+                | ".github/actionlint-matcher.json"
                 | ".github/copilot-instructions.md"
                 | ".github/dependabot.yml"
                 | ".github/dependency-review-config.yml"
