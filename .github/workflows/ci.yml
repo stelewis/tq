@@ -296,25 +296,25 @@ jobs:
             artifact_name: wheel-manylinux-x86_64
             artifact_profile: linux-wheel
             maturin_requirement: maturin_zig
-            extra_build_args: --compatibility pypi --zig
+            build_mode: portable-linux
           - label: macOS x86_64
             runs_on: macos-15-intel
             artifact_name: wheel-macos-x86_64
             artifact_profile: macos-x86-64-wheel
             maturin_requirement: maturin
-            extra_build_args: ""
+            build_mode: native
           - label: macOS arm64
             runs_on: macos-14
             artifact_name: wheel-macos-arm64
             artifact_profile: macos-arm64-wheel
             maturin_requirement: maturin
-            extra_build_args: ""
+            build_mode: native
           - label: Windows x86_64
             runs_on: windows-latest
             artifact_name: wheel-windows-x86_64
             artifact_profile: windows-x86-64-wheel
             maturin_requirement: maturin
-            extra_build_args: ""
+            build_mode: native
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -352,11 +352,24 @@ jobs:
               ;;
           esac
 
-          extra_build_args=(${{ matrix.extra_build_args }})
+          build_args=(
+            build --release --locked --manifest-path crates/tq-cli/Cargo.toml
+            --bindings bin --out dist -i python
+          )
+          case '${{ matrix.build_mode }}' in
+            native)
+              ;;
+            portable-linux)
+              build_args+=(--compatibility pypi --zig)
+              ;;
+            *)
+              echo "Unknown release wheel build mode '${{ matrix.build_mode }}'"
+              exit 1
+              ;;
+          esac
+
           rm -rf dist
-          uv run --isolated --with "$maturin_requirement" -- \
-            maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml \
-            --bindings bin --out dist -i python "${extra_build_args[@]}"
+          uv run --isolated --with "$maturin_requirement" -- maturin "${build_args[@]}"
 
       - name: Verify wheel
         run: >-

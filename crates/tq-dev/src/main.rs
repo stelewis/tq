@@ -368,7 +368,10 @@ fn run_deps(command: &DepsCommand) -> Result<Outcome, DevError> {
             "Rust Maintenance Tool Pin Review",
             &pins::audit_maintenance_tools(&args.common.repo_root)?,
         ),
-        DepsCommand::Update(args) => run_mutation(args, &update::plan(&args.common.repo_root)?),
+        DepsCommand::Update(args) => {
+            let latest_rust = update::latest_stable_rust(&args.common.repo_root)?;
+            run_mutation(args, &update::plan(&args.common.repo_root, &latest_rust)?)
+        }
     }
 }
 

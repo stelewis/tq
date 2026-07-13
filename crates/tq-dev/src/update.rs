@@ -9,12 +9,11 @@ use crate::manifest::{DevToolsManifest, ToolVersion};
 
 /// The dependency update plan: the single source of truth for what an update
 /// applies.
-pub fn plan(repo_root: &Path) -> Result<ActionPlan, DevError> {
+pub fn plan(repo_root: &Path, latest_rust: &ToolVersion) -> Result<ActionPlan, DevError> {
     let manifest = DevToolsManifest::load(repo_root)?;
-    let latest_rust = latest_stable_rust(repo_root)?;
 
     let mut actions = Vec::new();
-    if latest_rust != manifest.rust {
+    if latest_rust != &manifest.rust {
         actions.extend([
             PlannedAction::replace_text(
                 "Update Rust pin in dev tools manifest",

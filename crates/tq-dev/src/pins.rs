@@ -40,7 +40,7 @@ pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
             "Update package.json and package-lock.json, then update Node with its owning environment manager.",
         ),
         npm_registry_pin_check(repo_root, &node.npm),
-        crates_io_pin_check(repo_root, "maturin", &manifest.maturin).with_remediation(
+        pypi_maturin_pin_check(repo_root, &manifest.maturin).with_remediation(
             "Update the maturin pin in .github/dev-tools.toml and validate the release build.",
         ),
         github_release_pin_check(
@@ -260,6 +260,47 @@ fn parse_npm_versions(output: &str) -> Option<String> {
         .map(|version| version.as_str().to_owned())
 }
 
+fn pypi_maturin_pin_check(repo_root: &Path, pinned: &ToolVersion) -> AuditCheck {
+    let invocation = Invocation::new(
+        "uv",
+        [
+            "run",
+            "--isolated",
+            "--no-project",
+            "--with",
+            "maturin>=1,<2",
+            "--",
+            "maturin",
+            "--version",
+        ],
+    );
+    let command = invocation.display();
+    let captured = match invocation.capture(repo_root) {
+        Ok(captured) if captured.success => captured,
+        Ok(captured) => return AuditCheck::failed("maturin", &command, captured.output),
+        Err(error) => return AuditCheck::failed("maturin", &command, error.to_string()),
+    };
+
+    match parse_maturin_version(&captured.output) {
+        Some(latest) => {
+            AuditCheck::pin_comparison("maturin", &command, pinned.as_str(), latest.as_str())
+        }
+        None => AuditCheck::failed(
+            "maturin",
+            &command,
+            format!(
+                "could not parse latest maturin version from command output\n{}",
+                captured.output
+            ),
+        ),
+    }
+}
+
+fn parse_maturin_version(output: &str) -> Option<ToolVersion> {
+    let version = output.trim().strip_prefix("maturin ")?;
+    ToolVersion::parse(version).ok()
+}
+
 fn crates_io_pin_check(repo_root: &Path, crate_name: &str, pinned: &ToolVersion) -> AuditCheck {
     let invocation = Invocation::new("cargo", ["search", crate_name, "--limit", "1"]);
     let command = invocation.display();
@@ -296,7 +337,7 @@ fn parse_cargo_search_version(crate_name: &str, output: &str) -> Option<String> 
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_cargo_search_version, parse_npm_versions};
+    use super::{parse_cargo_search_version, parse_maturin_version, parse_npm_versions};
 
     #[test]
     fn parses_cargo_search_exact_crate_version() {
@@ -307,6 +348,16 @@ mod tests {
             ),
             Some("0.22.2".to_owned())
         );
+    }
+
+    #[test]
+    fn parses_exact_maturin_version_output() {
+        assert_eq!(
+            parse_maturin_version("maturin 1.14.1\n").map(|version| version.to_string()),
+            Some("1.14.1".to_owned())
+        );
+        assert_eq!(parse_maturin_version("maturin 1.14"), None);
+        assert_eq!(parse_maturin_version("warning\nmaturin 1.14.1"), None);
     }
 
     #[test]

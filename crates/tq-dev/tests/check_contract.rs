@@ -132,8 +132,11 @@ fn release_build_tool_requirements_are_exact_pins_from_manifest() {
 fn dependency_update_plan_mutates_repository_state_only() {
     let temp = tempfile::tempdir().expect("tempdir");
     write_dev_tools_manifest(temp.path());
+    let latest_rust = tq_dev::manifest::ToolVersion::parse("1.96.1")
+        .expect("fixture Rust version should be valid");
 
-    let plan = tq_dev::update::plan(temp.path()).expect("dependency update plan should build");
+    let plan = tq_dev::update::plan(temp.path(), &latest_rust)
+        .expect("dependency update plan should build");
     let invocations = plan
         .actions
         .iter()
