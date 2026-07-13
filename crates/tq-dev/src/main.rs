@@ -40,7 +40,7 @@ enum Command {
         #[command(subcommand)]
         command: DepsCommand,
     },
-    #[command(about = "Inspect or clean the local developer environment")]
+    #[command(about = "Inspect the local developer environment")]
     Health {
         #[command(subcommand)]
         command: HealthCommand,
@@ -65,7 +65,7 @@ enum Command {
         about = "Detect shipped runtime dependency changes between git refs"
     )]
     RuntimeDeps(RuntimeDepsArgs),
-    #[command(about = "Install pinned developer toolchain prerequisites")]
+    #[command(about = "Install repository dependencies and hooks")]
     Setup(MutationArgs),
 }
 
@@ -109,8 +109,6 @@ enum DepsCommand {
 enum HealthCommand {
     #[command(about = "Check pinned tools and native build prerequisites")]
     Doctor(ReportArgs),
-    #[command(about = "Remove obsolete local toolchains and harness caches")]
-    Cleanup(MutationArgs),
 }
 
 #[derive(Debug, Subcommand)]
@@ -319,7 +317,7 @@ fn run(cli: Cli) -> Result<Outcome, DevError> {
             if !args.dry_run {
                 native_env::verify_build_prerequisites()?;
             }
-            run_mutation(&args, &setup::plan(&args.common.repo_root)?)
+            run_mutation(&args, &setup::plan())
         }
     }
 }
@@ -375,9 +373,6 @@ fn run_health(command: &HealthCommand) -> Result<Outcome, DevError> {
             } else {
                 Outcome::Findings
             })
-        }
-        HealthCommand::Cleanup(args) => {
-            run_mutation(args, &setup::cleanup_plan(&args.common.repo_root))
         }
     }
 }

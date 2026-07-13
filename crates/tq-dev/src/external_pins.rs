@@ -265,12 +265,12 @@ fn result(
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct ReleaseRef {
-    tag: String,
+pub(crate) struct ReleaseRef {
+    pub(crate) tag: String,
     sha: String,
 }
 
-fn latest_release(repo_root: &Path, remote: &str) -> Result<Option<ReleaseRef>, String> {
+pub(crate) fn latest_release(repo_root: &Path, remote: &str) -> Result<Option<ReleaseRef>, String> {
     let output = Command::new("git")
         .args(["ls-remote", "--tags", remote])
         .current_dir(repo_root)

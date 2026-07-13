@@ -77,7 +77,7 @@ impl CheckTask {
                 ],
             ),
             Self::RustTests => Invocation::new("cargo", ["test", "--workspace", "--locked"]),
-            Self::Actionlint => Invocation::new("mise", ["exec", "--", "actionlint"]),
+            Self::Actionlint => Invocation::new("actionlint", []),
             Self::AutomationPolicy => Invocation::new(
                 "cargo",
                 [

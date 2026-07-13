@@ -77,7 +77,6 @@ pub struct DevToolsManifest {
     pub uv: ToolVersion,
     pub node: ToolVersion,
     pub npm: ToolVersion,
-    pub mise: ToolVersion,
     pub maturin: ToolVersion,
     pub actionlint: ToolVersion,
     pub shellcheck: ToolVersion,
@@ -113,7 +112,7 @@ impl DevToolsManifest {
             uv: version(&["tools", "uv"])?,
             node: version(&["tools", "node"])?,
             npm: version(&["tools", "npm"])?,
-            mise: version(&["tools", "mise"])?,
+
             maturin: version(&["tools", "maturin"])?,
             actionlint: version(&["tools", "actionlint"])?,
             shellcheck: version(&["tools", "shellcheck"])?,

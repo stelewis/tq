@@ -38,14 +38,6 @@ pub fn plan(repo_root: &Path) -> Result<ActionPlan, DevError> {
     }
     actions.extend([
         PlannedAction::command(
-            "Update selected Rust toolchain",
-            Invocation::new("rustup", ["update", latest_rust.as_str()]),
-        ),
-        PlannedAction::command(
-            "Install pinned mise tools",
-            Invocation::new("mise", ["install", "--locked"]),
-        ),
-        PlannedAction::command(
             "Upgrade uv lockfile",
             Invocation::new("uv", ["lock", "--upgrade"]),
         ),

@@ -4,6 +4,7 @@ use std::path::Path;
 
 use crate::audit::{AuditCheck, AuditCommand, AuditReport, FindingsSignal, run_audit_commands};
 use crate::error::DevError;
+use crate::external_pins;
 use crate::invocation::Invocation;
 use crate::manifest::{DevToolsManifest, ToolVersion};
 use crate::update;
@@ -13,8 +14,18 @@ pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
     let manifest = DevToolsManifest::load(repo_root)?;
     let mut checks = vec![
         rust_toolchain_check(repo_root, &manifest.rust),
-        mise_pin_check(repo_root, "actionlint", &manifest.actionlint),
-        mise_pin_check(repo_root, "shellcheck", &manifest.shellcheck),
+        github_release_pin_check(
+            repo_root,
+            "actionlint",
+            "https://github.com/rhysd/actionlint.git",
+            &manifest.actionlint,
+        ),
+        github_release_pin_check(
+            repo_root,
+            "shellcheck",
+            "https://github.com/koalaman/shellcheck.git",
+            &manifest.shellcheck,
+        ),
     ];
     checks.extend(run_audit_commands(
         repo_root,
@@ -102,24 +113,34 @@ fn rust_toolchain_check(repo_root: &Path, pinned: &ToolVersion) -> AuditCheck {
     }
 }
 
-fn mise_pin_check(repo_root: &Path, tool: &str, pinned: &ToolVersion) -> AuditCheck {
-    let invocation = Invocation::new("mise", ["latest", tool]);
-    let command = invocation.display();
-    let captured = match invocation.capture(repo_root) {
-        Ok(captured) => captured,
-        Err(error) => return AuditCheck::failed(tool, &command, error.to_string()),
+fn github_release_pin_check(
+    repo_root: &Path,
+    tool: &str,
+    remote: &str,
+    pinned: &ToolVersion,
+) -> AuditCheck {
+    let command = format!("git ls-remote --tags {remote}");
+    let release = match external_pins::latest_release(repo_root, remote) {
+        Ok(Some(release)) => release,
+        Ok(None) => {
+            return AuditCheck::failed(
+                tool,
+                &command,
+                format!("no SemVer release tags were found for {remote}"),
+            );
+        }
+        Err(message) => return AuditCheck::failed(tool, &command, message),
     };
-    if !captured.success {
-        return AuditCheck::failed(tool, &command, captured.output);
-    }
-
-    let latest = captured.output.trim();
-    match ToolVersion::parse(latest) {
+    let version_text = release.tag.strip_prefix('v').unwrap_or(&release.tag);
+    match ToolVersion::parse(version_text) {
         Ok(latest) => AuditCheck::pin_comparison(tool, &command, pinned.as_str(), latest.as_str()),
         Err(message) => AuditCheck::failed(
             tool,
             &command,
-            format!("could not parse latest {tool} version: {message}"),
+            format!(
+                "could not parse latest {tool} release {}: {message}",
+                release.tag
+            ),
         ),
     }
 }

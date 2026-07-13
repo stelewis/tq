@@ -23,7 +23,6 @@ fn write_dev_tools_manifest(repo_root: &Path) {
             "uv = \"0.11.28\"\n",
             "node = \"26.4.0\"\n",
             "npm = \"11.17.0\"\n",
-            "mise = \"2026.7.5\"\n",
             "maturin = \"1.11.0\"\n",
             "actionlint = \"1.7.12\"\n",
             "shellcheck = \"0.11.0\"\n",
@@ -125,7 +124,7 @@ fn release_build_tool_requirements_are_exact_pins_from_manifest() {
 }
 
 #[test]
-fn dependency_update_plan_exposes_file_and_command_actions() {
+fn dependency_update_plan_updates_repository_owned_state_only() {
     let temp = tempfile::tempdir().expect("tempdir");
     write_dev_tools_manifest(temp.path());
 
@@ -139,25 +138,30 @@ fn dependency_update_plan_exposes_file_and_command_actions() {
         })
         .collect::<Vec<_>>();
 
-    assert!(
-        commands
-            .iter()
-            .any(|command| command.starts_with("rustup update "))
+    assert_eq!(
+        commands,
+        [
+            "uv lock --upgrade",
+            "npm update",
+            "uv run prek autoupdate --freeze",
+        ]
     );
-    assert!(commands.contains(&"mise install --locked".to_owned()));
-    assert!(commands.contains(&"uv lock --upgrade".to_owned()));
-    assert!(commands.contains(&"npm update".to_owned()));
 }
 
 #[test]
-fn cleanup_plan_exposes_cache_removal_action() {
-    let temp = tempfile::tempdir().expect("tempdir");
+fn setup_plan_installs_repository_owned_state_only() {
+    let commands = tq_dev::setup::plan()
+        .actions
+        .iter()
+        .map(|action| action.action.detail())
+        .collect::<Vec<_>>();
 
-    let plan = tq_dev::setup::cleanup_plan(temp.path());
-
-    assert_eq!(plan.actions.len(), 1);
-    assert!(matches!(
-        &plan.actions[0].action,
-        Action::RemovePath { path } if path == &temp.path().join("target/cargo-tools")
-    ));
+    assert_eq!(
+        commands,
+        [
+            "uv sync --locked",
+            "npm ci --ignore-scripts",
+            "uv run prek install --install-hooks",
+        ]
+    );
 }

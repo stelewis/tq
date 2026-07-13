@@ -92,18 +92,17 @@ pub fn diagnose(repo_root: &Path) -> Result<DoctorReport, DevError> {
         version_check("uv", &manifest.uv, "uv", &["--version"]),
         version_check("node", &manifest.node, "node", &["--version"]),
         version_check("npm", &manifest.npm, "npm", &["--version"]),
-        version_check("mise", &manifest.mise, "mise", &["--version"]),
         version_check(
             "actionlint",
             &manifest.actionlint,
-            "mise",
-            &["exec", "--", "actionlint", "-version"],
+            "actionlint",
+            &["-version"],
         ),
         version_check(
             "shellcheck",
             &manifest.shellcheck,
-            "mise",
-            &["exec", "--", "shellcheck", "--version"],
+            "shellcheck",
+            &["--version"],
         ),
         python_check(&manifest.python),
         version_check(
