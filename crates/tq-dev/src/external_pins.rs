@@ -33,8 +33,8 @@ pub struct ExternalPinResult {
 labeled_enum! {
     #[derive(Ord, PartialOrd)]
     pub enum ExternalPinSurface {
-        GitHubAction => "GitHub Action",
-        PreCommitHook => "pre-commit hook",
+        GitHubAction => ("github-action", "GitHub Action"),
+        PreCommitHook => ("pre-commit-hook", "pre-commit hook"),
     }
 }
 
@@ -467,7 +467,32 @@ fn git_ls_files(repo_root: &Path, patterns: &[&str]) -> Result<Vec<String>, DevE
 
 #[cfg(test)]
 mod tests {
-    use super::{ReleaseSeries, github_action_remote, github_remote_from_pre_commit, semver_key};
+    use super::{
+        ExternalPinSurface, ReleaseSeries, github_action_remote, github_remote_from_pre_commit,
+        semver_key,
+    };
+
+    #[test]
+    fn external_pin_surfaces_have_stable_machine_and_display_labels() {
+        assert_eq!(
+            serde_json::to_string(&ExternalPinSurface::GitHubAction)
+                .expect("surface should serialize"),
+            r#""github-action""#
+        );
+        assert_eq!(
+            serde_json::to_string(&ExternalPinSurface::PreCommitHook)
+                .expect("surface should serialize"),
+            r#""pre-commit-hook""#
+        );
+        assert_eq!(
+            ExternalPinSurface::GitHubAction.to_string(),
+            "GitHub Action"
+        );
+        assert_eq!(
+            ExternalPinSurface::PreCommitHook.to_string(),
+            "pre-commit hook"
+        );
+    }
 
     #[test]
     fn normalizes_supported_pre_commit_github_remotes() {

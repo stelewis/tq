@@ -1,10 +1,38 @@
-/// Declares a copyable enum whose kebab-case label is the single source of
-/// truth for display and serialization.
+/// Declares a copyable enum with stable display and serialization labels.
 macro_rules! labeled_enum {
     (
         $(#[$meta:meta])*
         $vis:vis enum $name:ident {
             $($variant:ident => $label:literal),+ $(,)?
+        }
+    ) => {
+        labeled_enum! {
+            @impl
+            $(#[$meta])*
+            $vis enum $name {
+                $($variant => ($label, $label)),+
+            }
+        }
+    };
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            $($variant:ident => ($value:literal, $label:literal)),+ $(,)?
+        }
+    ) => {
+        labeled_enum! {
+            @impl
+            $(#[$meta])*
+            $vis enum $name {
+                $($variant => ($value, $label)),+
+            }
+        }
+    };
+    (
+        @impl
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident {
+            $($variant:ident => ($value:literal, $label:literal)),+ $(,)?
         }
     ) => {
         $(#[$meta])*
@@ -30,7 +58,10 @@ macro_rules! labeled_enum {
 
         impl serde::Serialize for $name {
             fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-                serializer.serialize_str(self.label())
+                let value = match self {
+                    $(Self::$variant => $value),+
+                };
+                serializer.serialize_str(value)
             }
         }
     };
