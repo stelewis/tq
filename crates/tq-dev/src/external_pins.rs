@@ -321,7 +321,32 @@ pub(crate) struct ReleaseRef {
     sha: String,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ReleaseSeries {
+    Any,
+    Major(u64),
+    Minor(u64, u64),
+}
+
+impl ReleaseSeries {
+    fn contains(self, version: (u64, u64, u64)) -> bool {
+        match self {
+            Self::Any => true,
+            Self::Major(major) => version.0 == major,
+            Self::Minor(major, minor) => version.0 == major && version.1 == minor,
+        }
+    }
+}
+
 pub(crate) fn latest_release(repo_root: &Path, remote: &str) -> Result<Option<ReleaseRef>, String> {
+    latest_release_in_series(repo_root, remote, ReleaseSeries::Any)
+}
+
+pub(crate) fn latest_release_in_series(
+    repo_root: &Path,
+    remote: &str,
+    series: ReleaseSeries,
+) -> Result<Option<ReleaseRef>, String> {
     let output = Command::new("git")
         .args(["ls-remote", "--tags", remote])
         .current_dir(repo_root)
@@ -345,6 +370,9 @@ pub(crate) fn latest_release(repo_root: &Path, remote: &str) -> Result<Option<Re
         let Some(version) = semver_key(tag) else {
             continue;
         };
+        if !series.contains(version) {
+            continue;
+        }
 
         let entry = tags.entry(tag.to_owned()).or_insert_with(|| TagEntry {
             version,
@@ -439,7 +467,7 @@ fn git_ls_files(repo_root: &Path, patterns: &[&str]) -> Result<Vec<String>, DevE
 
 #[cfg(test)]
 mod tests {
-    use super::{github_action_remote, github_remote_from_pre_commit, semver_key};
+    use super::{ReleaseSeries, github_action_remote, github_remote_from_pre_commit, semver_key};
 
     #[test]
     fn normalizes_supported_pre_commit_github_remotes() {
@@ -467,5 +495,14 @@ mod tests {
         assert_eq!(semver_key("1.2.3"), Some((1, 2, 3)));
         assert_eq!(semver_key("v1.2"), None);
         assert_eq!(semver_key("v1.2.3-beta.1"), None);
+    }
+
+    #[test]
+    fn release_series_match_only_the_declared_compatibility_line() {
+        assert!(ReleaseSeries::Any.contains((3, 14, 6)));
+        assert!(ReleaseSeries::Major(26).contains((26, 5, 0)));
+        assert!(!ReleaseSeries::Major(26).contains((27, 0, 0)));
+        assert!(ReleaseSeries::Minor(3, 14).contains((3, 14, 6)));
+        assert!(!ReleaseSeries::Minor(3, 14).contains((3, 15, 0)));
     }
 }

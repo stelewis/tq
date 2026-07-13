@@ -47,6 +47,7 @@ fn routine_check_plan_is_the_fast_daily_gate() {
             CheckTask::RustFormat,
             CheckTask::RustLint,
             CheckTask::RustTests,
+            CheckTask::AutomationTools,
             CheckTask::Actionlint,
             CheckTask::AutomationPolicy,
         ]
@@ -64,6 +65,7 @@ fn all_check_plan_keeps_release_build_in_the_full_profile() {
             CheckTask::RustFormat,
             CheckTask::RustLint,
             CheckTask::RustTests,
+            CheckTask::AutomationTools,
             CheckTask::Actionlint,
             CheckTask::AutomationPolicy,
             CheckTask::DocsSync,
@@ -76,6 +78,7 @@ fn all_check_plan_keeps_release_build_in_the_full_profile() {
             CheckTask::RustFormat,
             CheckTask::RustLint,
             CheckTask::RustTests,
+            CheckTask::AutomationTools,
             CheckTask::Actionlint,
             CheckTask::AutomationPolicy,
             CheckTask::DocsSync,
@@ -126,44 +129,74 @@ fn release_build_tool_requirements_are_exact_pins_from_manifest() {
 }
 
 #[test]
-fn dependency_update_plan_updates_repository_owned_state_only() {
+fn dependency_update_plan_mutates_repository_state_only() {
     let temp = tempfile::tempdir().expect("tempdir");
     write_dev_tools_manifest(temp.path());
 
     let plan = tq_dev::update::plan(temp.path()).expect("dependency update plan should build");
-    let commands = plan
+    let invocations = plan
         .actions
         .iter()
         .filter_map(|action| match &action.action {
-            Action::Command { invocation } => Some(invocation.display()),
+            Action::Command { invocation } => Some(invocation),
             Action::ReplaceText { .. } | Action::RemovePath { .. } => None,
         })
         .collect::<Vec<_>>();
 
-    assert_eq!(
-        commands,
-        [
-            "uv lock --upgrade",
-            "npm update",
-            "uv run prek autoupdate --freeze",
-        ]
+    assert!(
+        invocations
+            .iter()
+            .all(|invocation| matches!(invocation.program.as_str(), "uv" | "npm"))
+    );
+    assert!(
+        invocations
+            .iter()
+            .any(|invocation| invocation.display() == "uv lock --upgrade")
+    );
+    assert!(
+        invocations
+            .iter()
+            .any(|invocation| invocation.display() == "npm update")
+    );
+    assert!(
+        invocations
+            .iter()
+            .any(|invocation| { invocation.display() == "uv run prek autoupdate --freeze" })
     );
 }
 
 #[test]
-fn setup_plan_installs_repository_owned_state_only() {
-    let commands = tq_dev::setup::plan()
+fn setup_plan_is_locked_and_repository_local() {
+    let plan = tq_dev::setup::plan();
+    let invocations = plan
         .actions
         .iter()
-        .map(|action| action.action.detail())
+        .map(|action| match &action.action {
+            Action::Command { invocation } => invocation,
+            Action::ReplaceText { .. } | Action::RemovePath { .. } => {
+                panic!("setup must use explicit repository commands")
+            }
+        })
         .collect::<Vec<_>>();
 
-    assert_eq!(
-        commands,
-        [
-            "uv sync --locked",
-            "npm ci --ignore-scripts",
-            "uv run prek install --install-hooks",
-        ]
+    assert!(
+        invocations
+            .iter()
+            .all(|invocation| matches!(invocation.program.as_str(), "uv" | "npm"))
+    );
+    assert!(
+        invocations
+            .iter()
+            .any(|invocation| invocation.display() == "uv sync --locked")
+    );
+    assert!(
+        invocations
+            .iter()
+            .any(|invocation| invocation.display() == "npm ci --ignore-scripts")
+    );
+    assert!(
+        invocations
+            .iter()
+            .any(|invocation| { invocation.display() == "uv run prek install --install-hooks" })
     );
 }

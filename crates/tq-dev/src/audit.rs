@@ -72,6 +72,7 @@ pub struct AuditCommand {
     pub name: &'static str,
     pub invocation: Invocation,
     pub signal: FindingsSignal,
+    pub remediation: Option<&'static str>,
 }
 
 /// The outcome of a single audit check.
@@ -86,6 +87,7 @@ pub struct AuditCheck {
     /// upstream.
     pub latest: Option<String>,
     pub output: String,
+    pub remediation: Option<String>,
 }
 
 impl AuditCheck {
@@ -98,6 +100,7 @@ impl AuditCheck {
             pinned: None,
             latest: None,
             output,
+            remediation: None,
         }
     }
 
@@ -116,7 +119,16 @@ impl AuditCheck {
             pinned: Some(pinned.to_owned()),
             latest: Some(latest.to_owned()),
             output: String::new(),
+            remediation: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_remediation(mut self, remediation: &str) -> Self {
+        if self.status != AuditStatus::Clean {
+            self.remediation = Some(remediation.to_owned());
+        }
+        self
     }
 }
 
@@ -197,6 +209,9 @@ pub fn run_audit_commands(
             pinned: None,
             latest: None,
             output: captured.output,
+            remediation: (status == AuditStatus::Findings)
+                .then(|| command.remediation.map(ToOwned::to_owned))
+                .flatten(),
         });
     }
 

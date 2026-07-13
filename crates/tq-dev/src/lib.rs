@@ -3,6 +3,7 @@ pub mod artifacts;
 pub mod audit;
 pub mod change_scope;
 pub mod check;
+pub mod cleanup;
 pub mod dependabot;
 pub mod doctor;
 pub mod error;

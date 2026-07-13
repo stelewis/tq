@@ -182,13 +182,23 @@ pub fn doctor_document(report: &DoctorReport) -> Document {
                         check.expected.clone(),
                         check
                             .actual
-                            .clone()
+                            .as_deref()
+                            .map(|actual| actual.replace('\n', "; "))
                             .unwrap_or_else(|| "not found".to_owned()),
                     ]
                 })
                 .collect(),
         },
-        sections: Vec::new(),
+        sections: report
+            .checks
+            .iter()
+            .filter_map(|check| {
+                check.remediation.as_ref().map(|remediation| Section {
+                    heading: format!("{} remediation", check.tool),
+                    body: remediation.clone(),
+                })
+            })
+            .collect(),
     }
 }
 
@@ -207,7 +217,7 @@ pub fn audit_document(title: &str, report: &AuditReport) -> Document {
             ),
         ],
         table: Table {
-            headers: vec!["Status", "Name", "Pinned", "Latest", "Command"],
+            headers: vec!["Status", "Name", "Pinned", "Latest", "Command", "Action"],
             rows: report
                 .checks
                 .iter()
@@ -218,6 +228,7 @@ pub fn audit_document(title: &str, report: &AuditReport) -> Document {
                         check.pinned.clone().unwrap_or_else(|| "-".to_owned()),
                         check.latest.clone().unwrap_or_else(|| "-".to_owned()),
                         check.command.clone(),
+                        check.remediation.clone().unwrap_or_else(|| "-".to_owned()),
                     ]
                 })
                 .collect(),
@@ -225,10 +236,17 @@ pub fn audit_document(title: &str, report: &AuditReport) -> Document {
         sections: report
             .checks
             .iter()
-            .filter(|check| check.status != AuditStatus::Clean && !check.output.is_empty())
-            .map(|check| Section {
-                heading: format!("{} output", check.name),
-                body: check.output.clone(),
+            .filter(|check| check.status != AuditStatus::Clean)
+            .flat_map(|check| {
+                let output = (!check.output.is_empty()).then(|| Section {
+                    heading: format!("{} output", check.name),
+                    body: check.output.clone(),
+                });
+                let remediation = check.remediation.as_ref().map(|remediation| Section {
+                    heading: format!("{} remediation", check.name),
+                    body: remediation.clone(),
+                });
+                output.into_iter().chain(remediation)
             })
             .collect(),
     }
@@ -405,12 +423,14 @@ mod tests {
                     expected: "1.96.1".to_owned(),
                     actual: Some("rustc 1.96.1".to_owned()),
                     status: ToolStatus::Ok,
+                    remediation: None,
                 },
                 DoctorCheck {
                     tool: "cargo|deny".to_owned(),
                     expected: "0.19.0".to_owned(),
                     actual: Some("0.18.0\ninstall required".to_owned()),
                     status: ToolStatus::Mismatched,
+                    remediation: Some("Update with Cargo.".to_owned()),
                 },
             ],
         }
@@ -431,7 +451,9 @@ mod tests {
 
         assert!(output.starts_with("## Developer Environment"));
         assert!(
-            output.contains("| mismatched | cargo\\|deny | 0.19.0 | 0.18.0<br>install required |")
+            output.contains("| mismatched | cargo\\|deny | 0.19.0 | 0.18.0; install required |")
         );
+        assert!(output.contains("### cargo|deny remediation"));
+        assert!(output.contains("Update with Cargo."));
     }
 }

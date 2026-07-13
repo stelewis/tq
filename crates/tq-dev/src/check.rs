@@ -7,7 +7,7 @@ use std::time::Instant;
 use serde::Serialize;
 
 use crate::error::DevError;
-use crate::invocation::Invocation;
+use crate::invocation::{Captured, Invocation};
 use crate::label::labeled_enum;
 
 labeled_enum! {
@@ -37,6 +37,7 @@ labeled_enum! {
         RustFormat => "rust-format",
         RustLint => "rust-lint",
         RustTests => "rust-tests",
+        AutomationTools => "automation-tools",
         Actionlint => "actionlint",
         AutomationPolicy => "automation-policy",
         DocsSync => "docs-sync",
@@ -52,6 +53,7 @@ impl CheckTask {
             Self::RustFormat => "Rust format",
             Self::RustLint => "Rust lint",
             Self::RustTests => "Rust tests",
+            Self::AutomationTools => "Workflow lint toolchain",
             Self::Actionlint => "GitHub Actions syntax",
             Self::AutomationPolicy => "Automation policy",
             Self::DocsSync => "Generated docs",
@@ -77,6 +79,21 @@ impl CheckTask {
                 ],
             ),
             Self::RustTests => Invocation::new("cargo", ["test", "--workspace", "--locked"]),
+            Self::AutomationTools => Invocation::new(
+                "cargo",
+                [
+                    "run",
+                    "-p",
+                    "tq-dev",
+                    "--locked",
+                    "--",
+                    "health",
+                    "automation-tools",
+                    "--quiet",
+                    "--repo-root",
+                    ".",
+                ],
+            ),
             Self::Actionlint => Invocation::new("actionlint", []),
             Self::AutomationPolicy => Invocation::new(
                 "cargo",
@@ -173,6 +190,7 @@ fn routine_tasks() -> Vec<CheckTask> {
         CheckTask::RustFormat,
         CheckTask::RustLint,
         CheckTask::RustTests,
+        CheckTask::AutomationTools,
         CheckTask::Actionlint,
         CheckTask::AutomationPolicy,
     ]
@@ -222,13 +240,20 @@ pub fn run_checks(
     profile: CheckProfile,
 ) -> Result<CheckReport, DevError> {
     let plan = plan_checks(target, profile);
+    run_plan(&plan, |invocation| invocation.capture(repo_root))
+}
+
+fn run_plan<F>(plan: &CheckPlan, mut capture: F) -> Result<CheckReport, DevError>
+where
+    F: FnMut(&Invocation) -> Result<Captured, DevError>,
+{
     let started = Instant::now();
     let mut checks = Vec::new();
 
-    for task in plan.tasks {
+    for task in plan.tasks.iter().copied() {
         let invocation = task.invocation();
         let task_started = Instant::now();
-        let captured = invocation.capture(repo_root)?;
+        let captured = capture(&invocation)?;
 
         checks.push(CheckResult {
             task,
@@ -262,4 +287,63 @@ pub fn run_checks(
         },
         checks,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io;
+
+    use super::{CheckPlan, CheckProfile, CheckStatus, CheckTarget, CheckTask, run_plan};
+    use crate::error::DevError;
+    use crate::invocation::Captured;
+
+    fn plan(tasks: Vec<CheckTask>) -> CheckPlan {
+        CheckPlan {
+            target: CheckTarget::Routine,
+            profile: CheckProfile::Fast,
+            tasks,
+        }
+    }
+
+    #[test]
+    fn nonzero_checks_are_findings_and_do_not_skip_later_tasks() {
+        let mut calls = 0;
+        let report = run_plan(
+            &plan(vec![CheckTask::RustFormat, CheckTask::Actionlint]),
+            |_| {
+                calls += 1;
+                Ok(Captured {
+                    code: Some(if calls == 1 { 1 } else { 0 }),
+                    success: calls != 1,
+                    output: if calls == 1 {
+                        "formatting failed".to_owned()
+                    } else {
+                        String::new()
+                    },
+                })
+            },
+        )
+        .expect("nonzero checks are report data");
+
+        assert_eq!(calls, 2);
+        assert_eq!(report.summary.status, CheckStatus::Failed);
+        assert_eq!(report.summary.failed, 1);
+        assert_eq!(report.checks[0].status, CheckStatus::Failed);
+        assert_eq!(report.checks[0].output, "formatting failed");
+        assert_eq!(report.checks[1].status, CheckStatus::Passed);
+    }
+
+    #[test]
+    fn execution_errors_abort_the_check_run() {
+        let error = run_plan(&plan(vec![CheckTask::Actionlint]), |_| {
+            Err(DevError::CommandIo {
+                program: "actionlint".to_owned(),
+                args: Vec::new(),
+                source: io::Error::new(io::ErrorKind::NotFound, "missing"),
+            })
+        })
+        .expect_err("spawn failures must be harness errors");
+
+        assert!(matches!(error, DevError::CommandIo { .. }));
+    }
 }

@@ -17,8 +17,8 @@ use tq_dev::error::DevError;
 use tq_dev::render::{self, OutputMode};
 use tq_dev::runtime_deps::RuntimeDependencyChange;
 use tq_dev::{
-    artifacts, check, dependabot, doctor, external_pins, native_env, pins, policy, release,
-    runtime_deps, setup, update, workspace_version,
+    artifacts, check, cleanup, dependabot, doctor, external_pins, native_env, pins, policy,
+    release, runtime_deps, setup, update, workspace_version,
 };
 
 const EXIT_FINDINGS: u8 = 1;
@@ -109,6 +109,10 @@ enum DepsCommand {
 enum HealthCommand {
     #[command(about = "Check pinned tools and native build prerequisites")]
     Doctor(ReportArgs),
+    #[command(name = "automation-tools", about = "Check pinned workflow lint tools")]
+    AutomationTools(ReportArgs),
+    #[command(about = "Remove repository-generated developer artifacts")]
+    Cleanup(MutationArgs),
 }
 
 #[derive(Debug, Subcommand)]
@@ -364,17 +368,24 @@ fn run_deps(command: &DepsCommand) -> Result<Outcome, DevError> {
 fn run_health(command: &HealthCommand) -> Result<Outcome, DevError> {
     match command {
         HealthCommand::Doctor(args) => {
-            let report = doctor::diagnose(&args.common.repo_root)?;
-            if !args.quiet || !report.is_healthy() {
-                render::doctor_document(&report).print(args.common.output, &report)?;
-            }
-            Ok(if report.is_healthy() {
-                Outcome::Clean
-            } else {
-                Outcome::Findings
-            })
+            report_doctor(args, &doctor::diagnose(&args.common.repo_root)?)
         }
+        HealthCommand::AutomationTools(args) => {
+            report_doctor(args, &doctor::diagnose_automation(&args.common.repo_root)?)
+        }
+        HealthCommand::Cleanup(args) => run_mutation(args, &cleanup::plan(&args.common.repo_root)),
     }
+}
+
+fn report_doctor(args: &ReportArgs, report: &doctor::DoctorReport) -> Result<Outcome, DevError> {
+    if !args.quiet || !report.is_healthy() {
+        render::doctor_document(report).print(args.common.output, report)?;
+    }
+    Ok(if report.is_healthy() {
+        Outcome::Clean
+    } else {
+        Outcome::Findings
+    })
 }
 
 fn run_policy(command: &PolicyCommand) -> Result<Outcome, DevError> {
