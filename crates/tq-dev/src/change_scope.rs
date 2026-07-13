@@ -149,6 +149,34 @@ pub fn classify_git_changes(
     classify_paths(git_changed_paths(repo_root, &base_ref, head_ref)?)
 }
 
+pub fn verify_tracked_path_coverage(repo_root: &Path) -> Result<(), DevError> {
+    let args = ["ls-files", "-z"];
+    let output = git_output(repo_root, &args)?;
+    if !output.status.success() {
+        return Err(DevError::Git {
+            args: args.join(" "),
+            stderr: String::from_utf8_lossy(&output.stderr).trim().to_owned(),
+        });
+    }
+
+    let scope = classify_paths(parse_nul_paths(&output.stdout)?)?;
+    if scope.unknown_paths.is_empty() {
+        return Ok(());
+    }
+
+    let details = scope
+        .unknown_paths
+        .iter()
+        .map(|path| format!("- {}", path.as_path().display()))
+        .collect::<Vec<_>>()
+        .join("\n");
+    Err(DevError::PolicyViolation {
+        details: format!(
+            "tracked paths are missing from the change-scope contract:\n{details}\nclassify each path before merging"
+        ),
+    })
+}
+
 pub fn classify_paths(
     paths: impl IntoIterator<Item = ChangedPath>,
 ) -> Result<ChangeScope, DevError> {
@@ -292,7 +320,7 @@ fn is_release_input(path: &str) -> bool {
 }
 
 fn is_known_path(path: &str) -> bool {
-    path.starts_with("crates/")
+    is_known_crate_path(path)
         || path.starts_with("docs/")
         || path.starts_with(".github/instructions/")
         || path.starts_with(".github/prompts/")
@@ -343,6 +371,25 @@ fn is_known_path(path: &str) -> bool {
         || is_known_workflow_or_action(path)
 }
 
+fn is_known_crate_path(path: &str) -> bool {
+    const CRATES: &[&str] = &[
+        "tq-cli",
+        "tq-config",
+        "tq-core",
+        "tq-dev",
+        "tq-discovery",
+        "tq-docsgen",
+        "tq-engine",
+        "tq-release",
+        "tq-reporting",
+        "tq-rules",
+    ];
+
+    path.strip_prefix("crates/")
+        .and_then(|path| path.split('/').next())
+        .is_some_and(|crate_name| CRATES.contains(&crate_name))
+}
+
 fn is_known_workflow_or_action(path: &str) -> bool {
     const WORKFLOWS: &[&str] = &[
         "ci.yml",
@@ -390,8 +437,11 @@ fn git_changed_paths(
         });
     }
 
+    parse_nul_paths(&output.stdout)
+}
+
+fn parse_nul_paths(output: &[u8]) -> Result<Vec<ChangedPath>, DevError> {
     output
-        .stdout
         .split(|byte| *byte == 0)
         .filter(|bytes| !bytes.is_empty())
         .map(|bytes| {

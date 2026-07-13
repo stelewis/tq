@@ -10,13 +10,13 @@ superseded_by: null
 
 ## Context
 
-The `tq-dev` harness reads three repository-owned YAML surfaces: composite GitHub Action definitions (`inputs` defaults and step `with` values), `uses:` references in workflows, and `repo`/`rev` pairs in `.pre-commit-config.yaml`. These checks verify pinned tool versions and frozen commit SHAs.
+The `tq-dev` harness reads four repository-owned YAML surfaces: composite GitHub Action definitions (`inputs` defaults and step `with` values), `uses:` references in workflows, `repo`/`rev` pairs in `.pre-commit-config.yaml`, and workflow job/permission structure. These checks verify pinned tool versions, frozen commit SHAs, bounded jobs, and least-privilege automation.
 
 The Rust YAML ecosystem does not currently offer a parser that meets the [supply-chain security standards](../developer/standards/supply-chain-security.md). `serde_yaml` is deprecated and unmaintained. Several successors exist, but none combines broad adoption, verifiable ownership, and a sustained maintenance record; this repository previously admitted an insecure crate that presented itself as a `serde_yaml` successor, which is exactly the failure mode the admission bar exists to prevent.
 
 ## Decision
 
-Parse the three YAML surfaces with deliberately limited, line-oriented readers owned by `tq-dev` in `parse.rs`, rather than admitting a YAML dependency. The shared boundary returns typed action references and pre-commit repositories with source locations and explicit pinned-revision states, so policy checks and drift audits consume the same parse result.
+Parse these YAML surfaces with deliberately limited, line-oriented readers owned by `tq-dev`, rather than admitting a YAML dependency. `parse.rs` owns lexical parsing and typed external references; `workflow_policy.rs` owns workflow structure invariants. Policy checks and drift audits consume these shared boundaries instead of reparsing YAML independently.
 
 The parsers support only the shapes this repository commits: two-space indentation, scalar values on the same line as their key, single- or double-quoted scalars, and `#` comments. They do not support block scalars, flow collections, anchors, aliases, or multi-line values.
 
@@ -25,8 +25,8 @@ Review this if a future YAML crate clears the admission bar, or if the repositor
 ## Consequences
 
 - No YAML crate enters the trusted computing base for repository automation.
-- The repository's own YAML must stay within the supported subset. The `cargo dev policy verify-pins` gate exercises these parsers against the live files in CI, so a formatting change that breaks parsing fails loudly rather than silently skipping a check.
-- Parsing is strict where it matters (missing keys and defaults are hard errors) but structurally naive: unusual formatting could misparse. This risk is bounded because the inputs are repository-owned files that pass through code review, not untrusted input.
+- The repository's own YAML must stay within the supported subset. The `cargo dev policy verify-pins` and `cargo dev policy verify-automation` gates exercise these parsers against the live files, so a formatting change that breaks parsing fails loudly rather than silently skipping a check.
+- Parsing is strict where it matters (missing keys, defaults, permissions, and job timeouts are hard errors) but structurally naive: unusual formatting could misparse. This risk is bounded because the inputs are repository-owned files that pass through code review, not untrusted input.
 - If a YAML crate later clears the dependency admission bar, replacing these readers is a contained change because all YAML reading lives behind `parse.rs`.
 
 ## Alternatives considered

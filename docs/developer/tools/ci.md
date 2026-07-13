@@ -43,7 +43,9 @@ The workspace uses the pinned MSRV from `rust-toolchain.toml`. CI installs `carg
 
 The docs dependency audit uses `npm audit --package-lock-only` and only reruns in main CI when the Node or docs-toolchain surface changes. The scheduled docs security workflow covers advisory churn for the VitePress toolchain between repository changes. The docs sync and docs build jobs follow the same model: they are skipped unless docs content, docs generator inputs, generated reference outputs, or docs-toolchain files changed.
 
-The `cargo dev change-scope` command owns CI path classification. Its tracked-path contract requires every repository path family to be classified explicitly, and unknown paths enable the broad gate rather than skipping security or documentation checks.
+The `cargo dev change-scope` command owns CI path classification. Unknown changed paths emit a warning and enable every scoped gate, so classification drift cannot skip security or documentation checks. The independent `cargo dev policy verify-automation` gate fails when any tracked path remains unclassified, forcing the change-scope contract to be updated before merge.
+
+The same automation policy discovers every workflow and job. It requires positive job timeouts, rejects workflow-global write permissions and `write-all`, and requires `npm ci --ignore-scripts` in workflows and composite actions. New workflow files and jobs therefore enter the policy automatically instead of relying on a manually maintained test list.
 
 The stale dependency workflow installs `cargo-outdated` separately from the product toolchain and checks only root workspace dependencies. This complements Dependabot and other policy checks: `cargo audit` catches published advisories, `cargo deny` enforces explicit bans plus license and source policy, `npm audit --package-lock-only` covers the docs lockfile, and `cargo outdated` surfaces ordinary version drift.
 

@@ -2,7 +2,9 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-use tq_dev::change_scope::{ChangeSource, ChangedPath, classify_git_changes, classify_paths};
+use tq_dev::change_scope::{
+    ChangeSource, ChangedPath, classify_git_changes, classify_paths, verify_tracked_path_coverage,
+};
 
 fn changed_path(value: &str) -> ChangedPath {
     ChangedPath::parse(value).expect("fixture path should be valid")
@@ -80,6 +82,15 @@ fn unknown_paths_enable_every_safety_gate() {
 }
 
 #[test]
+fn new_crate_roots_require_an_explicit_classification_decision() {
+    let path = changed_path("crates/tq-new/src/lib.rs");
+    let scope = classify_paths([path.clone()]).expect("path should classify fail closed");
+
+    assert!(scope.broad_gate.should_run());
+    assert!(scope.unknown_paths.contains(&path));
+}
+
+#[test]
 fn rejects_paths_that_escape_or_bypass_repository_normalization() {
     for value in ["../Cargo.toml", "/tmp/Cargo.toml", "docs\\guide.md", ""] {
         ChangedPath::parse(value).expect_err("invalid path must be rejected");
@@ -130,25 +141,25 @@ fn every_tracked_repository_path_has_an_explicit_classification() {
         .parent()
         .and_then(Path::parent)
         .expect("tq-dev must be inside the workspace root");
-    let output = Command::new("git")
-        .current_dir(repo_root)
-        .args(["ls-files", "-z"])
-        .output()
-        .expect("list tracked files");
-    assert!(output.status.success());
-    let paths = output
-        .stdout
-        .split(|byte| *byte == 0)
-        .filter(|bytes| !bytes.is_empty())
-        .map(|bytes| {
-            let value = std::str::from_utf8(bytes).expect("tracked path must be UTF-8");
-            ChangedPath::parse(value).expect("tracked path must be normalized")
-        })
-        .collect::<Vec<_>>();
 
-    let scope = classify_paths(paths).expect("tracked paths should classify");
+    verify_tracked_path_coverage(repo_root).expect("tracked paths must be classified");
+}
 
-    assert!(scope.unknown_paths.is_empty());
+#[test]
+fn tracked_unknown_path_fails_the_coverage_policy() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let root = temp.path();
+    git(root, &["init", "--initial-branch", "main"]);
+    fs::create_dir_all(root.join("new-automation")).expect("create fixture directory");
+    fs::write(root.join("new-automation/policy.toml"), "enabled = true\n")
+        .expect("write unknown path");
+    git(root, &["add", "--all"]);
+
+    let error =
+        verify_tracked_path_coverage(root).expect_err("unclassified tracked path must fail policy");
+    let message = error.to_string();
+    assert!(message.contains("new-automation/policy.toml"));
+    assert!(message.contains("classify each path before merging"));
 }
 
 #[test]
@@ -157,6 +168,7 @@ fn ci_workflow_delegates_change_classification_to_tq_dev() {
 
     assert!(workflow.contains("cargo dev change-scope"));
     assert!(workflow.contains("outputs.runtime_dependency_inputs"));
+    assert!(!workflow.contains("outputs.runtime_dependency.inputs"));
     assert!(!workflow.contains("changed_files="));
     assert!(!workflow.contains("grep -Eq"));
 }

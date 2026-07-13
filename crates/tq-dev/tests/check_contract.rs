@@ -43,7 +43,8 @@ fn routine_check_plan_is_the_fast_daily_gate() {
         [
             CheckTask::RustFormat,
             CheckTask::RustLint,
-            CheckTask::RustTests
+            CheckTask::RustTests,
+            CheckTask::AutomationPolicy,
         ]
     );
 }
@@ -59,6 +60,7 @@ fn all_check_plan_keeps_release_build_in_the_full_profile() {
             CheckTask::RustFormat,
             CheckTask::RustLint,
             CheckTask::RustTests,
+            CheckTask::AutomationPolicy,
             CheckTask::DocsSync,
             CheckTask::ReleasePolicy,
         ]
@@ -69,6 +71,7 @@ fn all_check_plan_keeps_release_build_in_the_full_profile() {
             CheckTask::RustFormat,
             CheckTask::RustLint,
             CheckTask::RustTests,
+            CheckTask::AutomationPolicy,
             CheckTask::DocsSync,
             CheckTask::ReleasePolicy,
             CheckTask::ReleaseBuild,

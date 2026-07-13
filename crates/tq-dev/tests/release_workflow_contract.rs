@@ -30,9 +30,9 @@ fn publish_is_serialized_by_release_tag() {
 }
 
 #[test]
-fn release_attestation_waits_for_quality_policy_security_and_package_jobs() {
+fn release_attestation_waits_for_automation_quality_security_and_package_jobs() {
     let ci = fs::read_to_string(repo_root().join(".github/workflows/ci.yml"))
         .expect("CI workflow should be readable");
 
-    assert!(ci.contains("needs: [commit-messages, hygiene, format, lint, tests, build, release-wheels, security, package-compatibility]"));
+    assert!(ci.contains("needs: [automation-policy, commit-messages, hygiene, format, lint, tests, build, release-wheels, security, package-compatibility]"));
 }

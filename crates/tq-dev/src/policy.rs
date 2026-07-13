@@ -7,7 +7,7 @@ use std::path::Path;
 use crate::error::DevError;
 use crate::manifest::DevToolsManifest;
 use crate::parse;
-use crate::{dependabot, release, workspace_version};
+use crate::{change_scope, dependabot, release, workflow_policy, workspace_version};
 
 /// Verifies every repository surface that pins a developer tool version
 /// against `.github/dev-tools.toml`.
@@ -40,6 +40,11 @@ pub fn verify_release_policy(repo_root: &Path) -> Result<(), DevError> {
     workspace_version::verify_workspace_version(repo_root)?;
     dependabot::verify_dependabot(repo_root)?;
     verify_tool_pins(repo_root)
+}
+
+pub fn verify_automation_policy(repo_root: &Path) -> Result<(), DevError> {
+    change_scope::verify_tracked_path_coverage(repo_root)?;
+    workflow_policy::verify_workflow_hardening(repo_root)
 }
 
 fn verify_rust_toolchain(

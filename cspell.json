@@ -62,6 +62,7 @@
     "pyproject",
     "pytest",
     "pyyaml",
+    "reparsing",
     "reprioritize",
     "rtype",
     "rustup",

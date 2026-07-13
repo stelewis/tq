@@ -394,7 +394,7 @@ jobs:
   tag-release-artifacts:
     name: Tag release artifact attestation
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
-    needs: [commit-messages, hygiene, format, lint, tests, build, release-wheels, security, package-compatibility]
+    needs: [automation-policy, commit-messages, hygiene, format, lint, tests, build, release-wheels, security, package-compatibility]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     permissions:
@@ -570,3 +570,19 @@ jobs:
             echo
             echo "Secret scanning remains unconditional in main CI."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  automation-policy:
+    name: Automation policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Verify fail-closed automation policy
+        run: cargo dev policy verify-automation --repo-root .

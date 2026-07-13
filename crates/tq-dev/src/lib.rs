@@ -18,6 +18,7 @@ pub mod render;
 pub mod runtime_deps;
 pub mod setup;
 pub mod update;
+pub mod workflow_policy;
 pub mod workspace_version;
 
 mod label;

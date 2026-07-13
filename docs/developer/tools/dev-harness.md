@@ -16,9 +16,9 @@ Runs deterministic validation tasks from the harness-owned check catalog.
 
 | Command | Purpose |
 | --- | --- |
-| `cargo dev check routine --repo-root .` | Fast daily Rust gate. |
+| `cargo dev check routine --repo-root .` | Fast daily Rust and automation-policy gate. |
 | `cargo dev check all --repo-root .` | Broad repository gate. |
-| `cargo dev check --profile full all --repo-root .` | Release-sensitive gate, including release build validation. |
+| `cargo dev check --profile full all --repo-root .` | Release-sensitive gate, including automation policy and release build validation. |
 | `cargo dev check docs --repo-root .` | Documentation synchronization gate. |
 | `cargo dev check release-policy --repo-root .` | Release policy gate. |
 | `cargo dev check release-build --repo-root .` | Release artifact build gate. |
@@ -60,6 +60,7 @@ Verifies repository policy invariants.
 | Command | Purpose |
 | --- | --- |
 | `cargo dev policy verify-pins --repo-root .` | Verifies repository-owned tool pins and configuration surfaces. |
+| `cargo dev policy verify-automation --repo-root .` | Verifies tracked path coverage and repository-wide workflow hardening. |
 | `cargo dev policy verify-release --repo-root .` | Runs the aggregate release policy gate. |
 | `cargo dev policy verify-dependabot --repo-root .` | Verifies Dependabot coverage. |
 | `cargo dev policy verify-workspace-version --repo-root .` | Verifies workspace version consistency. |

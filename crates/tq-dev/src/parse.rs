@@ -439,7 +439,7 @@ pub fn required_action_step_with_value(
     ))
 }
 
-fn yaml_key_value(line: &str) -> Option<(usize, &str, &str)> {
+pub(crate) fn yaml_key_value(line: &str) -> Option<(usize, &str, &str)> {
     let without_comment = line.split('#').next().unwrap_or(line);
     let trimmed_end = without_comment.trim_end();
     if trimmed_end.trim().is_empty() {

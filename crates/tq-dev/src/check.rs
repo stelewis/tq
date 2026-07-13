@@ -37,6 +37,7 @@ labeled_enum! {
         RustFormat => "rust-format",
         RustLint => "rust-lint",
         RustTests => "rust-tests",
+        AutomationPolicy => "automation-policy",
         DocsSync => "docs-sync",
         ReleasePolicy => "release-policy",
         ReleaseBuild => "release-build",
@@ -50,6 +51,7 @@ impl CheckTask {
             Self::RustFormat => "Rust format",
             Self::RustLint => "Rust lint",
             Self::RustTests => "Rust tests",
+            Self::AutomationPolicy => "Automation policy",
             Self::DocsSync => "Generated docs",
             Self::ReleasePolicy => "Release policy",
             Self::ReleaseBuild => "Release build",
@@ -73,6 +75,20 @@ impl CheckTask {
                 ],
             ),
             Self::RustTests => Invocation::new("cargo", ["test", "--workspace", "--locked"]),
+            Self::AutomationPolicy => Invocation::new(
+                "cargo",
+                [
+                    "run",
+                    "-p",
+                    "tq-dev",
+                    "--locked",
+                    "--",
+                    "policy",
+                    "verify-automation",
+                    "--repo-root",
+                    ".",
+                ],
+            ),
             Self::DocsSync => Invocation::new(
                 "cargo",
                 [
@@ -154,6 +170,7 @@ fn routine_tasks() -> Vec<CheckTask> {
         CheckTask::RustFormat,
         CheckTask::RustLint,
         CheckTask::RustTests,
+        CheckTask::AutomationPolicy,
     ]
 }
 

@@ -117,6 +117,11 @@ enum HealthCommand {
 enum PolicyCommand {
     #[command(name = "verify-pins", about = "Verify repository pinning policy")]
     VerifyPins(RepoRootArgs),
+    #[command(
+        name = "verify-automation",
+        about = "Verify fail-closed workflow and change-scope policy"
+    )]
+    VerifyAutomation(RepoRootArgs),
     #[command(name = "verify-release", about = "Verify release policy invariants")]
     VerifyRelease(RepoRootArgs),
     #[command(
@@ -382,6 +387,9 @@ fn run_policy(command: &PolicyCommand) -> Result<Outcome, DevError> {
         PolicyCommand::VerifyPins(args) => {
             policy::verify_tool_pins(&args.repo_root).map(|()| Outcome::Clean)
         }
+        PolicyCommand::VerifyAutomation(args) => {
+            policy::verify_automation_policy(&args.repo_root).map(|()| Outcome::Clean)
+        }
         PolicyCommand::VerifyRelease(args) => {
             policy::verify_release_policy(&args.repo_root).map(|()| Outcome::Clean)
         }
@@ -424,6 +432,12 @@ fn run_change_scope(args: &ChangeScopeArgs) -> Result<Outcome, DevError> {
         },
     };
     let scope = classify_git_changes(&args.repo_root, source)?;
+    for path in &scope.unknown_paths {
+        eprintln!(
+            "Warning: {} is not classified by the change-scope contract; all scoped gates are enabled",
+            path.as_path().display()
+        );
+    }
     print!("{}", scope.github_output());
     Ok(Outcome::Clean)
 }
