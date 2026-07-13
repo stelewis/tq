@@ -22,11 +22,11 @@ Use the Rust workspace for product code and `uv` for packaging and repository au
   - Check plan: `cargo dev check --dry-run --output agent --profile full all --repo-root .`
   - Routine check: `cargo dev check routine --repo-root .`
   - Repo policy: `cargo dev policy verify-pins --repo-root .`
-  - Workflow lint: `actionlint`
   - Automation policy: `cargo dev policy verify-automation --repo-root .`
   - Release policy: `cargo dev policy verify-release --repo-root .`
   - External pin drift: `cargo dev policy audit-external-pins --repo-root .`
   - Local health: `cargo dev health doctor --repo-root .`
+  - Cleanup plan: `cargo dev health cleanup --dry-run --repo-root .`
   - Setup plan: `cargo dev setup --dry-run --repo-root .`
   - Dependency freshness check: `cargo dev deps audit-latest --output agent --repo-root .`
   - Dependency update plan: `cargo dev deps update --dry-run --repo-root .`

@@ -16,14 +16,14 @@ Runs deterministic validation tasks from the harness-owned check catalog.
 
 | Command | Purpose |
 | --- | --- |
-| `cargo dev check routine --repo-root .` | Fast daily Rust, actionlint, ShellCheck, and automation-policy gate. |
+| `cargo dev check routine --repo-root .` | Fast daily Rust, pinned actionlint and ShellCheck, and automation-policy gate. |
 | `cargo dev check all --repo-root .` | Broad repository gate. |
 | `cargo dev check --profile full all --repo-root .` | Release-sensitive gate, including workflow lint, automation policy, and release build validation. |
 | `cargo dev check docs --repo-root .` | Documentation synchronization gate. |
 | `cargo dev check release-policy --repo-root .` | Release policy gate. |
 | `cargo dev check release-build --repo-root .` | Release artifact build gate. |
 
-Use `--dry-run` to print the resolved check plan.
+Use `--dry-run` to print the resolved check plan. Before actionlint runs, the harness verifies that both actionlint and ShellCheck on `PATH` exactly match repository pins; a missing or mismatched executable fails the gate with remediation.
 
 ### `deps`
 
@@ -31,10 +31,12 @@ Audits and updates repository dependency state.
 
 | Command | Purpose |
 | --- | --- |
-| `cargo dev deps audit-latest --repo-root .` | Reports dependency and toolchain drift without changing files. |
-| `cargo dev deps audit-maintenance-tools --repo-root .` | Reports drift in pinned Rust maintenance tools. |
+| `cargo dev deps audit-latest --repo-root .` | Reports drift across every pinned tool and project dependency ecosystem. |
+| `cargo dev deps audit-maintenance-tools --repo-root .` | Reports the scheduled subset for pinned Rust maintenance tools. |
 | `cargo dev deps audit-security --repo-root .` | Runs Rust, Python, and npm dependency vulnerability audits. |
-| `cargo dev deps update --repo-root .` | Applies deterministic dependency and toolchain updates. |
+| `cargo dev deps update --repo-root .` | Applies deterministic repository dependency updates. |
+
+`deps audit-latest` compares Rust, Python, uv, Node, npm, maturin, actionlint, ShellCheck, cargo-outdated, cargo-audit, and cargo-deny with their declared upstream release policy. It also checks Rust, Python, and npm project dependencies. Findings identify the repository update and tell developers when their environment manager must update an installed executable.
 
 `deps update` updates repository-owned dependency state: Rust pin files when a stable toolchain update exists, the uv lockfile, npm dependencies, and frozen pre-commit hook pins. It does not update installed executables or language runtimes; those belong to the environment manager that installed them.
 
@@ -42,13 +44,16 @@ Use `--dry-run` with `deps update` to print the action plan without applying it.
 
 ### `health`
 
-Checks the local developer environment.
+Checks and cleans the local repository environment.
 
 | Command | Purpose |
 | --- | --- |
-| `cargo dev health doctor --repo-root .` | Checks local tools and native build prerequisites against repository pins. |
+| `cargo dev health doctor --repo-root .` | Checks local tools and native build prerequisites against repository pins and reports the owning remediation. |
+| `cargo dev health cleanup --repo-root .` | Removes repository-generated release, docs, and obsolete harness cache output. |
 
-`health doctor` reads tool versions from repository-owned metadata and checks the corresponding executables on `PATH`. Missing or mismatched tools must be installed or updated through the environment manager that owns the developer machine. The harness reports environment state but does not provision global tools or language runtimes.
+`health doctor` reads tool versions from repository-owned metadata and checks the corresponding executables on `PATH`. Missing or mismatched tools must be installed or updated through the environment manager that owns the developer machine. The harness reports the required action but does not provision or delete global tools or language runtimes.
+
+`health cleanup` is deliberately confined to `dist`, `docs/.vitepress/dist`, and `target/cargo-tools`. Use `--dry-run` to inspect the removal plan.
 
 ### `policy`
 

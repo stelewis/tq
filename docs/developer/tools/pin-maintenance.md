@@ -24,7 +24,7 @@ Dependabot remains the default update path for supported GitHub Action and pre-c
 
 Use `cargo dev deps update --dry-run --repo-root .` before applying repository-owned dependency and toolchain updates when you need to inspect the planned commands and Rust pin file edits.
 
-Use `cargo dev deps audit-maintenance-tools --repo-root .` to run the same Rust maintenance-tool drift check locally. `cargo dev deps audit-latest --repo-root .` compares the pinned actionlint and ShellCheck versions with their latest upstream SemVer release tags.
+Use `cargo dev deps audit-maintenance-tools --repo-root .` to run the scheduled Rust maintenance-tool subset locally. `cargo dev deps audit-latest --repo-root .` is the comprehensive freshness command for every pinned tool and project dependency ecosystem. Python is compared within its pinned minor series; Node and npm are compared within their pinned major series; other tool pins are compared with the latest stable SemVer release.
 
 Node and npm versions are owned by `package.json`. Actionlint and ShellCheck versions are owned by `.github/dev-tools.toml`; developers install those versions with their environment manager. When actionlint changes, resolve the official image tag to its registry digest and update `automation.actionlint-image.digest` in the same change. Pin policy derives the required versioned image reference and rejects a stale workflow consumer.
 
