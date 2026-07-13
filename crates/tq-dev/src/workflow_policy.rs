@@ -5,6 +5,7 @@ use crate::parse;
 
 const WORKFLOWS_ROOT: &str = ".github/workflows";
 const ACTIONS_ROOT: &str = ".github/actions";
+const NPM_INSTALL_OWNER: &str = ".github/actions/setup-mise-docs/action.yml";
 
 #[derive(Debug, Eq, PartialEq)]
 enum WorkflowViolationKind {
@@ -50,9 +51,9 @@ impl WorkflowViolation {
             WorkflowViolationKind::JobWriteAll(job) => {
                 format!("job {job:?} must not use permissions: write-all")
             }
-            WorkflowViolationKind::NpmLifecycleScripts => {
-                "npm ci must include --ignore-scripts in workflow automation".to_owned()
-            }
+            WorkflowViolationKind::NpmLifecycleScripts => format!(
+                "npm dependency installation must be owned by {NPM_INSTALL_OWNER} and use npm ci --ignore-scripts"
+            ),
         };
         format!("{}:{}: {message}", self.source.display(), self.line)
     }
@@ -227,15 +228,39 @@ fn finish_job(
 }
 
 fn inspect_npm_installs(contents: &str, source: &Path, violations: &mut Vec<WorkflowViolation>) {
-    for (index, line) in contents.lines().enumerate() {
-        if line.contains("npm ci") && !line.contains("--ignore-scripts") {
-            violations.push(WorkflowViolation {
-                source: source.to_path_buf(),
-                line: index + 1,
-                kind: WorkflowViolationKind::NpmLifecycleScripts,
-            });
-        }
+    let normalized = contents
+        .lines()
+        .map(|line| line.split('#').next().unwrap_or(line))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let tokens = normalized
+        .split_whitespace()
+        .map(|token| token.trim_matches(['\'', '"', '\\']))
+        .collect::<Vec<_>>();
+    let has_install = contains_token_sequence(&tokens, &["npm", "ci"])
+        || contains_token_sequence(&tokens, &["npm", "install"]);
+    if !has_install {
+        return;
     }
+
+    let is_owner = source.ends_with(NPM_INSTALL_OWNER);
+    let is_frozen = contains_token_sequence(
+        &tokens,
+        &["mise", "exec", "--", "npm", "ci", "--ignore-scripts"],
+    );
+    if !is_owner || !is_frozen {
+        violations.push(WorkflowViolation {
+            source: source.to_path_buf(),
+            line: 1,
+            kind: WorkflowViolationKind::NpmLifecycleScripts,
+        });
+    }
+}
+
+fn contains_token_sequence(tokens: &[&str], expected: &[&str]) -> bool {
+    tokens
+        .windows(expected.len())
+        .any(|window| window == expected)
 }
 
 fn yaml_files(root: &Path, recursive: bool) -> Result<Vec<PathBuf>, DevError> {

@@ -26,6 +26,9 @@ pub enum FindingsSignal {
     /// The command exits 0 even with findings; findings are detected by a
     /// marker in the output.
     OutputContains(&'static str),
+    /// The command returns a JSON array; an empty array is clean, a nonempty
+    /// array is findings, and any other output is a failed check.
+    JsonArrayNonEmpty,
 }
 
 impl FindingsSignal {
@@ -47,6 +50,16 @@ impl FindingsSignal {
                     AuditStatus::Findings
                 } else {
                     AuditStatus::Clean
+                }
+            }
+            Self::JsonArrayNonEmpty => {
+                if !success {
+                    return AuditStatus::Failed;
+                }
+                match serde_json::from_str::<Vec<serde_json::Value>>(output) {
+                    Ok(values) if values.is_empty() => AuditStatus::Clean,
+                    Ok(_) => AuditStatus::Findings,
+                    Err(_) => AuditStatus::Failed,
                 }
             }
         }
@@ -212,5 +225,20 @@ mod tests {
             AuditStatus::Findings
         );
         assert_eq!(signal.classify(Some(2), false, ""), AuditStatus::Failed);
+    }
+
+    #[test]
+    fn json_array_signal_fails_closed_on_unrecognized_output() {
+        let signal = FindingsSignal::JsonArrayNonEmpty;
+        assert_eq!(signal.classify(Some(0), true, "[]"), AuditStatus::Clean);
+        assert_eq!(
+            signal.classify(Some(0), true, "[{\"name\":\"example\"}]"),
+            AuditStatus::Findings
+        );
+        assert_eq!(
+            signal.classify(Some(0), true, "format changed"),
+            AuditStatus::Failed
+        );
+        assert_eq!(signal.classify(Some(2), false, "[]"), AuditStatus::Failed);
     }
 }

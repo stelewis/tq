@@ -32,7 +32,7 @@ pub fn plan(repo_root: &Path) -> Result<ActionPlan, DevError> {
         ),
         PlannedAction::command(
             "Install pinned mise tools",
-            Invocation::new("mise", ["install"]),
+            Invocation::new("mise", ["install", "--locked"]),
         ),
         PlannedAction::command(
             "Install pinned Python",
@@ -44,7 +44,7 @@ pub fn plan(repo_root: &Path) -> Result<ActionPlan, DevError> {
         ),
         PlannedAction::command(
             "Install locked npm dependencies",
-            Invocation::new("npm", ["ci"]),
+            Invocation::new("npm", ["ci", "--ignore-scripts"]),
         ),
         PlannedAction::command(
             "Install pre-commit hooks",

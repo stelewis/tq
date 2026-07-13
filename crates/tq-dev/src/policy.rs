@@ -7,7 +7,7 @@ use std::path::Path;
 use crate::error::DevError;
 use crate::manifest::DevToolsManifest;
 use crate::parse;
-use crate::{change_scope, dependabot, release, workflow_policy, workspace_version};
+use crate::{change_scope, dependabot, external_pins, release, workflow_policy, workspace_version};
 
 /// Verifies every repository surface that pins a developer tool version
 /// against `.github/dev-tools.toml`.
@@ -19,11 +19,10 @@ pub fn verify_tool_pins(repo_root: &Path) -> Result<(), DevError> {
     verify_cargo_msrv(repo_root, &manifest, &mut violations)?;
     verify_mise_tools(repo_root, &manifest, &mut violations)?;
     verify_node_package(repo_root, &manifest, &mut violations)?;
-    verify_mise_docs_action(repo_root, &manifest, &mut violations)?;
+    verify_mise_action(repo_root, &manifest, &mut violations)?;
     verify_python_uv_action(repo_root, &manifest, &mut violations)?;
     verify_rust_maintenance_action(repo_root, &manifest, &mut violations)?;
     verify_maturin_release_builder(repo_root, &mut violations)?;
-    verify_dependabot_ecosystems(repo_root, &mut violations)?;
 
     if violations.is_empty() {
         return Ok(());
@@ -44,7 +43,10 @@ pub fn verify_release_policy(repo_root: &Path) -> Result<(), DevError> {
 
 pub fn verify_automation_policy(repo_root: &Path) -> Result<(), DevError> {
     change_scope::verify_tracked_path_coverage(repo_root)?;
-    workflow_policy::verify_workflow_hardening(repo_root)
+    workflow_policy::verify_workflow_hardening(repo_root)?;
+    external_pins::verify_action_pins(repo_root)?;
+    external_pins::verify_pre_commit_pins(repo_root)?;
+    dependabot::verify_dependabot(repo_root)
 }
 
 fn verify_rust_toolchain(
@@ -101,6 +103,135 @@ fn verify_mise_tools(
         manifest.node.as_str(),
         &parse::required_string(&document, &["tools", "node"], &path)?,
     );
+    require_equal(
+        violations,
+        "mise.toml tools.actionlint",
+        manifest.actionlint.as_str(),
+        &parse::required_string(&document, &["tools", "actionlint"], &path)?,
+    );
+    require_equal(
+        violations,
+        "mise.toml tools.shellcheck",
+        manifest.shellcheck.as_str(),
+        &parse::required_string(&document, &["tools", "shellcheck"], &path)?,
+    );
+
+    let lock_path = repo_root.join("mise.lock");
+    let lock = parse::read_toml(&lock_path)?;
+    verify_mise_lock_tool(
+        &lock,
+        &lock_path,
+        "node",
+        "core:node",
+        manifest.node.as_str(),
+        violations,
+    )?;
+    verify_mise_lock_tool(
+        &lock,
+        &lock_path,
+        "actionlint",
+        "aqua:rhysd/actionlint",
+        manifest.actionlint.as_str(),
+        violations,
+    )?;
+    verify_mise_lock_tool(
+        &lock,
+        &lock_path,
+        "shellcheck",
+        "aqua:koalaman/shellcheck",
+        manifest.shellcheck.as_str(),
+        violations,
+    )?;
+    Ok(())
+}
+
+fn verify_mise_lock_tool(
+    document: &toml::Value,
+    source: &Path,
+    tool: &str,
+    expected_backend: &str,
+    expected_version: &str,
+    violations: &mut Vec<String>,
+) -> Result<(), DevError> {
+    const PLATFORMS: &[&str] = &["linux-x64", "macos-arm64", "macos-x64", "windows-x64"];
+
+    let entries = document
+        .get("tools")
+        .and_then(toml::Value::as_table)
+        .and_then(|tools| tools.get(tool))
+        .and_then(toml::Value::as_array)
+        .ok_or_else(|| DevError::InvalidInput {
+            path: source.to_path_buf(),
+            message: format!("missing tools.{tool} lock entry"),
+        })?;
+    if entries.len() != 1 {
+        return Err(DevError::InvalidInput {
+            path: source.to_path_buf(),
+            message: format!("tools.{tool} must contain exactly one lock entry"),
+        });
+    }
+    let entry = entries[0]
+        .as_table()
+        .ok_or_else(|| DevError::InvalidInput {
+            path: source.to_path_buf(),
+            message: format!("tools.{tool} lock entry must be a table"),
+        })?;
+    let version = entry
+        .get("version")
+        .and_then(toml::Value::as_str)
+        .ok_or_else(|| DevError::InvalidInput {
+            path: source.to_path_buf(),
+            message: format!("tools.{tool} lock entry is missing version"),
+        })?;
+    let backend = entry
+        .get("backend")
+        .and_then(toml::Value::as_str)
+        .ok_or_else(|| DevError::InvalidInput {
+            path: source.to_path_buf(),
+            message: format!("tools.{tool} lock entry is missing backend"),
+        })?;
+    require_equal(
+        violations,
+        &format!("mise.lock tools.{tool}.version"),
+        expected_version,
+        version,
+    );
+    require_equal(
+        violations,
+        &format!("mise.lock tools.{tool}.backend"),
+        expected_backend,
+        backend,
+    );
+
+    for platform in PLATFORMS {
+        let platform_key = format!("platforms.{platform}");
+        let locked = entry
+            .get(&platform_key)
+            .and_then(toml::Value::as_table)
+            .ok_or_else(|| DevError::InvalidInput {
+                path: source.to_path_buf(),
+                message: format!("tools.{tool} is missing locked platform {platform}"),
+            })?;
+        let checksum = locked
+            .get("checksum")
+            .and_then(toml::Value::as_str)
+            .ok_or_else(|| DevError::InvalidInput {
+                path: source.to_path_buf(),
+                message: format!("tools.{tool}.{platform} is missing checksum"),
+            })?;
+        let url = locked
+            .get("url")
+            .and_then(toml::Value::as_str)
+            .ok_or_else(|| DevError::InvalidInput {
+                path: source.to_path_buf(),
+                message: format!("tools.{tool}.{platform} is missing URL"),
+            })?;
+        if !checksum.starts_with("sha256:") || url.is_empty() {
+            violations.push(format!(
+                "mise.lock tools.{tool}.{platform} must contain a SHA-256 checksum and URL"
+            ));
+        }
+    }
     Ok(())
 }
 
@@ -132,23 +263,23 @@ fn verify_node_package(
     Ok(())
 }
 
-fn verify_mise_docs_action(
+fn verify_mise_action(
     repo_root: &Path,
     manifest: &DevToolsManifest,
     violations: &mut Vec<String>,
 ) -> Result<(), DevError> {
-    let path = repo_root.join(".github/actions/setup-mise-docs/action.yml");
+    let path = repo_root.join(".github/actions/setup-mise/action.yml");
     let contents = parse::read_to_string(&path)?;
     let inputs = parse::action_inputs(&contents, &path)?;
     require_equal(
         violations,
-        ".github/actions/setup-mise-docs/action.yml mise-version default",
+        ".github/actions/setup-mise/action.yml mise-version default",
         manifest.mise.as_str(),
         &parse::required_action_input_default(&inputs, "mise-version", &path)?,
     );
     require_equal(
         violations,
-        ".github/actions/setup-mise-docs/action.yml mise-action version input",
+        ".github/actions/setup-mise/action.yml mise-action version input",
         "${{ inputs.mise-version }}",
         &parse::required_action_step_with_value(&contents, "jdx/mise-action@", "version", &path)?,
     );
@@ -271,30 +402,6 @@ fn verify_maturin_release_builder(
     Ok(())
 }
 
-fn verify_dependabot_ecosystems(
-    repo_root: &Path,
-    violations: &mut Vec<String>,
-) -> Result<(), DevError> {
-    let path = repo_root.join(".github/dependabot.yml");
-    let contents = parse::read_to_string(&path)?;
-    for ecosystem in [
-        "github-actions",
-        "pre-commit",
-        "uv",
-        "cargo",
-        "rust-toolchain",
-        "npm",
-    ] {
-        let expected = format!("package-ecosystem: \"{ecosystem}\"");
-        if !contents.contains(&expected) {
-            violations.push(format!(
-                ".github/dependabot.yml update ecosystems must contain {expected:?}"
-            ));
-        }
-    }
-    Ok(())
-}
-
 fn require_equal(violations: &mut Vec<String>, field: &str, expected: &str, actual: &str) {
     if actual != expected {
         violations.push(format!("{field} must be {expected:?}, found {actual:?}"));
@@ -326,5 +433,45 @@ fn require_not_contains(
 ) {
     if contents.contains(forbidden) {
         violations.push(format!("{field} must not contain {forbidden:?}"));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::verify_mise_lock_tool;
+
+    #[test]
+    fn mise_lock_verification_rejects_missing_platforms_and_backend_drift() {
+        let document = concat!(
+            "[[tools.actionlint]]\n",
+            "version = \"1.7.12\"\n",
+            "backend = \"aqua:unexpected/actionlint\"\n",
+            "[tools.actionlint.\"platforms.linux-x64\"]\n",
+            "checksum = \"sha256:fixture\"\n",
+            "url = \"https://example.invalid/actionlint\"\n",
+        )
+        .parse::<toml::Table>()
+        .map(toml::Value::Table)
+        .expect("fixture lock must parse");
+        let mut violations = Vec::new();
+
+        let error = verify_mise_lock_tool(
+            &document,
+            Path::new("mise.lock"),
+            "actionlint",
+            "aqua:rhysd/actionlint",
+            "1.7.12",
+            &mut violations,
+        )
+        .expect_err("missing platforms must fail");
+
+        assert!(error.to_string().contains("macos-arm64"));
+        assert!(
+            violations
+                .iter()
+                .any(|violation| violation.contains("backend"))
+        );
     }
 }

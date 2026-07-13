@@ -7,6 +7,7 @@ This guide covers:
 - external GitHub Action refs in `.github/workflows/**` and `.github/actions/**`
 - frozen pre-commit hook revs in `.pre-commit-config.yaml`
 - Rust maintenance tool versions in `.github/actions/setup-rust-maintenance-tools/action.yml`
+- actionlint and ShellCheck versions in `.github/dev-tools.toml` and `mise.toml`, with cross-platform checksums in `mise.lock`
 - scheduled drift reporting for those pinned refs
 
 ## Enforcement and visibility
@@ -22,7 +23,9 @@ Dependabot remains the default update path for both surfaces. Use manual rotatio
 
 Use `cargo dev deps update --dry-run --repo-root .` before applying repository-owned dependency and toolchain updates when you need to inspect the planned commands and Rust pin file edits.
 
-Use `cargo dev deps audit-maintenance-tools --repo-root .` to run the same Rust maintenance-tool drift check locally.
+Use `cargo dev deps audit-maintenance-tools --repo-root .` to run the same Rust maintenance-tool drift check locally. `cargo dev deps audit-latest --repo-root .` also compares the pinned actionlint and ShellCheck releases with mise's current release metadata.
+
+When changing Node, actionlint, or ShellCheck, update `.github/dev-tools.toml` and `mise.toml`, regenerate `mise.lock` for `linux-x64`, `macos-x64`, `macos-arm64`, and `windows-x64`, then run `mise install --locked` and `cargo dev policy verify-pins --repo-root .`.
 
 ## GitHub Actions rotation
 

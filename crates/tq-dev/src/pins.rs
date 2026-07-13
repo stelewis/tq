@@ -11,7 +11,11 @@ use crate::update;
 /// Reports available updates for Rust, Cargo, npm, and Python dependencies.
 pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
     let manifest = DevToolsManifest::load(repo_root)?;
-    let mut checks = vec![rust_toolchain_check(repo_root, &manifest.rust)];
+    let mut checks = vec![
+        rust_toolchain_check(repo_root, &manifest.rust),
+        mise_pin_check(repo_root, "actionlint", &manifest.actionlint),
+        mise_pin_check(repo_root, "shellcheck", &manifest.shellcheck),
+    ];
     checks.extend(run_audit_commands(
         repo_root,
         vec![
@@ -37,8 +41,11 @@ pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
             },
             AuditCommand {
                 name: "uv-outdated",
-                invocation: Invocation::new("uv", ["tree", "--outdated"]),
-                signal: FindingsSignal::OutputContains("latest:"),
+                invocation: Invocation::new(
+                    "uv",
+                    ["pip", "list", "--outdated", "--format", "json"],
+                ),
+                signal: FindingsSignal::JsonArrayNonEmpty,
             },
         ],
     )?);
@@ -92,6 +99,28 @@ fn rust_toolchain_check(repo_root: &Path, pinned: &ToolVersion) -> AuditCheck {
             AuditCheck::pin_comparison("rust", "rustup check", pinned.as_str(), latest.as_str())
         }
         Err(error) => AuditCheck::failed("rust", "rustup check", error.to_string()),
+    }
+}
+
+fn mise_pin_check(repo_root: &Path, tool: &str, pinned: &ToolVersion) -> AuditCheck {
+    let invocation = Invocation::new("mise", ["latest", tool]);
+    let command = invocation.display();
+    let captured = match invocation.capture(repo_root) {
+        Ok(captured) => captured,
+        Err(error) => return AuditCheck::failed(tool, &command, error.to_string()),
+    };
+    if !captured.success {
+        return AuditCheck::failed(tool, &command, captured.output);
+    }
+
+    let latest = captured.output.trim();
+    match ToolVersion::parse(latest) {
+        Ok(latest) => AuditCheck::pin_comparison(tool, &command, pinned.as_str(), latest.as_str()),
+        Err(message) => AuditCheck::failed(
+            tool,
+            &command,
+            format!("could not parse latest {tool} version: {message}"),
+        ),
     }
 }
 

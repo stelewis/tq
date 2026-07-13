@@ -259,9 +259,11 @@ fn is_docs_security_input(path: &str) -> bool {
         "package.json"
             | "package-lock.json"
             | "mise.toml"
+            | "mise.lock"
             | ".github/workflows/ci.yml"
             | ".github/workflows/docs-security.yml"
             | ".github/workflows/docs-pages.yml"
+            | ".github/actions/setup-mise/action.yml"
             | ".github/actions/setup-mise-docs/action.yml"
     )
 }
@@ -298,8 +300,10 @@ fn is_docs_build_input(path: &str) -> bool {
             "package.json"
                 | "package-lock.json"
                 | "mise.toml"
+                | "mise.lock"
                 | ".github/workflows/ci.yml"
                 | ".github/workflows/docs-pages.yml"
+                | ".github/actions/setup-mise/action.yml"
                 | ".github/actions/setup-mise-docs/action.yml"
         )
 }
@@ -352,6 +356,7 @@ fn is_known_path(path: &str) -> bool {
                 | "cspell.json"
                 | "deny.toml"
                 | "mise.toml"
+                | "mise.lock"
                 | "package-lock.json"
                 | "package.json"
                 | "pyproject.toml"
@@ -408,6 +413,7 @@ fn is_known_workflow_or_action(path: &str) -> bool {
         "stale-dependencies.yml",
     ];
     const ACTIONS: &[&str] = &[
+        "setup-mise/action.yml",
         "setup-mise-docs/action.yml",
         "setup-python-uv/action.yml",
         "setup-rust/action.yml",

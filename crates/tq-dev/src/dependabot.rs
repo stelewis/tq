@@ -8,6 +8,22 @@ const ACTIONS_ROOT: &str = ".github/actions";
 const WORKFLOWS_ROOT: &str = ".github/workflows";
 const REQUIRED_WORKFLOW_PATTERN: &str = "/";
 const REQUIRED_ACTIONS_PATTERN: &str = "/.github/actions/*";
+const REQUIRED_ECOSYSTEMS: &[&str] = &[
+    "github-actions",
+    "pre-commit",
+    "uv",
+    "cargo",
+    "rust-toolchain",
+    "npm",
+];
+const SUPPORTED_SCHEDULE_INTERVALS: &[&str] = &[
+    "daily",
+    "weekly",
+    "monthly",
+    "quarterly",
+    "semiannually",
+    "yearly",
+];
 
 #[derive(Debug)]
 struct DependabotUpdate {
@@ -28,12 +44,23 @@ pub fn verify_dependabot(repo_root: &Path) -> Result<(), DevError> {
             message,
         })?;
 
+    let mut violations = Vec::new();
+    for ecosystem in REQUIRED_ECOSYSTEMS {
+        if !config
+            .iter()
+            .any(|update| update.package_ecosystem == *ecosystem)
+        {
+            violations.push(format!(
+                "Dependabot config must contain an active {ecosystem:?} update block"
+            ));
+        }
+    }
+
     let github_actions_updates = config
         .into_iter()
         .filter(|update| update.package_ecosystem == GITHUB_ACTIONS_ECOSYSTEM)
         .collect::<Vec<_>>();
 
-    let mut violations = Vec::new();
     if github_actions_updates.len() != 1 {
         violations.push(format!(
             "expected exactly one github-actions update block in {}",
@@ -208,7 +235,12 @@ impl DependabotParser {
         match indent {
             2 => self.parse_update_item(trimmed, line_number),
             4 => self.parse_update_key_line(trimmed, line_number),
-            6 if trimmed.starts_with("- ") => self.parse_directories_item(trimmed, line_number),
+            6 if self.active_list == ActiveList::Directories && trimmed.starts_with("- ") => {
+                self.parse_directories_item(trimmed, line_number)
+            }
+            6 if self.active_list == ActiveList::Schedule => {
+                self.parse_schedule_key(trimmed, line_number)
+            }
             _ if self.active_list == ActiveList::Directories => Err(format!(
                 "line {line_number}: directories entries must be list items at indent 6"
             )),
@@ -262,6 +294,23 @@ impl DependabotParser {
         Ok(())
     }
 
+    fn parse_schedule_key(&mut self, trimmed: &str, line_number: usize) -> Result<(), String> {
+        let (key, value) = split_key_value(trimmed)
+            .ok_or_else(|| format!("line {line_number}: expected schedule key/value pair"))?;
+        let value = parse_scalar(value, line_number)?;
+        match key {
+            "interval" => {
+                let update = self.current_update_mut(line_number)?;
+                if update.schedule_interval.replace(value).is_some() {
+                    return Err(format!("line {line_number}: duplicate schedule.interval"));
+                }
+            }
+            "day" | "time" | "timezone" => {}
+            _ => return Err(format!("line {line_number}: unknown schedule key {key}")),
+        }
+        Ok(())
+    }
+
     fn apply_directive(
         &mut self,
         key: &str,
@@ -278,6 +327,7 @@ impl DependabotParser {
         match directive {
             UpdateDirective::None => {}
             UpdateDirective::Directories => self.active_list = ActiveList::Directories,
+            UpdateDirective::Schedule => self.active_list = ActiveList::Schedule,
             UpdateDirective::IgnoreNestedBlock => self.ignored_block_indent = Some(indent),
         }
         Ok(())
@@ -318,12 +368,14 @@ enum ActiveList {
     #[default]
     None,
     Directories,
+    Schedule,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum UpdateDirective {
     None,
     Directories,
+    Schedule,
     IgnoreNestedBlock,
 }
 
@@ -333,6 +385,7 @@ struct PendingUpdate {
     directory: Option<String>,
     directories_declared: bool,
     directories: Vec<String>,
+    schedule_interval: Option<String>,
 }
 
 impl PendingUpdate {
@@ -349,6 +402,15 @@ impl PendingUpdate {
 
         if self.directories_declared && self.directories.is_empty() {
             return Err("dependabot update directories must contain at least one entry".to_owned());
+        }
+
+        let schedule_interval = self
+            .schedule_interval
+            .ok_or_else(|| "dependabot update is missing schedule.interval".to_owned())?;
+        if !SUPPORTED_SCHEDULE_INTERVALS.contains(&schedule_interval.as_str()) {
+            return Err(format!(
+                "unsupported Dependabot schedule interval: {schedule_interval}"
+            ));
         }
 
         Ok(DependabotUpdate {
@@ -383,8 +445,15 @@ fn apply_update_key(
             update.directories_declared = true;
             Ok(UpdateDirective::Directories)
         }
-        "schedule"
-        | "commit-message"
+        "schedule" => {
+            if !value.is_empty() {
+                return Err(format!(
+                    "line {line_number}: schedule must be declared as a block"
+                ));
+            }
+            Ok(UpdateDirective::Schedule)
+        }
+        "commit-message"
         | "allow"
         | "ignore"
         | "labels"
@@ -516,12 +585,18 @@ fn local_workflow_files(repo_root: &Path) -> Result<Vec<PathBuf>, DevError> {
         return Ok(Vec::new());
     }
 
-    let mut files = std::fs::read_dir(&workflows_root)
+    let entries = std::fs::read_dir(&workflows_root)
         .map_err(|source| DevError::Io {
             path: workflows_root.clone(),
             source,
         })?
-        .filter_map(Result::ok)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|source| DevError::Io {
+            path: workflows_root.clone(),
+            source,
+        })?;
+    let mut files = entries
+        .into_iter()
         .map(|entry| entry.path())
         .filter(|path| {
             path.extension()

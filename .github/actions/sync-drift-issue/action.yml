@@ -35,6 +35,14 @@ runs:
       run: |
         set -euo pipefail
 
+        case "$DRIFT_DETECTED" in
+          true|false) ;;
+          *)
+            echo "drift-detected must be exactly 'true' or 'false', found '$DRIFT_DETECTED'"
+            exit 1
+            ;;
+        esac
+
         existing_issue_number="$(gh issue list --repo "$GH_REPO" --state open --limit 100 \
           --search "$ISSUE_TITLE in:title" --json number,title \
           --jq '.[] | select(.title == env.ISSUE_TITLE) | .number' | head -n 1)"

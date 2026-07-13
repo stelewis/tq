@@ -24,6 +24,26 @@ fn verify_dependabot_passes_for_repo_style_coverage() {
             "      interval: \"weekly\"\n",
             "    commit-message:\n",
             "      prefix: \"chore\"\n",
+            "  - package-ecosystem: \"pre-commit\"\n",
+            "    directory: \"/\"\n",
+            "    schedule:\n",
+            "      interval: \"weekly\"\n",
+            "  - package-ecosystem: \"uv\"\n",
+            "    directory: \"/\"\n",
+            "    schedule:\n",
+            "      interval: \"weekly\"\n",
+            "  - package-ecosystem: \"cargo\"\n",
+            "    directory: \"/\"\n",
+            "    schedule:\n",
+            "      interval: \"weekly\"\n",
+            "  - package-ecosystem: \"rust-toolchain\"\n",
+            "    directory: \"/\"\n",
+            "    schedule:\n",
+            "      interval: \"weekly\"\n",
+            "  - package-ecosystem: \"npm\"\n",
+            "    directory: \"/\"\n",
+            "    schedule:\n",
+            "      interval: \"weekly\"\n",
         ),
     );
     write(
@@ -127,6 +147,8 @@ fn verify_dependabot_rejects_missing_version() {
             "    directories:\n",
             "      - \"/\"\n",
             "      - \"/.github/actions/*\"\n",
+            "    schedule:\n",
+            "      interval: \"weekly\"\n",
         ),
     );
 
@@ -150,6 +172,8 @@ fn verify_dependabot_rejects_unsupported_version() {
             "    directories:\n",
             "      - \"/\"\n",
             "      - \"/.github/actions/*\"\n",
+            "    schedule:\n",
+            "      interval: \"weekly\"\n",
         ),
     );
 
@@ -210,6 +234,8 @@ fn verify_dependabot_rejects_unknown_top_level_key() {
             "    directories:\n",
             "      - \"/\"\n",
             "      - \"/.github/actions/*\"\n",
+            "    schedule:\n",
+            "      interval: \"weekly\"\n",
             "unexpected: true\n",
         ),
     );
@@ -364,6 +390,26 @@ fn verify_dependabot_accepts_single_quoted_scalars() {
             "      - '/.github/actions/*'\n",
             "    schedule:\n",
             "      interval: 'weekly'\n",
+            "  - package-ecosystem: 'pre-commit'\n",
+            "    directory: '/'\n",
+            "    schedule:\n",
+            "      interval: 'weekly'\n",
+            "  - package-ecosystem: 'uv'\n",
+            "    directory: '/'\n",
+            "    schedule:\n",
+            "      interval: 'weekly'\n",
+            "  - package-ecosystem: 'cargo'\n",
+            "    directory: '/'\n",
+            "    schedule:\n",
+            "      interval: 'weekly'\n",
+            "  - package-ecosystem: 'rust-toolchain'\n",
+            "    directory: '/'\n",
+            "    schedule:\n",
+            "      interval: 'weekly'\n",
+            "  - package-ecosystem: 'npm'\n",
+            "    directory: '/'\n",
+            "    schedule:\n",
+            "      interval: 'weekly'\n",
         ),
     );
     write(
@@ -374,4 +420,45 @@ fn verify_dependabot_accepts_single_quoted_scalars() {
 
     tq_dev::dependabot::verify_dependabot(temp.path())
         .expect("single-quoted scalars should be accepted");
+}
+
+#[test]
+fn verify_dependabot_rejects_missing_schedule_interval() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    write(
+        &temp.path().join(".github/dependabot.yml"),
+        concat!(
+            "version: 2\n",
+            "updates:\n",
+            "  - package-ecosystem: \"github-actions\"\n",
+            "    directory: \"/\"\n",
+        ),
+    );
+
+    let error =
+        tq_dev::dependabot::verify_dependabot(temp.path()).expect_err("missing schedule must fail");
+    assert!(error.to_string().contains("missing schedule.interval"));
+}
+
+#[test]
+fn verify_dependabot_does_not_count_commented_ecosystems() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    write(
+        &temp.path().join(".github/dependabot.yml"),
+        concat!(
+            "version: 2\n",
+            "# package-ecosystem: \"cargo\"\n",
+            "updates:\n",
+            "  - package-ecosystem: \"github-actions\"\n",
+            "    directories:\n",
+            "      - \"/\"\n",
+            "      - \"/.github/actions/*\"\n",
+            "    schedule:\n",
+            "      interval: \"weekly\"\n",
+        ),
+    );
+
+    let error = tq_dev::dependabot::verify_dependabot(temp.path())
+        .expect_err("commented ecosystem must not satisfy coverage");
+    assert!(error.to_string().contains("active \"cargo\" update block"));
 }

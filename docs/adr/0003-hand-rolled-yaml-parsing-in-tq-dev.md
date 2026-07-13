@@ -16,17 +16,17 @@ The Rust YAML ecosystem does not currently offer a parser that meets the [supply
 
 ## Decision
 
-Parse these YAML surfaces with deliberately limited, line-oriented readers owned by `tq-dev`, rather than admitting a YAML dependency. `parse.rs` owns lexical parsing and typed external references; `workflow_policy.rs` owns workflow structure invariants. Policy checks and drift audits consume these shared boundaries instead of reparsing YAML independently.
+Validate GitHub workflow syntax and expressions with pinned `actionlint`, including its pinned ShellCheck integration. Keep repository-specific policy in deliberately limited, line-oriented readers owned by `tq-dev`: `parse.rs` owns lexical parsing and typed external references, while `workflow_policy.rs` owns workflow structure invariants. Policy checks and drift audits consume these shared boundaries instead of reparsing YAML independently.
 
-The parsers support only the shapes this repository commits: two-space indentation, scalar values on the same line as their key, single- or double-quoted scalars, and `#` comments. They do not support block scalars, flow collections, anchors, aliases, or multi-line values.
+The Rust readers support only the shapes this repository commits: two-space indentation, scalar values on the same line as their key, single- or double-quoted scalars, and `#` comments. Unsupported policy-relevant shapes fail rather than being skipped. `actionlint` provides complete workflow parsing; pre-commit and Dependabot inputs remain restricted to the repository-owned subset.
 
 Review this if a future YAML crate clears the admission bar, or if the repository's YAML surfaces change to require a more complete parser.
 
 ## Consequences
 
-- No YAML crate enters the trusted computing base for repository automation.
-- The repository's own YAML must stay within the supported subset. The `cargo dev policy verify-pins` and `cargo dev policy verify-automation` gates exercise these parsers against the live files, so a formatting change that breaks parsing fails loudly rather than silently skipping a check.
-- Parsing is strict where it matters (missing keys, defaults, permissions, and job timeouts are hard errors) but structurally naive: unusual formatting could misparse. This risk is bounded because the inputs are repository-owned files that pass through code review, not untrusted input.
+- No YAML crate enters the Rust workspace trusted computing base; `actionlint` is an independently pinned automation tool.
+- The repository's policy-owned YAML must stay within the supported subset. The `cargo dev policy verify-pins` and `cargo dev policy verify-automation` gates exercise the Rust readers against live files, while `actionlint` validates complete workflow syntax and expressions.
+- Parsing is strict where it matters: unsupported reference shapes, missing keys, defaults, permissions, schedules, and job timeouts are hard errors rather than skipped input. This risk is bounded because the inputs are repository-owned files that pass through code review, not untrusted input.
 - If a YAML crate later clears the dependency admission bar, replacing these readers is a contained change because all YAML reading lives behind `parse.rs`.
 
 ## Alternatives considered
@@ -34,7 +34,7 @@ Review this if a future YAML crate clears the admission bar, or if the repositor
 - **`serde_yaml`**: deprecated and archived; fails the maintenance requirement.
 - **Successor crates (`serde_yml`, others)**: low-trust ownership and weak release rigor; one was previously admitted by mistake and removed. Fails the admission bar.
 - **`yaml-serde`**: actively maintained fork of `serde_yaml` by the YAML organization; potential future candidate.
-- **`yaml-rust2`**: maintained fork with moderate adoption, but a full YAML implementation is a large transitive surface for three narrow, repository-owned read paths. The value does not justify the trust cost today.
+- **`yaml-rust2`**: maintained fork with moderate adoption, but a full YAML implementation is a large transitive surface for narrow, repository-owned policy readers. Pinned `actionlint` already owns complete GitHub workflow parsing without adding a YAML crate to the Rust workspace.
 - **Shelling out to Python/Ruby YAML loaders**: reintroduces an interpreter dependency into policy checks and makes the harness non-deterministic across environments; this is what the Rust harness replaced.
 
 ## Related

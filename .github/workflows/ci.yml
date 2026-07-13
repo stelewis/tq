@@ -46,13 +46,9 @@ jobs:
           BEFORE_SHA="${{ github.event.before }}"
           HEAD_SHA="${{ github.sha }}"
 
-          git fetch --no-tags origin "$BEFORE_SHA" || true
-
-          if git rev-parse --verify --quiet "$BEFORE_SHA^{commit}" >/dev/null; then
-            uv run cz check --rev-range "$BEFORE_SHA..$HEAD_SHA"
-          else
-            uv run cz check --use-default-range
-          fi
+          git fetch --no-tags origin "$BEFORE_SHA"
+          git rev-parse --verify "$BEFORE_SHA^{commit}" >/dev/null
+          uv run cz check --rev-range "$BEFORE_SHA..$HEAD_SHA"
 
   hygiene:
     name: Hygiene (pre-commit)
@@ -574,7 +570,7 @@ jobs:
   automation-policy:
     name: Automation policy
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -583,6 +579,12 @@ jobs:
 
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
+
+      - name: Setup automation toolchain
+        uses: ./.github/actions/setup-mise
+
+      - name: Validate GitHub Actions workflows
+        run: mise exec -- actionlint
 
       - name: Verify fail-closed automation policy
         run: cargo dev policy verify-automation --repo-root .

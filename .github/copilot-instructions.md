@@ -22,6 +22,7 @@ Use the Rust workspace for product code and `uv` for packaging and repository au
   - Check plan: `cargo dev check --dry-run --output agent --profile full all --repo-root .`
   - Routine check: `cargo dev check routine --repo-root .`
   - Repo policy: `cargo dev policy verify-pins --repo-root .`
+  - Workflow lint: `mise exec -- actionlint`
   - Automation policy: `cargo dev policy verify-automation --repo-root .`
   - Release policy: `cargo dev policy verify-release --repo-root .`
   - External pin drift: `cargo dev policy audit-external-pins --repo-root .`

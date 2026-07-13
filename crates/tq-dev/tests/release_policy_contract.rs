@@ -1,3 +1,4 @@
+use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 
@@ -5,6 +6,29 @@ fn write(path: &Path, contents: &str) {
     fs::create_dir_all(path.parent().expect("parent path must exist"))
         .expect("create parent directories");
     fs::write(path, contents).expect("write file");
+}
+
+fn write_mise_lock(root: &Path) {
+    let mut contents = String::new();
+    for (tool, version, backend) in [
+        ("node", "26.4.0", "core:node"),
+        ("actionlint", "1.7.12", "aqua:rhysd/actionlint"),
+        ("shellcheck", "0.11.0", "aqua:koalaman/shellcheck"),
+    ] {
+        write!(
+            contents,
+            "[[tools.{tool}]]\nversion = \"{version}\"\nbackend = \"{backend}\"\n\n"
+        )
+        .expect("write tool lock fixture");
+        for platform in ["linux-x64", "macos-arm64", "macos-x64", "windows-x64"] {
+            write!(
+                contents,
+                "[tools.{tool}.\"platforms.{platform}\"]\nchecksum = \"sha256:fixture\"\nurl = \"https://example.invalid/{tool}/{platform}\"\n\n"
+            )
+            .expect("write platform lock fixture");
+        }
+    }
+    write(&root.join("mise.lock"), &contents);
 }
 
 #[test]
@@ -91,6 +115,8 @@ fn verify_release_policy_passes_when_workspace_and_dependabot_policies_pass() {
             "npm = \"11.17.0\"\n",
             "mise = \"2026.7.5\"\n",
             "maturin = \"1.11.0\"\n",
+            "actionlint = \"1.7.12\"\n",
+            "shellcheck = \"0.11.0\"\n",
             "\n",
             "[rust-maintenance]\n",
             "cargo-outdated = \"0.17.0\"\n",
@@ -108,8 +134,14 @@ fn verify_release_policy_passes_when_workspace_and_dependabot_policies_pass() {
     );
     write(
         &temp.path().join("mise.toml"),
-        concat!("[tools]\n", "node = \"26.4.0\"\n",),
+        concat!(
+            "[tools]\n",
+            "node = \"26.4.0\"\n",
+            "actionlint = \"1.7.12\"\n",
+            "shellcheck = \"0.11.0\"\n",
+        ),
     );
+    write_mise_lock(temp.path());
     write(
         &temp.path().join("package.json"),
         concat!(
@@ -123,9 +155,7 @@ fn verify_release_policy_passes_when_workspace_and_dependabot_policies_pass() {
         ),
     );
     write(
-        &temp
-            .path()
-            .join(".github/actions/setup-mise-docs/action.yml"),
+        &temp.path().join(".github/actions/setup-mise/action.yml"),
         concat!(
             "inputs:\n",
             "  mise-version:\n",

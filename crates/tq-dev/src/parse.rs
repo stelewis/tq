@@ -202,7 +202,17 @@ impl PreCommitRepository {
 pub fn action_references(contents: &str, source: &Path) -> Result<Vec<ActionReference>, DevError> {
     let mut references = Vec::new();
     for (index, line) in contents.lines().enumerate() {
-        let Some((_, key, value)) = yaml_key_value(line) else {
+        let parsed = yaml_key_value(line);
+        if yaml_mentions_key(line, "uses") && parsed.is_none_or(|(_, key, _)| key != "uses") {
+            return Err(DevError::InvalidInput {
+                path: source.to_path_buf(),
+                message: format!(
+                    "line {} uses an unsupported YAML shape for a uses reference",
+                    index + 1
+                ),
+            });
+        }
+        let Some((_, key, value)) = parsed else {
             continue;
         };
         if key != "uses" {
@@ -275,7 +285,21 @@ pub fn pre_commit_repositories(
     let mut repositories = Vec::new();
     let mut pending: Option<PendingRepository> = None;
     for (index, line) in contents.lines().enumerate() {
-        let Some((indent, key, value)) = yaml_key_value(line) else {
+        let parsed = yaml_key_value(line);
+        for key in ["repo", "rev"] {
+            if yaml_mentions_key(line, key)
+                && parsed.is_none_or(|(_, parsed_key, _)| parsed_key != key)
+            {
+                return Err(DevError::InvalidInput {
+                    path: source.to_path_buf(),
+                    message: format!(
+                        "line {} uses an unsupported YAML shape for {key}",
+                        index + 1
+                    ),
+                });
+            }
+        }
+        let Some((indent, key, value)) = parsed else {
             continue;
         };
         if indent == 2 && key == "repo" {
@@ -439,6 +463,11 @@ pub fn required_action_step_with_value(
     ))
 }
 
+fn yaml_mentions_key(line: &str, key: &str) -> bool {
+    let without_comment = line.split('#').next().unwrap_or(line);
+    without_comment.contains(&format!("{key}:"))
+}
+
 pub(crate) fn yaml_key_value(line: &str) -> Option<(usize, &str, &str)> {
     let without_comment = line.split('#').next().unwrap_or(line);
     let trimmed_end = without_comment.trim_end();
@@ -543,5 +572,27 @@ mod tests {
             repositories[1].revision,
             PinnedRevision::Unfrozen("v1.2.3".to_owned())
         );
+    }
+
+    #[test]
+    fn rejects_unsupported_action_reference_shapes() {
+        let error = action_references(
+            "steps:\n  - { uses: actions/checkout@v4 }\n",
+            Path::new("workflow.yml"),
+        )
+        .expect_err("flow-style uses reference must not be skipped");
+
+        assert!(error.to_string().contains("unsupported YAML shape"));
+    }
+
+    #[test]
+    fn rejects_unsupported_pre_commit_repository_shapes() {
+        let error = pre_commit_repositories(
+            "repos:\n  - { repo: https://github.com/example/hook, rev: v1 }\n",
+            Path::new(".pre-commit-config.yaml"),
+        )
+        .expect_err("flow-style repository must not be skipped");
+
+        assert!(error.to_string().contains("unsupported YAML shape"));
     }
 }

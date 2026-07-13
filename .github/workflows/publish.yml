@@ -25,36 +25,8 @@ jobs:
       source_head_sha: ${{ steps.release.outputs.source_head_sha }}
       source_run_id: ${{ steps.release.outputs.source_run_id }}
     steps:
-      - name: Verify source CI run produced validated release artifacts
-        id: artifacts
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          run_id='${{ github.event.workflow_run.id }}'
-          artifact_count="$(
-            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" \
-              --jq '[.artifacts[] | select(.name == "validated-dist" and .expired == false)] | length'
-          )"
-
-          if [ "$artifact_count" -eq 0 ]; then
-            echo "Source CI run $run_id has no validated-dist artifact; skipping publish."
-            echo "has_validated_dist=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [ "$artifact_count" -ne 1 ]; then
-            echo "Expected exactly one validated-dist artifact for CI run $run_id, found $artifact_count"
-            exit 1
-          fi
-
-          echo "has_validated_dist=true" >> "$GITHUB_OUTPUT"
-
       - name: Resolve SemVer tag for successful CI run
         id: release
-        if: ${{ steps.artifacts.outputs.has_validated_dist == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -87,10 +59,31 @@ jobs:
             exit 0
           fi
 
-          echo "should_publish=true" >> "$GITHUB_OUTPUT"
-          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
-          echo "source_head_sha=$head_sha" >> "$GITHUB_OUTPUT"
-          echo "source_run_id=${{ github.event.workflow_run.id }}" >> "$GITHUB_OUTPUT"
+          {
+            echo "should_publish=true"
+            echo "release_tag=$release_tag"
+            echo "source_head_sha=$head_sha"
+            echo "source_run_id=${{ github.event.workflow_run.id }}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Require validated release artifact
+        if: ${{ steps.release.outputs.should_publish == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          run_id='${{ github.event.workflow_run.id }}'
+          artifact_count="$(
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" \
+              --jq '[.artifacts[] | select(.name == "validated-dist" and .expired == false)] | length'
+          )"
+
+          if [ "$artifact_count" -ne 1 ]; then
+            echo "Expected exactly one validated-dist artifact for tagged CI run $run_id, found $artifact_count"
+            exit 1
+          fi
 
   publish:
     name: Publish validated artifacts

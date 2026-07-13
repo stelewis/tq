@@ -31,12 +31,15 @@ fn docs_pages_scopes_write_permissions_to_deploy_job() {
 }
 
 #[test]
-fn docs_setup_pins_mise_and_disables_npm_lifecycle_scripts() {
-    let action = include_str!("../../../.github/actions/setup-mise-docs/action.yml");
+fn mise_and_docs_setup_have_separate_owners() {
+    let mise = include_str!("../../../.github/actions/setup-mise/action.yml");
+    let docs = include_str!("../../../.github/actions/setup-mise-docs/action.yml");
 
-    assert!(action.contains("mise-version:"));
-    assert!(action.contains("version: ${{ inputs.mise-version }}"));
-    assert!(action.contains("npm ci --ignore-scripts"));
+    assert!(mise.contains("mise-version:"));
+    assert!(mise.contains("version: ${{ inputs.mise-version }}"));
+    assert!(docs.contains("uses: ./.github/actions/setup-mise"));
+    assert!(docs.contains("npm ci --ignore-scripts"));
+    assert!(!docs.contains("jdx/mise-action@"));
 }
 
 #[test]
@@ -115,5 +118,51 @@ fn composite_action_npm_installs_fail_closed_without_ignore_scripts() {
         verify_workflow_hardening(temp.path()).expect_err("npm lifecycle scripts must fail policy");
     let message = error.to_string();
     assert!(message.contains(".github/actions/setup/action.yml"));
-    assert!(message.contains("npm ci must include --ignore-scripts"));
+    assert!(message.contains("npm dependency installation must be owned"));
+}
+
+#[test]
+fn npm_policy_rejects_formatting_and_comment_bypasses_in_the_owner() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    write(
+        &temp.path().join(".github/workflows/ci.yml"),
+        concat!(
+            "name: CI\n",
+            "permissions: read-all\n",
+            "jobs:\n",
+            "  test:\n",
+            "    runs-on: ubuntu-latest\n",
+            "    timeout-minutes: 1\n",
+        ),
+    );
+    write(
+        &temp
+            .path()
+            .join(".github/actions/setup-mise-docs/action.yml"),
+        "runs:\n  using: composite\n  steps:\n    - shell: bash\n      run: npm  ci # --ignore-scripts\n",
+    );
+
+    verify_workflow_hardening(temp.path())
+        .expect_err("comment must not satisfy npm lifecycle policy");
+}
+
+#[test]
+fn automation_workflows_fail_closed_on_tooling_and_state_errors() {
+    let ci = include_str!("../../../.github/workflows/ci.yml");
+    let drift_action = include_str!("../../../.github/actions/sync-drift-issue/action.yml");
+    let setup_position = ci
+        .find("- name: Setup automation toolchain")
+        .expect("automation toolchain setup must exist");
+    let actionlint_position = ci
+        .find("mise exec -- actionlint")
+        .expect("actionlint step must exist");
+
+    assert!(setup_position < actionlint_position);
+    assert!(ci.contains("uses: ./.github/actions/setup-mise"));
+    assert!(
+        !ci.contains("Setup automation toolchain\n        uses: ./.github/actions/setup-mise-docs")
+    );
+    assert!(!ci.contains("git fetch --no-tags origin \"$BEFORE_SHA\" || true"));
+    assert!(drift_action.contains("true|false)"));
+    assert!(drift_action.contains("drift-detected must be exactly"));
 }

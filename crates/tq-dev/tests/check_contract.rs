@@ -25,6 +25,8 @@ fn write_dev_tools_manifest(repo_root: &Path) {
             "npm = \"11.17.0\"\n",
             "mise = \"2026.7.5\"\n",
             "maturin = \"1.11.0\"\n",
+            "actionlint = \"1.7.12\"\n",
+            "shellcheck = \"0.11.0\"\n",
             "\n",
             "[rust-maintenance]\n",
             "cargo-outdated = \"0.17.0\"\n",
@@ -44,6 +46,7 @@ fn routine_check_plan_is_the_fast_daily_gate() {
             CheckTask::RustFormat,
             CheckTask::RustLint,
             CheckTask::RustTests,
+            CheckTask::Actionlint,
             CheckTask::AutomationPolicy,
         ]
     );
@@ -60,6 +63,7 @@ fn all_check_plan_keeps_release_build_in_the_full_profile() {
             CheckTask::RustFormat,
             CheckTask::RustLint,
             CheckTask::RustTests,
+            CheckTask::Actionlint,
             CheckTask::AutomationPolicy,
             CheckTask::DocsSync,
             CheckTask::ReleasePolicy,
@@ -71,6 +75,7 @@ fn all_check_plan_keeps_release_build_in_the_full_profile() {
             CheckTask::RustFormat,
             CheckTask::RustLint,
             CheckTask::RustTests,
+            CheckTask::Actionlint,
             CheckTask::AutomationPolicy,
             CheckTask::DocsSync,
             CheckTask::ReleasePolicy,
@@ -139,6 +144,7 @@ fn dependency_update_plan_exposes_file_and_command_actions() {
             .iter()
             .any(|command| command.starts_with("rustup update "))
     );
+    assert!(commands.contains(&"mise install --locked".to_owned()));
     assert!(commands.contains(&"uv lock --upgrade".to_owned()));
     assert!(commands.contains(&"npm update".to_owned()));
 }

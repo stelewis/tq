@@ -43,7 +43,7 @@ pub fn plan(repo_root: &Path) -> Result<ActionPlan, DevError> {
         ),
         PlannedAction::command(
             "Install pinned mise tools",
-            Invocation::new("mise", ["install"]),
+            Invocation::new("mise", ["install", "--locked"]),
         ),
         PlannedAction::command(
             "Upgrade uv lockfile",

@@ -16,9 +16,9 @@ Runs deterministic validation tasks from the harness-owned check catalog.
 
 | Command | Purpose |
 | --- | --- |
-| `cargo dev check routine --repo-root .` | Fast daily Rust and automation-policy gate. |
+| `cargo dev check routine --repo-root .` | Fast daily Rust, actionlint, ShellCheck, and automation-policy gate. |
 | `cargo dev check all --repo-root .` | Broad repository gate. |
-| `cargo dev check --profile full all --repo-root .` | Release-sensitive gate, including automation policy and release build validation. |
+| `cargo dev check --profile full all --repo-root .` | Release-sensitive gate, including workflow lint, automation policy, and release build validation. |
 | `cargo dev check docs --repo-root .` | Documentation synchronization gate. |
 | `cargo dev check release-policy --repo-root .` | Release policy gate. |
 | `cargo dev check release-build --repo-root .` | Release artifact build gate. |
@@ -36,7 +36,7 @@ Audits and updates repository dependency state.
 | `cargo dev deps audit-security --repo-root .` | Runs Rust, Python, and npm dependency vulnerability audits. |
 | `cargo dev deps update --repo-root .` | Applies deterministic dependency and toolchain updates. |
 
-`deps update` updates repository-owned dependency state: Rust pin files when a stable toolchain update exists, the selected Rust toolchain, mise-installed tools, the uv lockfile, npm dependencies, and frozen pre-commit hook pins. It does not run `uv self update`, because uv executable updates depend on how the developer installed uv. It does not run `uv python upgrade`, because that mutates uv-managed Python installations, is limited to patch upgrades, and is still a preview uv feature. Local Python availability belongs to `setup` and `health doctor`.
+`deps update` updates repository-owned dependency state: Rust pin files when a stable toolchain update exists, the selected Rust toolchain, tools from the committed mise lock, the uv lockfile, npm dependencies, and frozen pre-commit hook pins. It does not run `uv self update`, because uv executable updates depend on how the developer installed uv. It does not run `uv python upgrade`, because that mutates uv-managed Python installations, is limited to patch upgrades, and is still a preview uv feature. Local Python availability belongs to `setup` and `health doctor`.
 
 Use `--dry-run` with `deps update` to print the action plan without applying it.
 
@@ -60,7 +60,7 @@ Verifies repository policy invariants.
 | Command | Purpose |
 | --- | --- |
 | `cargo dev policy verify-pins --repo-root .` | Verifies repository-owned tool pins and configuration surfaces. |
-| `cargo dev policy verify-automation --repo-root .` | Verifies tracked path coverage and repository-wide workflow hardening. |
+| `cargo dev policy verify-automation --repo-root .` | Verifies tracked path coverage, workflow hardening, immutable refs, and active Dependabot coverage. |
 | `cargo dev policy verify-release --repo-root .` | Runs the aggregate release policy gate. |
 | `cargo dev policy verify-dependabot --repo-root .` | Verifies Dependabot coverage. |
 | `cargo dev policy verify-workspace-version --repo-root .` | Verifies workspace version consistency. |
