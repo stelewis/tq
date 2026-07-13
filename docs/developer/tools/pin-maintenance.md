@@ -5,27 +5,28 @@ Maintain frozen third-party refs as an explicit supply-chain workflow, not as in
 This guide covers:
 
 - external GitHub Action refs in `.github/workflows/**` and `.github/actions/**`
+- Docker-backed action image digests
 - frozen pre-commit hook revs in `.pre-commit-config.yaml`
 - Rust maintenance tool versions in `.github/actions/setup-rust-maintenance-tools/action.yml`
-- actionlint and ShellCheck versions in `.github/dev-tools.toml` and `mise.toml`, with cross-platform checksums in `mise.lock`
+- actionlint and ShellCheck versions in `.github/dev-tools.toml`
 - scheduled drift reporting for those pinned refs
 
 ## Enforcement and visibility
 
-The repository uses three separate controls so frozen refs stay both strict and maintainable:
+The repository uses four separate controls so frozen refs stay both strict and maintainable:
 
-- [Pinned Actions Policy](https://github.com/stelewis/tq/blob/main/.github/workflows/pinned-actions-policy.yml) fails if an external `uses:` ref is not pinned to a full commit SHA.
+- [Pinned Actions Policy](https://github.com/stelewis/tq/blob/main/.github/workflows/pinned-actions-policy.yml) requires external actions to use full commit SHAs and Docker-backed actions to use SHA-256 image digests.
 - [Frozen Pre-commit Policy](https://github.com/stelewis/tq/blob/main/.github/workflows/frozen-pre-commit-policy.yml) fails if an external pre-commit hook rev is not a full commit SHA.
 - [Pinned External Dependency Drift](https://github.com/stelewis/tq/blob/main/.github/workflows/pinned-external-dependency-drift.yml) makes stale frozen refs visible when they lag the latest upstream SemVer release tag.
 - [Rust Maintenance Tool Pins](https://github.com/stelewis/tq/blob/main/.github/workflows/rust-maintenance-tool-pins.yml) makes stale `cargo-outdated`, `cargo-audit`, and `cargo-deny` pins visible when crates.io has newer releases.
 
-Dependabot remains the default update path for both surfaces. Use manual rotation when you need an urgent update, when you are responding to a drift issue, or when a Dependabot PR needs a manual follow-up.
+Dependabot remains the default update path for supported GitHub Action and pre-commit dependencies. Use manual rotation for Docker image digests, urgent updates, drift responses, and any dependency that Dependabot cannot update completely.
 
 Use `cargo dev deps update --dry-run --repo-root .` before applying repository-owned dependency and toolchain updates when you need to inspect the planned commands and Rust pin file edits.
 
-Use `cargo dev deps audit-maintenance-tools --repo-root .` to run the same Rust maintenance-tool drift check locally. `cargo dev deps audit-latest --repo-root .` also compares the pinned actionlint and ShellCheck releases with mise's current release metadata.
+Use `cargo dev deps audit-maintenance-tools --repo-root .` to run the same Rust maintenance-tool drift check locally. `cargo dev deps audit-latest --repo-root .` compares the pinned actionlint and ShellCheck versions with their latest upstream SemVer release tags.
 
-When changing Node, actionlint, or ShellCheck, update `.github/dev-tools.toml` and `mise.toml`, regenerate `mise.lock` for `linux-x64`, `macos-x64`, `macos-arm64`, and `windows-x64`, then run `mise install --locked` and `cargo dev policy verify-pins --repo-root .`.
+Node and npm versions are owned by `package.json`. Actionlint and ShellCheck versions are owned by `.github/dev-tools.toml`; developers install those versions with their environment manager. When actionlint changes, resolve the official image tag to its registry digest and update `automation.actionlint-image.digest` in the same change. Pin policy derives the required versioned image reference and rejects a stale workflow consumer.
 
 ## GitHub Actions rotation
 
@@ -50,6 +51,12 @@ uses: owner/repo@0123456789abcdef0123456789abcdef01234567 # v1.2.3
 ```
 
 Do not pin to a moving major tag such as `@v4` or a branch name. Keep the human-readable version comment so later reviews do not have to reverse-resolve the SHA by hand.
+
+## Docker action rotation
+
+Docker-backed actions must use an immutable SHA-256 image digest. For actionlint, update its version and image digest in `.github/dev-tools.toml`; pin policy derives the required `docker://<repository>:<version>@sha256:<digest>` workflow reference from those fields.
+
+Resolve the digest from the trusted registry after reviewing the release and image provenance. Do not use mutable tags such as `latest`, a version tag without a digest, or a digest copied from an untrusted mirror.
 
 ## Pre-commit rotation
 

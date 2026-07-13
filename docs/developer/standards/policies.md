@@ -101,7 +101,7 @@ Docs toolchain advisory scans must run on a weekly schedule and on demand, with 
 Enforcement:
 
 - the scheduled workflow runs `npm audit --package-lock-only` weekly and on demand.
-- the main CI workflow reruns `npm audit --package-lock-only` when `package.json`, `package-lock.json`, `mise.toml`, or the docs-toolchain workflow and action definitions change.
+- the main CI workflow reruns `npm audit --package-lock-only` when `package.json`, `package-lock.json`, or the docs-toolchain workflow and action definitions change.
 
 Why this matters:
 

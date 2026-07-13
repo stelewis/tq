@@ -10,9 +10,10 @@ Because `tq` is a developer tool used by multiple teams, we strive for consisten
 
 1. Fork and clone the repository.
 2. Create a short descriptive branch such as `feature/add-cli-command`, `fix/parser-bug`, or `docs/update-guide`.
-3. Install the local toolchain:
+3. Install the tool versions declared by the repository with the environment manager that owns your machine configuration, then bootstrap repository dependencies and hooks:
 
    ```sh
+   cargo dev health doctor --repo-root .
    cargo dev setup --dry-run --repo-root .
    cargo dev setup --repo-root .
    ```

@@ -14,7 +14,7 @@ The main CI workflow enforces:
 - repository automation semantics via `cargo dev policy verify-automation --repo-root .`
 - advisory runtime dependency check via `cargo dev runtime-deps ...` only on pull requests when `Cargo.lock` or `Cargo.toml` change; reports whether the shipped CLI dependency graph changed without blocking the PR
 - docs sync via `cargo run -p tq-docsgen --locked -- generate all` only when docs contract inputs, generated reference outputs, `crates/tq-docsgen/**`, `crates/tq-cli/**`, or `crates/tq-rules/**` change
-- docs site build via `mise run docs-build` only when docs content, docs toolchain files, or docs generator inputs change
+- docs site build via `npm run docs:build` only when docs content, docs toolchain files, or docs generator inputs change
 - tests via `cargo test --workspace --locked`
 - release-policy validation via `cargo dev policy verify-release --repo-root .`
 - build validation via `cargo build`, `uv build --sdist`, a release-wheel matrix for Linux x86_64, macOS x86_64, macOS arm64, and Windows x86_64, artifact policy verification, built artifact entrypoint smoke checks, and Linux wheel plus sdist compatibility smoke checks across Python 3.11 to 3.14
@@ -49,7 +49,7 @@ The `cargo dev change-scope` command owns CI path classification. Unknown change
 
 The same automation policy discovers every workflow and job. It requires positive job timeouts, rejects workflow-global write permissions and `write-all`, centralizes npm dependency installation behind `npm ci --ignore-scripts`, verifies immutable external references, and validates active Dependabot coverage. New workflow files and jobs therefore enter the policy automatically instead of relying on a manually maintained test list.
 
-Pinned `actionlint` complements these repository-specific rules with full GitHub workflow parsing, expression and context typing, action input/output checks, reusable-workflow validation, injection checks, and embedded shell analysis through pinned ShellCheck. Neither layer substitutes for the other. Both binaries and Node are installed from the cross-platform URLs and SHA-256 checksums in `mise.lock`; pin policy verifies their versions, backends, and required runner platforms.
+Pinned `actionlint` complements these repository-specific rules with full GitHub workflow parsing, expression and context typing, action input/output checks, reusable-workflow validation, injection checks, and embedded shell analysis through ShellCheck. Neither layer substitutes for the other. CI runs the official actionlint image with a manifest-owned version and immutable digest; local checks use `actionlint` and `shellcheck` from `PATH`.
 
 The stale dependency workflow installs `cargo-outdated` separately from the product toolchain and checks only root workspace dependencies. This complements Dependabot and other policy checks: `cargo audit` catches published advisories, `cargo deny` enforces explicit bans plus license and source policy, `npm audit --package-lock-only` covers the docs lockfile, and `cargo outdated` surfaces ordinary version drift.
 

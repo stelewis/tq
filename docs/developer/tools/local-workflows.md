@@ -15,7 +15,7 @@ Use `cargo check` as the fast compile, type, trait, and borrow-check loop before
 - `cargo dev check all --repo-root .`
 - `cargo dev check --profile full all --repo-root .`
 
-`cargo dev check routine` runs the fast daily Rust gate: format, clippy, and tests. `cargo dev check all` adds generated-doc sync and release-policy validation. `cargo dev check --profile full all` adds the local release artifact build. The release build validates the source distribution plus a wheel for the current host platform; the full publishable artifact matrix is validated in CI.
+`cargo dev check routine` runs formatting, clippy, tests, actionlint with ShellCheck integration, and automation policy. `cargo dev check all` adds generated-doc sync and release-policy validation. `cargo dev check --profile full all` adds the local release artifact build. The release build validates the source distribution plus a wheel for the current host platform; the full publishable artifact matrix is validated in CI.
 
 ## Combined local check
 

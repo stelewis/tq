@@ -32,12 +32,12 @@ These commands regenerate:
 
 ## Docs site build
 
-- `mise run docs-bootstrap`
-- `mise run docs-build`
+```bash
+npm ci --ignore-scripts
+npm run docs:build
+```
 
-The local docs tasks bootstrap npm dependencies with lifecycle scripts disabled when `node_modules/.bin/vitepress` is missing.
-
-The docs site build runs the Rust docs generator first through `package.json` and then builds VitePress.
+The docs site build runs the Rust docs generator first through `package.json` and then builds VitePress. The Node and npm versions are declared in `package.json`; install them with the environment manager that owns your machine configuration.
 
 ## Repository and release verification
 

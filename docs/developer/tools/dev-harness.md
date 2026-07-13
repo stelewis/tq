@@ -1,6 +1,6 @@
 # Developer Harness
 
-The developer harness is the repository-owned entrypoint for deterministic maintenance. Use it when work touches validation, setup, pinned tools, dependency freshness, security audits, cleanup, release packaging, or runtime dependency policy.
+The developer harness is the repository-owned entrypoint for deterministic maintenance. Use it when work touches validation, repository setup, pinned tool policy, dependency freshness, security audits, release packaging, or runtime dependency policy.
 
 Run commands through the Cargo alias:
 
@@ -36,22 +36,19 @@ Audits and updates repository dependency state.
 | `cargo dev deps audit-security --repo-root .` | Runs Rust, Python, and npm dependency vulnerability audits. |
 | `cargo dev deps update --repo-root .` | Applies deterministic dependency and toolchain updates. |
 
-`deps update` updates repository-owned dependency state: Rust pin files when a stable toolchain update exists, the selected Rust toolchain, tools from the committed mise lock, the uv lockfile, npm dependencies, and frozen pre-commit hook pins. It does not run `uv self update`, because uv executable updates depend on how the developer installed uv. It does not run `uv python upgrade`, because that mutates uv-managed Python installations, is limited to patch upgrades, and is still a preview uv feature. Local Python availability belongs to `setup` and `health doctor`.
+`deps update` updates repository-owned dependency state: Rust pin files when a stable toolchain update exists, the uv lockfile, npm dependencies, and frozen pre-commit hook pins. It does not update installed executables or language runtimes; those belong to the environment manager that installed them.
 
 Use `--dry-run` with `deps update` to print the action plan without applying it.
 
 ### `health`
 
-Checks or cleans the local developer environment.
+Checks the local developer environment.
 
 | Command | Purpose |
 | --- | --- |
 | `cargo dev health doctor --repo-root .` | Checks local tools and native build prerequisites against repository pins. |
-| `cargo dev health cleanup --repo-root .` | Removes repository-owned harness caches. |
 
-`health doctor` checks the installed uv executable against the repository uv pin. If uv is missing or mismatched, update it through the package manager that owns the installation. For Homebrew installs, uv reports `brew update && brew upgrade uv`. Use `setup` to install the pinned Python version through uv when it is missing.
-
-Use `--dry-run` with `health cleanup` to print the cleanup plan without removing files.
+`health doctor` reads tool versions from repository-owned metadata and checks the corresponding executables on `PATH`. Missing or mismatched tools must be installed or updated through the environment manager that owns the developer machine. The harness reports environment state but does not provision global tools or language runtimes.
 
 ### `policy`
 
@@ -86,13 +83,13 @@ Use `--dry-run` with `release build` to print the artifact build plan without ch
 
 ### `setup`
 
-Installs pinned developer toolchain prerequisites:
+Installs locked repository dependencies and pre-commit hooks:
 
 ```bash
 cargo dev setup --repo-root .
 ```
 
-Use `--dry-run` to print the setup plan, including pinned Rust maintenance-tool installs that are currently needed.
+The setup plan runs `uv sync --locked`, `npm ci --ignore-scripts`, and hook installation. It does not install or update system tools, language runtimes, or global Cargo binaries. Use `--dry-run` to inspect the exact repository mutations.
 
 ### `runtime-deps`
 
@@ -130,4 +127,4 @@ Every harness command follows the same exit-code contract:
 
 ## Design Rule
 
-When repository maintenance becomes repetitive, surprising, or easy to get wrong, add a deterministic harness command or check instead of more prose. Keep CI on read-only policy and check commands. Keep local machine mutation in explicit `setup`, `cleanup`, and `update` commands.
+When repository maintenance becomes repetitive, surprising, or easy to get wrong, add a deterministic harness command or check instead of more prose. The harness owns repository state, validation, diagnosis, and policy. Developer environment managers and CI setup actions own machine provisioning.
