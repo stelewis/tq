@@ -102,7 +102,7 @@ Automation supports this policy but does not replace it:
 - `cargo deny check`
 - `cargo outdated --workspace --root-deps-only`
 - Dependabot coverage policy for GitHub Actions
-- `detect-secrets` and `gitleaks`
+- `gitleaks` and GitHub secret scanning
 - Rust, Python, and Node lockfiles
 
 Automation is the floor, not the bar.

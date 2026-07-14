@@ -543,9 +543,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_ENABLE_COMMENTS: "false"
 
-      - name: Detect secrets (baseline)
-        run: uv run detect-secrets-hook --baseline .detect-secrets.baseline
-
       - name: Cargo audit
         if: ${{ needs.change-scope.outputs.rust_security == 'true' }}
         run: cargo audit

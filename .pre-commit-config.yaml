@@ -4,7 +4,7 @@ default_stages: [pre-commit]
 repos:
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0  # pragma: allowlist secret
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -12,23 +12,17 @@ repos:
       - id: check-added-large-files
 
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 84ed656d5ada0b07830b74fb0fe18b3bc1029441  # frozen: 0.11.26  # pragma: allowlist secret
+    rev: 84ed656d5ada0b07830b74fb0fe18b3bc1029441  # frozen: 0.11.26
     hooks:
       - id: uv-lock
 
   - repo: https://github.com/gitleaks/gitleaks
-    rev: 83d9cd684c87d95d656c1458ef04895a7f1cbd8e  # frozen: v8.30.1  # pragma: allowlist secret
+    rev: 83d9cd684c87d95d656c1458ef04895a7f1cbd8e  # frozen: v8.30.1
     hooks:
       - id: gitleaks
 
-  - repo: https://github.com/Yelp/detect-secrets
-    rev: 01886c8a910c64595c47f186ca1ffc0b77fa5458  # frozen: v1.5.0  # pragma: allowlist secret
-    hooks:
-      - id: detect-secrets
-        args: ["--baseline", ".detect-secrets.baseline"]
-
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: 205e71c26d6dd6a802ca674c9ae4d12f1103a9bb  # frozen: v4.16.4  # pragma: allowlist secret
+    rev: 205e71c26d6dd6a802ca674c9ae4d12f1103a9bb  # frozen: v4.16.4
     hooks:
       - id: commitizen
         stages: [commit-msg]

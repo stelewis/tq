@@ -54,7 +54,6 @@ exclude = [
 [dependency-groups]
 dev = [
     "commitizen>=4.16.4",
-    "detect-secrets>=1.5.0",
     "prek>=0.4.5",
     "ruff>=0.15.20",
     "ty>=0.0.55",

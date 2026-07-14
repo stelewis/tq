@@ -18,7 +18,7 @@ The main CI workflow enforces:
 - tests via `cargo test --workspace --locked`
 - release-policy validation via `cargo dev policy verify-release --repo-root .`
 - build validation via `cargo build`, `uv build --sdist`, a release-wheel matrix for Linux x86_64, macOS x86_64, macOS arm64, and Windows x86_64, artifact policy verification, built artifact entrypoint smoke checks, and Linux wheel plus sdist compatibility smoke checks across Python 3.11 to 3.14
-- secret scanning via `gitleaks` and `detect-secrets` on every push and pull request
+- secret scanning via `gitleaks` on every push and pull request, with GitHub secret scanning enabled on the repository
 - Rust dependency security checks via `cargo audit` and `cargo deny` only when Rust dependency or Rust security-policy files change
 - docs dependency security checks via `npm audit --package-lock-only` only when docs dependency or docs-toolchain files change
 

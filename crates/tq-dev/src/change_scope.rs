@@ -332,10 +332,8 @@ fn is_known_path(path: &str) -> bool {
         || matches!(
             path,
             ".copier-answers.yml"
-                | ".detect-secrets.baseline"
                 | ".gitattributes"
                 | ".gitignore"
-                | ".gitleaks.toml"
                 | ".lycheeignore"
                 | ".markdownlint.yaml"
                 | ".pre-commit-config.yaml"

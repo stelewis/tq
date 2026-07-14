@@ -27,7 +27,7 @@ Use `cargo check` as the fast compile, type, trait, and borrow-check loop before
 - `cargo deny check`
 - `cargo outdated --workspace --root-deps-only`
 
-Secret scanning and commit policy remain part of the standard workflow through `gitleaks`, `detect-secrets`, and `commitizen`.
+Secret scanning and commit policy remain part of the standard workflow through `gitleaks` and `commitizen`, with GitHub secret scanning enabled on the repository.
 
 These checks are only the baseline. Before adding or upgrading external dependencies, follow the broader [Security standards](../standards/security.md) guidance and the dependency review bar in [Supply-chain security standards](../standards/supply-chain-security.md).
 

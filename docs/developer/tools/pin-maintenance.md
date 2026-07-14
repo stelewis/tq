@@ -64,9 +64,8 @@ Use a frozen autoupdate flow so the file stays commit-pinned.
 
 1. Update the hook revs with a frozen pre-commit autoupdate command.
 2. Review the hook changes and upstream release notes.
-3. Preserve the inline `# pragma: allowlist secret` comments on the exact frozen `rev:` lines.
-4. Run the relevant hooks locally.
-5. Let the frozen-pre-commit policy workflow validate that every external hook remains commit-pinned.
+3. Run the relevant hooks locally.
+4. Let the frozen-pre-commit policy workflow validate that every external hook remains commit-pinned.
 
 Useful command pattern:
 
@@ -78,7 +77,7 @@ uv run prek pre-commit run --all-files
 Preferred edit shape:
 
 ```yaml
-rev: 0123456789abcdef0123456789abcdef01234567  # frozen: v1.2.3  # pragma: allowlist secret
+rev: 0123456789abcdef0123456789abcdef01234567  # frozen: v1.2.3
 ```
 
 Do not replace the frozen SHA with a tag. The version comment is documentation only; the SHA is the actual control.

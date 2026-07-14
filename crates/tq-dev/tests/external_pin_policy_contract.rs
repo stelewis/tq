@@ -5,7 +5,7 @@ use std::process::Command;
 use tq_dev::error::DevError;
 use tq_dev::external_pins::{verify_action_pins, verify_pre_commit_pins};
 
-const SHA: &str = "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"; // pragma: allowlist secret
+const SHA: &str = "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0";
 
 fn write(path: &Path, contents: &str) {
     fs::create_dir_all(path.parent().expect("fixture path must have a parent"))
