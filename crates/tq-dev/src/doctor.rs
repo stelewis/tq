@@ -206,7 +206,7 @@ fn version_check(
             DoctorCheck {
                 tool: tool.to_owned(),
                 expected: expected.as_str().to_owned(),
-                actual: Some(captured.output),
+                actual: Some(installed_version(&captured.output)),
                 remediation: (status != ToolStatus::Ok).then(|| remediation.to_owned()),
                 status,
             }
@@ -214,7 +214,7 @@ fn version_check(
         Ok(captured) => DoctorCheck {
             tool: tool.to_owned(),
             expected: expected.as_str().to_owned(),
-            actual: Some(captured.output),
+            actual: Some(installed_version(&captured.output)),
             status: ToolStatus::Missing,
             remediation: Some(remediation.to_owned()),
         },
@@ -226,6 +226,29 @@ fn version_check(
             remediation: Some(remediation.to_owned()),
         },
     }
+}
+
+/// The version reported by a tool's version output: the first
+/// `major.minor.patch` token, falling back to the first output line when no
+/// version token is present.
+fn installed_version(output: &str) -> String {
+    output
+        .split(|character: char| !(character.is_ascii_digit() || character == '.'))
+        .find(|token| is_three_part_version(token))
+        .or_else(|| output.lines().next())
+        .unwrap_or_default()
+        .to_owned()
+}
+
+fn is_three_part_version(token: &str) -> bool {
+    let mut parts = token.split('.');
+    let is_numeric = |part: Option<&str>| {
+        part.is_some_and(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit()))
+    };
+    is_numeric(parts.next())
+        && is_numeric(parts.next())
+        && is_numeric(parts.next())
+        && parts.next().is_none()
 }
 
 fn python_check(expected: &ToolVersion) -> DoctorCheck {
@@ -297,5 +320,38 @@ fn homebrew_openssl_check() -> DoctorCheck {
             status: ToolStatus::Missing,
             remediation: Some("Install openssl@3 with Homebrew.".to_owned()),
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::installed_version;
+
+    #[test]
+    fn extracts_the_version_token_from_verbose_banners() {
+        assert_eq!(
+            installed_version("rustc 1.96.1 (31fca3adb 2026-06-26)"),
+            "1.96.1"
+        );
+        assert_eq!(installed_version("v26.4.0"), "26.4.0");
+        assert_eq!(
+            installed_version(
+                "ShellCheck - shell script analysis tool\nversion: 0.11.0\nlicense: GPLv3"
+            ),
+            "0.11.0"
+        );
+        assert_eq!(
+            installed_version("1.7.12\ninstalled from Homebrew\nbuilt with go1.26.3 compiler"),
+            "1.7.12"
+        );
+    }
+
+    #[test]
+    fn falls_back_to_the_first_line_when_no_version_token_exists() {
+        assert_eq!(
+            installed_version("command not found\ndetails"),
+            "command not found"
+        );
+        assert_eq!(installed_version(""), "");
     }
 }

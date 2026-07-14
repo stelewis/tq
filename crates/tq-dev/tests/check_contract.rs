@@ -149,7 +149,12 @@ fn dependency_update_plan_mutates_repository_state_only() {
     assert!(
         invocations
             .iter()
-            .all(|invocation| matches!(invocation.program.as_str(), "uv" | "npm"))
+            .all(|invocation| matches!(invocation.program.as_str(), "cargo" | "uv" | "npm"))
+    );
+    assert!(
+        invocations
+            .iter()
+            .any(|invocation| invocation.display() == "cargo update")
     );
     assert!(
         invocations

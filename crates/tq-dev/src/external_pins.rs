@@ -13,37 +13,38 @@ use crate::parse;
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ExternalPinReport {
-    pub title: String,
     pub drift_detected: bool,
-    pub results: Vec<ExternalPinResult>,
+    pub pins: Vec<ExternalPin>,
 }
 
+/// A distinct pinned dependency: one entry per dependency and pinned
+/// revision, with every file location that carries that pin.
 #[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct ExternalPinResult {
+pub struct ExternalPin {
     pub surface: ExternalPinSurface,
-    pub source: String,
     pub name: String,
-    pub remote: Option<String>,
     pub pinned: Option<String>,
-    pub latest: Option<String>,
+    pub latest_tag: Option<String>,
+    pub latest_sha: Option<String>,
     pub status: ExternalPinStatus,
     pub message: Option<String>,
+    pub sources: Vec<String>,
 }
 
 labeled_enum! {
     #[derive(Ord, PartialOrd)]
     pub enum ExternalPinSurface {
-        GitHubAction => ("github-action", "GitHub Action"),
-        PreCommitHook => ("pre-commit-hook", "pre-commit hook"),
+        GitHubAction => ("github-action", "action"),
+        PreCommitHook => ("pre-commit-hook", "pre-commit"),
     }
 }
 
 labeled_enum! {
     pub enum ExternalPinStatus {
-        UpToDate => "up to date",
-        UpdateRequired => "update required",
-        InvalidPin => "invalid pin",
-        LookupFailed => "lookup failed",
+        UpToDate => ("up-to-date", "current"),
+        UpdateRequired => ("update-required", "stale"),
+        InvalidPin => ("invalid-pin", "invalid"),
+        LookupFailed => ("lookup-failed", "lookup failed"),
     }
 }
 
@@ -61,24 +62,45 @@ pub fn audit_external_pin_drift(repo_root: &Path) -> Result<ExternalPinReport, D
     let mut refs = Vec::new();
     refs.extend(action_refs(repo_root)?);
     refs.extend(pre_commit_refs(repo_root)?);
-    refs.sort_by(|left, right| {
-        (&left.surface, &left.source, &left.name).cmp(&(&right.surface, &right.source, &right.name))
-    });
+
+    let mut groups: BTreeMap<PinKey, Vec<ExternalPinRef>> = BTreeMap::new();
+    for reference in refs {
+        groups
+            .entry(PinKey {
+                surface: reference.surface,
+                name: reference.name.clone(),
+                revision: reference.revision.raw().map(ToOwned::to_owned),
+            })
+            .or_default()
+            .push(reference);
+    }
 
     let mut cache = BTreeMap::new();
-    let results = refs
-        .iter()
-        .map(|pin| resolve_pin(repo_root, pin, &mut cache))
+    let pins = groups
+        .into_values()
+        .map(|group| {
+            let sources = group.iter().map(|pin| pin.source.clone()).collect();
+            let representative = &group[0];
+            resolve_pin(repo_root, representative, sources, &mut cache)
+        })
         .collect::<Vec<_>>();
-    let drift_detected = results
+    let drift_detected = pins
         .iter()
-        .any(|result| result.status != ExternalPinStatus::UpToDate);
+        .any(|pin| pin.status != ExternalPinStatus::UpToDate);
 
     Ok(ExternalPinReport {
-        title: "Frozen external pin review".to_owned(),
         drift_detected,
-        results,
+        pins,
     })
+}
+
+/// Identity of a distinct pin: the same dependency pinned at the same
+/// revision is one reviewable unit regardless of how many files carry it.
+#[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct PinKey {
+    surface: ExternalPinSurface,
+    name: String,
+    revision: Option<String>,
 }
 
 pub fn verify_action_pins(repo_root: &Path) -> Result<(), DevError> {
@@ -226,7 +248,7 @@ fn pre_commit_refs(repo_root: &Path) -> Result<Vec<ExternalPinRef>, DevError> {
             ExternalPinRef {
                 surface: ExternalPinSurface::PreCommitHook,
                 source: repository.source.display(),
-                name: repository.repository,
+                name: pre_commit_display_name(&repository.repository),
                 remote: remote.clone(),
                 revision: repository.revision,
                 lookup_message: remote.is_none().then(|| {
@@ -240,85 +262,96 @@ fn pre_commit_refs(repo_root: &Path) -> Result<Vec<ExternalPinRef>, DevError> {
 
 fn resolve_pin(
     repo_root: &Path,
-    pin: &ExternalPinRef,
+    representative: &ExternalPinRef,
+    sources: Vec<String>,
     cache: &mut BTreeMap<String, Result<Option<ReleaseRef>, String>>,
-) -> ExternalPinResult {
-    let pinned = match &pin.revision {
-        parse::PinnedRevision::Missing => {
-            return result(
-                pin,
-                None,
-                ExternalPinStatus::InvalidPin,
-                Some("missing pinned revision".to_owned()),
-            );
+) -> ExternalPin {
+    let resolution = match &representative.revision {
+        parse::PinnedRevision::Missing => Resolution {
+            latest: None,
+            status: ExternalPinStatus::InvalidPin,
+            message: Some("missing pinned revision".to_owned()),
+        },
+        parse::PinnedRevision::Unfrozen(_) => Resolution {
+            latest: None,
+            status: ExternalPinStatus::InvalidPin,
+            message: Some("pinned ref is not a full 40-character commit SHA".to_owned()),
+        },
+        parse::PinnedRevision::Commit(sha) => {
+            resolve_commit_pin(repo_root, representative, sha.as_str(), cache)
         }
-        parse::PinnedRevision::Unfrozen(_) => {
-            return result(
-                pin,
-                None,
-                ExternalPinStatus::InvalidPin,
-                Some("pinned ref is not a full 40-character commit SHA".to_owned()),
-            );
-        }
-        parse::PinnedRevision::Commit(sha) => sha.as_str(),
     };
 
+    ExternalPin {
+        surface: representative.surface,
+        name: representative.name.clone(),
+        pinned: representative.revision.raw().map(ToOwned::to_owned),
+        latest_tag: resolution
+            .latest
+            .as_ref()
+            .map(|release| release.tag.clone()),
+        latest_sha: resolution.latest.map(|release| release.sha),
+        status: resolution.status,
+        message: resolution.message,
+        sources,
+    }
+}
+
+struct Resolution {
+    latest: Option<ReleaseRef>,
+    status: ExternalPinStatus,
+    message: Option<String>,
+}
+
+/// Compares a commit-pinned reference against the latest upstream release.
+fn resolve_commit_pin(
+    repo_root: &Path,
+    pin: &ExternalPinRef,
+    pinned_sha: &str,
+    cache: &mut BTreeMap<String, Result<Option<ReleaseRef>, String>>,
+) -> Resolution {
     let Some(remote) = pin.remote.as_deref() else {
-        return result(
-            pin,
-            None,
-            ExternalPinStatus::LookupFailed,
-            pin.lookup_message.clone(),
-        );
+        return Resolution {
+            latest: None,
+            status: ExternalPinStatus::LookupFailed,
+            message: pin.lookup_message.clone(),
+        };
     };
 
     let release = cache
         .entry(remote.to_owned())
         .or_insert_with(|| latest_release(repo_root, remote))
         .clone();
-
     match release {
         Ok(Some(release)) => {
-            let latest = format!("{} ({})", release.tag, release.sha);
-            let status = if release.sha == pinned {
+            let status = if release.sha == pinned_sha {
                 ExternalPinStatus::UpToDate
             } else {
                 ExternalPinStatus::UpdateRequired
             };
-            result(pin, Some(latest), status, None)
+            Resolution {
+                latest: Some(release),
+                status,
+                message: None,
+            }
         }
-        Ok(None) => result(
-            pin,
-            None,
-            ExternalPinStatus::LookupFailed,
-            Some(format!("no SemVer release tags were found for {remote}")),
-        ),
-        Err(message) => result(pin, None, ExternalPinStatus::LookupFailed, Some(message)),
-    }
-}
-
-fn result(
-    pin: &ExternalPinRef,
-    latest: Option<String>,
-    status: ExternalPinStatus,
-    message: Option<String>,
-) -> ExternalPinResult {
-    ExternalPinResult {
-        surface: pin.surface,
-        source: pin.source.clone(),
-        name: pin.name.clone(),
-        remote: pin.remote.clone(),
-        pinned: pin.revision.raw().map(ToOwned::to_owned),
-        latest,
-        status,
-        message,
+        Ok(None) => Resolution {
+            latest: None,
+            status: ExternalPinStatus::LookupFailed,
+            message: Some(format!("no SemVer release tags were found for {remote}")),
+        },
+        Err(message) => Resolution {
+            latest: None,
+            status: ExternalPinStatus::LookupFailed,
+            message: Some(message),
+        },
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ReleaseRef {
     pub(crate) tag: String,
-    sha: String,
+    pub(crate) sha: String,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -414,6 +447,22 @@ fn semver_key(tag: &str) -> Option<(u64, u64, u64)> {
     Some((major, minor, patch))
 }
 
+/// The `owner/repo` display name for a pre-commit repository URL, falling
+/// back to the raw URL for unsupported hosts.
+fn pre_commit_display_name(repository: &str) -> String {
+    repository
+        .strip_prefix("https://github.com/")
+        .or_else(|| repository.strip_prefix("git@github.com:"))
+        .map_or_else(
+            || repository.to_owned(),
+            |path| {
+                path.trim_end_matches('/')
+                    .trim_end_matches(".git")
+                    .to_owned()
+            },
+        )
+}
+
 fn github_remote_from_pre_commit(repo: &str) -> Option<String> {
     let path = repo
         .strip_prefix("https://github.com/")
@@ -484,13 +533,23 @@ mod tests {
                 .expect("surface should serialize"),
             r#""pre-commit-hook""#
         );
+        assert_eq!(ExternalPinSurface::GitHubAction.to_string(), "action");
+        assert_eq!(ExternalPinSurface::PreCommitHook.to_string(), "pre-commit");
+    }
+
+    #[test]
+    fn pre_commit_display_names_use_owner_repo_for_github_hosts() {
         assert_eq!(
-            ExternalPinSurface::GitHubAction.to_string(),
-            "GitHub Action"
+            super::pre_commit_display_name("https://github.com/astral-sh/uv-pre-commit"),
+            "astral-sh/uv-pre-commit"
         );
         assert_eq!(
-            ExternalPinSurface::PreCommitHook.to_string(),
-            "pre-commit hook"
+            super::pre_commit_display_name("git@github.com:astral-sh/uv-pre-commit.git"),
+            "astral-sh/uv-pre-commit"
+        );
+        assert_eq!(
+            super::pre_commit_display_name("https://example.com/hooks.git"),
+            "https://example.com/hooks.git"
         );
     }
 

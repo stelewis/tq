@@ -26,14 +26,21 @@ pub enum FindingsSignal {
     /// The command exits 0 even with findings; findings are detected by a
     /// marker in the output.
     OutputContains(&'static str),
-    /// The command returns a JSON array; an empty array is clean, a nonempty
-    /// array is findings, and any other output is a failed check.
-    JsonArrayNonEmpty,
+    /// The command returns a JSON array of outdated packages with `name`,
+    /// `version`, and `latest_version` fields; an empty array is clean and
+    /// any other output shape is a failed check.
+    OutdatedPackagesJson,
+}
+
+/// A classified command result: the audit status plus the output to report.
+struct Classified {
+    status: AuditStatus,
+    output: String,
 }
 
 impl FindingsSignal {
-    fn classify(self, code: Option<i32>, success: bool, output: &str) -> AuditStatus {
-        match self {
+    fn classify(self, code: Option<i32>, success: bool, output: String) -> Classified {
+        let status = match self {
             Self::ExitCodeOne => {
                 if success {
                     AuditStatus::Clean
@@ -52,18 +59,55 @@ impl FindingsSignal {
                     AuditStatus::Clean
                 }
             }
-            Self::JsonArrayNonEmpty => {
-                if !success {
-                    return AuditStatus::Failed;
-                }
-                match serde_json::from_str::<Vec<serde_json::Value>>(output) {
-                    Ok(values) if values.is_empty() => AuditStatus::Clean,
-                    Ok(_) => AuditStatus::Findings,
-                    Err(_) => AuditStatus::Failed,
+            Self::OutdatedPackagesJson => {
+                if success {
+                    match parse_outdated_packages(&output) {
+                        Some(packages) if packages.is_empty() => {
+                            return Classified {
+                                status: AuditStatus::Clean,
+                                output: String::new(),
+                            };
+                        }
+                        Some(packages) => {
+                            return Classified {
+                                status: AuditStatus::Findings,
+                                output: packages.join("\n"),
+                            };
+                        }
+                        None => AuditStatus::Failed,
+                    }
+                } else {
+                    AuditStatus::Failed
                 }
             }
-        }
+        };
+        Classified { status, output }
     }
+}
+
+/// Parses an outdated-packages JSON array into `name version -> latest`
+/// lines, returning `None` when the output shape is unrecognized.
+fn parse_outdated_packages(output: &str) -> Option<Vec<String>> {
+    #[derive(serde::Deserialize)]
+    struct OutdatedPackage {
+        name: String,
+        version: String,
+        latest_version: String,
+    }
+
+    serde_json::from_str::<Vec<OutdatedPackage>>(output)
+        .ok()
+        .map(|packages| {
+            packages
+                .into_iter()
+                .map(|package| {
+                    format!(
+                        "{} {} -> {}",
+                        package.name, package.version, package.latest_version
+                    )
+                })
+                .collect()
+        })
 }
 
 /// An audit check to run: a named invocation plus its findings policy.
@@ -198,18 +242,18 @@ pub fn run_audit_commands(
 
     for command in commands {
         let captured = command.invocation.capture(repo_root)?;
-        let status = command
+        let classified = command
             .signal
-            .classify(captured.code, captured.success, &captured.output);
+            .classify(captured.code, captured.success, captured.output);
 
         checks.push(AuditCheck {
             name: command.name.to_owned(),
             command: command.invocation.display(),
-            status,
+            status: classified.status,
             pinned: None,
             latest: None,
-            output: captured.output,
-            remediation: (status == AuditStatus::Findings)
+            output: classified.output,
+            remediation: (classified.status == AuditStatus::Findings)
                 .then(|| command.remediation.map(ToOwned::to_owned))
                 .flatten(),
         });
@@ -222,38 +266,52 @@ pub fn run_audit_commands(
 mod tests {
     use super::{AuditStatus, FindingsSignal};
 
+    fn status(
+        signal: FindingsSignal,
+        code: Option<i32>,
+        success: bool,
+        output: &str,
+    ) -> AuditStatus {
+        signal.classify(code, success, output.to_owned()).status
+    }
+
     #[test]
     fn exit_code_one_signal_maps_codes_to_statuses() {
         let signal = FindingsSignal::ExitCodeOne;
-        assert_eq!(signal.classify(Some(0), true, ""), AuditStatus::Clean);
-        assert_eq!(signal.classify(Some(1), false, ""), AuditStatus::Findings);
-        assert_eq!(signal.classify(Some(2), false, ""), AuditStatus::Failed);
-        assert_eq!(signal.classify(None, false, ""), AuditStatus::Failed);
+        assert_eq!(status(signal, Some(0), true, ""), AuditStatus::Clean);
+        assert_eq!(status(signal, Some(1), false, ""), AuditStatus::Findings);
+        assert_eq!(status(signal, Some(2), false, ""), AuditStatus::Failed);
+        assert_eq!(status(signal, None, false, ""), AuditStatus::Failed);
     }
 
     #[test]
     fn output_marker_signal_detects_findings_in_successful_output() {
         let signal = FindingsSignal::OutputContains("latest:");
-        assert_eq!(signal.classify(Some(0), true, "ok"), AuditStatus::Clean);
+        assert_eq!(status(signal, Some(0), true, "ok"), AuditStatus::Clean);
         assert_eq!(
-            signal.classify(Some(0), true, "pkg latest: 2.0"),
+            status(signal, Some(0), true, "pkg latest: 2.0"),
             AuditStatus::Findings
         );
-        assert_eq!(signal.classify(Some(2), false, ""), AuditStatus::Failed);
+        assert_eq!(status(signal, Some(2), false, ""), AuditStatus::Failed);
     }
 
     #[test]
-    fn json_array_signal_fails_closed_on_unrecognized_output() {
-        let signal = FindingsSignal::JsonArrayNonEmpty;
-        assert_eq!(signal.classify(Some(0), true, "[]"), AuditStatus::Clean);
-        assert_eq!(
-            signal.classify(Some(0), true, "[{\"name\":\"example\"}]"),
-            AuditStatus::Findings
+    fn outdated_packages_signal_renders_findings_and_fails_closed() {
+        let signal = FindingsSignal::OutdatedPackagesJson;
+        assert_eq!(status(signal, Some(0), true, "[]"), AuditStatus::Clean);
+
+        let classified = signal.classify(
+            Some(0),
+            true,
+            r#"[{"name":"ruff","version":"0.15.20","latest_version":"0.15.21"}]"#.to_owned(),
         );
+        assert_eq!(classified.status, AuditStatus::Findings);
+        assert_eq!(classified.output, "ruff 0.15.20 -> 0.15.21");
+
         assert_eq!(
-            signal.classify(Some(0), true, "format changed"),
+            status(signal, Some(0), true, "format changed"),
             AuditStatus::Failed
         );
-        assert_eq!(signal.classify(Some(2), false, "[]"), AuditStatus::Failed);
+        assert_eq!(status(signal, Some(2), false, "[]"), AuditStatus::Failed);
     }
 }

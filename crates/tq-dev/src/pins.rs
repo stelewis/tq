@@ -21,7 +21,7 @@ pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
             "https://github.com/python/cpython.git",
             ReleaseSeries::Minor(manifest.python.major(), manifest.python.minor()),
             &manifest.python,
-            "Update the Python pin and CI setup action, then update the interpreter with its owning Python manager.",
+            "Update the python pin in .github/dev-tools.toml.",
         ),
         github_release_pin_check(
             repo_root,
@@ -29,7 +29,7 @@ pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
             "https://github.com/astral-sh/uv.git",
             ReleaseSeries::Any,
             &manifest.uv,
-            "Update the uv pin and CI setup action, then update uv with the package manager that installed it.",
+            "Update the uv pin in .github/dev-tools.toml.",
         ),
         github_release_pin_check(
             repo_root,
@@ -37,7 +37,7 @@ pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
             "https://github.com/nodejs/node.git",
             ReleaseSeries::Major(node.node.major()),
             &node.node,
-            "Update package.json and package-lock.json, then update Node with its owning environment manager.",
+            "Update engines.node in package.json.",
         ),
         npm_registry_pin_check(repo_root, &node.npm),
         pypi_maturin_pin_check(repo_root, &manifest.maturin).with_remediation(
@@ -49,7 +49,7 @@ pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
             "https://github.com/rhysd/actionlint.git",
             ReleaseSeries::Any,
             &manifest.actionlint,
-            "Update the actionlint pin and official image digest, then update the local executable with its owning environment manager.",
+            "Update the actionlint pin and image digest in .github/dev-tools.toml.",
         ),
         github_release_pin_check(
             repo_root,
@@ -57,7 +57,7 @@ pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
             "https://github.com/koalaman/shellcheck.git",
             ReleaseSeries::Any,
             &manifest.shellcheck,
-            "Update the ShellCheck pin, then update the local executable with its owning environment manager.",
+            "Update the shellcheck pin in .github/dev-tools.toml.",
         ),
     ];
     checks.extend(maintenance_tool_checks(repo_root, &manifest));
@@ -78,17 +78,13 @@ pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
                     ],
                 ),
                 signal: FindingsSignal::ExitCodeOne,
-                remediation: Some(
-                    "Run cargo dev deps update, review the lockfile and release impact, then update installed tooling through its owner if required.",
-                ),
+                remediation: Some("Run cargo dev deps update and review Cargo.lock."),
             },
             AuditCommand {
                 name: "npm-dependencies",
                 invocation: Invocation::new("npm", ["outdated"]),
                 signal: FindingsSignal::ExitCodeOne,
-                remediation: Some(
-                    "Run cargo dev deps update and review package-lock.json and the docs build.",
-                ),
+                remediation: Some("Run cargo dev deps update and review package-lock.json."),
             },
             AuditCommand {
                 name: "python-dependencies",
@@ -96,10 +92,8 @@ pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
                     "uv",
                     ["pip", "list", "--outdated", "--format", "json"],
                 ),
-                signal: FindingsSignal::JsonArrayNonEmpty,
-                remediation: Some(
-                    "Run cargo dev deps update and review uv.lock and the Python tooling checks.",
-                ),
+                signal: FindingsSignal::OutdatedPackagesJson,
+                remediation: Some("Run cargo dev deps update and review uv.lock."),
             },
         ],
     )?);
@@ -164,7 +158,7 @@ fn maintenance_tool_checks(repo_root: &Path, manifest: &DevToolsManifest) -> Vec
     .into_iter()
     .map(|(name, pinned)| {
         crates_io_pin_check(repo_root, name, pinned).with_remediation(
-            "Update the maintenance-tool pin in .github/dev-tools.toml and its CI setup action; update the local executable with Cargo or its owning environment manager.",
+            "Update the rust-maintenance pin in .github/dev-tools.toml and its CI setup action defaults.",
         )
     })
     .collect()
@@ -172,15 +166,10 @@ fn maintenance_tool_checks(repo_root: &Path, manifest: &DevToolsManifest) -> Vec
 
 fn rust_toolchain_check(repo_root: &Path, pinned: &ToolVersion) -> AuditCheck {
     match update::latest_stable_rust(repo_root) {
-        Ok(latest) => AuditCheck::pin_comparison(
-            "rust",
-            "rustup check",
-            pinned.as_str(),
-            latest.as_str(),
-        )
-        .with_remediation(
-            "Run cargo dev deps update to update repository Rust pins, then update the selected toolchain with rustup or its owning environment manager.",
-        ),
+        Ok(latest) => {
+            AuditCheck::pin_comparison("rust", "rustup check", pinned.as_str(), latest.as_str())
+                .with_remediation("Run cargo dev deps update to update the repository Rust pins.")
+        }
         Err(error) => AuditCheck::failed("rust", "rustup check", error.to_string()),
     }
 }
@@ -232,13 +221,14 @@ fn npm_registry_pin_check(repo_root: &Path, pinned: &ToolVersion) -> AuditCheck 
 
     match parse_npm_versions(&captured.output) {
         Some(latest) => AuditCheck::pin_comparison("npm", &command, pinned.as_str(), &latest)
-            .with_remediation(
-                "Update package.json and package-lock.json, then update npm with the Node toolchain manager that owns it.",
-            ),
+            .with_remediation("Update packageManager in package.json."),
         None => AuditCheck::failed(
             "npm",
             &command,
-            format!("could not parse npm registry versions from {}", captured.output),
+            format!(
+                "could not parse npm registry versions from {}",
+                captured.output
+            ),
         ),
     }
 }

@@ -37,6 +37,10 @@ pub fn plan(repo_root: &Path, latest_rust: &ToolVersion) -> Result<ActionPlan, D
     }
     actions.extend([
         PlannedAction::command(
+            "Update Cargo lockfile within manifest ranges",
+            Invocation::new("cargo", ["update"]),
+        ),
+        PlannedAction::command(
             "Upgrade uv lockfile",
             Invocation::new("uv", ["lock", "--upgrade"]),
         ),

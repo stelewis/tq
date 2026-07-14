@@ -8,26 +8,45 @@ use crate::audit::{AuditReport, AuditStatus};
 use crate::check::{CheckPlan, CheckReport, CheckStatus};
 use crate::doctor::DoctorReport;
 use crate::error::DevError;
-use crate::external_pins::ExternalPinReport;
+use crate::external_pins::{ExternalPin, ExternalPinReport, ExternalPinStatus};
 
-/// A rendered report: a title, summary lines, a table, and optional
-/// per-item detail sections.
+/// A rendered report: a title, summary lines, a tabular or step-list body,
+/// and detail sections for items that need attention.
 pub struct Document {
-    pub title: String,
-    pub summary: Vec<String>,
-    pub table: Table,
-    pub sections: Vec<Section>,
+    title: String,
+    summary: Vec<String>,
+    body: Body,
+    sections: Vec<Section>,
 }
 
-pub struct Table {
-    pub headers: Vec<&'static str>,
-    pub rows: Vec<Vec<String>>,
+enum Body {
+    Table(Table),
+    Steps(Vec<Step>),
 }
 
-/// A block of command output attached to a report item.
-pub struct Section {
-    pub heading: String,
-    pub body: String,
+struct Table {
+    headers: Vec<&'static str>,
+    rows: Vec<Vec<String>>,
+}
+
+/// An ordered plan step: a label plus the exact action it performs.
+struct Step {
+    label: String,
+    detail: String,
+}
+
+/// A detail block attached to a report item.
+struct Section {
+    heading: String,
+    body: String,
+    kind: SectionKind,
+}
+
+enum SectionKind {
+    /// Guidance prose, rendered as a paragraph in Markdown.
+    Prose,
+    /// Preformatted command output, rendered in a code fence in Markdown.
+    Output,
 }
 
 /// Output format for harness reports.
@@ -55,11 +74,14 @@ impl Document {
         let mut lines = vec![self.title.clone()];
         lines.extend(self.summary.iter().cloned());
         lines.push(String::new());
-        lines.push(self.table.to_text());
+        lines.push(match &self.body {
+            Body::Table(table) => table.to_text(),
+            Body::Steps(steps) => steps_to_text(steps),
+        });
         for section in &self.sections {
             lines.push(String::new());
             lines.push(format!("{}:", section.heading));
-            lines.push(section.body.clone());
+            lines.extend(section.body.lines().map(|line| format!("  {line}")));
         }
         lines.push(String::new());
         lines.join("\n")
@@ -67,16 +89,24 @@ impl Document {
 
     fn to_markdown(&self) -> String {
         let mut lines = vec![format!("## {}", self.title), String::new()];
-        lines.extend(self.summary.iter().cloned());
+        lines.extend(self.summary.iter().map(|line| format!("- {line}")));
         lines.push(String::new());
-        lines.push(self.table.to_markdown());
+        lines.push(match &self.body {
+            Body::Table(table) => table.to_markdown(),
+            Body::Steps(steps) => steps_to_markdown(steps),
+        });
         for section in &self.sections {
             lines.push(String::new());
             lines.push(format!("### {}", section.heading));
             lines.push(String::new());
-            lines.push("```text".to_owned());
-            lines.push(section.body.clone());
-            lines.push("```".to_owned());
+            match section.kind {
+                SectionKind::Prose => lines.push(section.body.clone()),
+                SectionKind::Output => {
+                    lines.push("```text".to_owned());
+                    lines.push(section.body.clone());
+                    lines.push("```".to_owned());
+                }
+            }
         }
         lines.push(String::new());
         lines.join("\n")
@@ -156,6 +186,57 @@ fn markdown_cell(value: &str) -> String {
     value.replace('|', "\\|").replace('\n', "<br>")
 }
 
+fn steps_to_text(steps: &[Step]) -> String {
+    steps
+        .iter()
+        .enumerate()
+        .map(|(index, step)| {
+            let number = index + 1;
+            let indent = " ".repeat(number.to_string().len() + 2);
+            format!("{number}. {}\n{indent}{}", step.label, step.detail)
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn steps_to_markdown(steps: &[Step]) -> String {
+    steps
+        .iter()
+        .enumerate()
+        .map(|(index, step)| format!("{}. {}: `{}`", index + 1, step.label, step.detail))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Groups remediation guidance by identical text so shared advice renders
+/// once, preserving first-occurrence order.
+fn remediation_sections<'a>(items: impl Iterator<Item = (&'a str, &'a str)>) -> Vec<Section> {
+    let mut groups: Vec<(&str, Vec<&str>)> = Vec::new();
+    for (name, remediation) in items {
+        if let Some((_, names)) = groups.iter_mut().find(|(body, _)| *body == remediation) {
+            names.push(name);
+        } else {
+            groups.push((remediation, vec![name]));
+        }
+    }
+    groups
+        .into_iter()
+        .map(|(body, names)| Section {
+            heading: format!("{} remediation", names.join(", ")),
+            body: body.to_owned(),
+            kind: SectionKind::Prose,
+        })
+        .collect()
+}
+
+fn command_output_section(name: &str, command: &str, output: &str) -> Section {
+    Section {
+        heading: format!("{name} output"),
+        body: format!("$ {command}\n{output}"),
+        kind: SectionKind::Output,
+    }
+}
+
 #[must_use]
 pub fn doctor_document(report: &DoctorReport) -> Document {
     Document {
@@ -170,8 +251,8 @@ pub fn doctor_document(report: &DoctorReport) -> Document {
                 report.summary.mismatched
             ),
         ],
-        table: Table {
-            headers: vec!["Status", "Tool", "Expected", "Actual"],
+        body: Body::Table(Table {
+            headers: vec!["Status", "Tool", "Expected", "Installed"],
             rows: report
                 .checks
                 .iter()
@@ -180,24 +261,20 @@ pub fn doctor_document(report: &DoctorReport) -> Document {
                         check.status.to_string(),
                         check.tool.clone(),
                         check.expected.clone(),
-                        check.actual.as_deref().map_or_else(
-                            || "not found".to_owned(),
-                            |actual| actual.replace('\n', "; "),
-                        ),
+                        check
+                            .actual
+                            .clone()
+                            .unwrap_or_else(|| "not found".to_owned()),
                     ]
                 })
                 .collect(),
-        },
-        sections: report
-            .checks
-            .iter()
-            .filter_map(|check| {
-                check.remediation.as_ref().map(|remediation| Section {
-                    heading: format!("{} remediation", check.tool),
-                    body: remediation.clone(),
-                })
-            })
-            .collect(),
+        }),
+        sections: remediation_sections(report.checks.iter().filter_map(|check| {
+            check
+                .remediation
+                .as_deref()
+                .map(|remediation| (check.tool.as_str(), remediation))
+        })),
     }
 }
 
@@ -215,8 +292,8 @@ pub fn audit_document(title: &str, report: &AuditReport) -> Document {
                 report.summary.failed
             ),
         ],
-        table: Table {
-            headers: vec!["Status", "Name", "Pinned", "Latest", "Command", "Action"],
+        body: Body::Table(Table {
+            headers: vec!["Status", "Name", "Pinned", "Latest"],
             rows: report
                 .checks
                 .iter()
@@ -226,28 +303,27 @@ pub fn audit_document(title: &str, report: &AuditReport) -> Document {
                         check.name.clone(),
                         check.pinned.clone().unwrap_or_else(|| "-".to_owned()),
                         check.latest.clone().unwrap_or_else(|| "-".to_owned()),
-                        check.command.clone(),
-                        check.remediation.clone().unwrap_or_else(|| "-".to_owned()),
                     ]
                 })
                 .collect(),
+        }),
+        sections: {
+            let mut sections = report
+                .checks
+                .iter()
+                .filter(|check| check.status != AuditStatus::Clean && !check.output.is_empty())
+                .map(|check| command_output_section(&check.name, &check.command, &check.output))
+                .collect::<Vec<_>>();
+            sections.extend(remediation_sections(report.checks.iter().filter_map(
+                |check| {
+                    check
+                        .remediation
+                        .as_deref()
+                        .map(|remediation| (check.name.as_str(), remediation))
+                },
+            )));
+            sections
         },
-        sections: report
-            .checks
-            .iter()
-            .filter(|check| check.status != AuditStatus::Clean)
-            .flat_map(|check| {
-                let output = (!check.output.is_empty()).then(|| Section {
-                    heading: format!("{} output", check.name),
-                    body: check.output.clone(),
-                });
-                let remediation = check.remediation.as_ref().map(|remediation| Section {
-                    heading: format!("{} remediation", check.name),
-                    body: remediation.clone(),
-                });
-                output.into_iter().chain(remediation)
-            })
-            .collect(),
     }
 }
 
@@ -260,20 +336,15 @@ pub fn check_plan_document(plan: &CheckPlan) -> Document {
             format!("Profile: {}", plan.profile),
             format!("Tasks: {} planned", plan.tasks.len()),
         ],
-        table: Table {
-            headers: vec!["Task", "Label", "Command"],
-            rows: plan
-                .tasks
+        body: Body::Steps(
+            plan.tasks
                 .iter()
-                .map(|task| {
-                    vec![
-                        task.to_string(),
-                        task.title().to_owned(),
-                        task.invocation().display(),
-                    ]
+                .map(|task| Step {
+                    label: task.title().to_owned(),
+                    detail: task.invocation().display(),
                 })
                 .collect(),
-        },
+        ),
         sections: Vec::new(),
     }
 }
@@ -292,29 +363,25 @@ pub fn check_report_document(report: &CheckReport) -> Document {
                 report.summary.elapsed_seconds
             ),
         ],
-        table: Table {
-            headers: vec!["Status", "Check", "Time", "Command"],
+        body: Body::Table(Table {
+            headers: vec!["Status", "Check", "Time"],
             rows: report
                 .checks
                 .iter()
                 .map(|check| {
                     vec![
                         check.status.to_string(),
-                        check.task.to_string(),
+                        check.task.title().to_owned(),
                         format!("{:.2}s", check.elapsed_seconds),
-                        check.command.clone(),
                     ]
                 })
                 .collect(),
-        },
+        }),
         sections: report
             .checks
             .iter()
             .filter(|check| check.status == CheckStatus::Failed && !check.output.is_empty())
-            .map(|check| Section {
-                heading: format!("{} output", check.task),
-                body: check.output.clone(),
-            })
+            .map(|check| command_output_section(check.task.title(), &check.command, &check.output))
             .collect(),
     }
 }
@@ -324,21 +391,15 @@ pub fn action_plan_document(plan: &ActionPlan) -> Document {
     Document {
         title: format!("{} Plan", plan.title),
         summary: vec![format!("Actions: {} planned", plan.actions.len())],
-        table: Table {
-            headers: vec!["Step", "Action", "Detail"],
-            rows: plan
-                .actions
+        body: Body::Steps(
+            plan.actions
                 .iter()
-                .enumerate()
-                .map(|(index, action)| {
-                    vec![
-                        (index + 1).to_string(),
-                        action.label.clone(),
-                        action.action.detail(),
-                    ]
+                .map(|action| Step {
+                    label: action.label.clone(),
+                    detail: action.action.detail(),
                 })
                 .collect(),
-        },
+        ),
         sections: Vec::new(),
     }
 }
@@ -346,7 +407,7 @@ pub fn action_plan_document(plan: &ActionPlan) -> Document {
 #[must_use]
 pub fn external_pin_document(report: &ExternalPinReport) -> Document {
     Document {
-        title: report.title.clone(),
+        title: "Frozen External Pin Review".to_owned(),
         summary: vec![
             format!(
                 "Status: {}",
@@ -356,80 +417,102 @@ pub fn external_pin_document(report: &ExternalPinReport) -> Document {
                     "clean"
                 }
             ),
-            format!("Pins: {} checked", report.results.len()),
+            format!("Pins: {} checked", report.pins.len()),
         ],
-        table: Table {
-            headers: vec![
-                "Status",
-                "Surface",
-                "Source",
-                "Dependency",
-                "Pinned",
-                "Latest",
-            ],
+        body: Body::Table(Table {
+            headers: vec!["Status", "Surface", "Dependency", "Pinned", "Latest"],
             rows: report
-                .results
+                .pins
                 .iter()
-                .map(|result| {
+                .map(|pin| {
                     vec![
-                        result.status.to_string(),
-                        result.surface.to_string(),
-                        result.source.clone(),
-                        result.name.clone(),
-                        result
-                            .pinned
-                            .clone()
-                            .unwrap_or_else(|| "unavailable".to_owned()),
-                        result
-                            .latest
-                            .clone()
-                            .unwrap_or_else(|| "unavailable".to_owned()),
+                        pin.status.to_string(),
+                        pin.surface.to_string(),
+                        pin.name.clone(),
+                        pin.pinned
+                            .as_deref()
+                            .map_or_else(|| "-".to_owned(), short_revision),
+                        pin.latest_tag.clone().unwrap_or_else(|| "-".to_owned()),
                     ]
                 })
                 .collect(),
-        },
+        }),
         sections: report
-            .results
+            .pins
             .iter()
-            .filter_map(|result| {
-                result.message.as_ref().map(|message| Section {
-                    heading: format!("{} detail", result.name),
-                    body: message.clone(),
-                })
-            })
+            .filter(|pin| pin.status != ExternalPinStatus::UpToDate)
+            .map(pin_detail_section)
             .collect(),
+    }
+}
+
+fn pin_detail_section(pin: &ExternalPin) -> Section {
+    let mut lines = Vec::new();
+    if let Some(pinned) = &pin.pinned {
+        lines.push(format!("pinned:  {pinned}"));
+    }
+    if let (Some(tag), Some(sha)) = (&pin.latest_tag, &pin.latest_sha) {
+        lines.push(format!("latest:  {tag} ({sha})"));
+    }
+    if let Some(message) = &pin.message {
+        lines.push(format!("detail:  {message}"));
+    }
+    lines.push(format!("sources: {}", pin.sources.join(", ")));
+    Section {
+        heading: pin.name.clone(),
+        body: lines.join("\n"),
+        kind: SectionKind::Output,
+    }
+}
+
+/// Shortens a full 40-character commit SHA for tabular display; other
+/// revision text is shown verbatim.
+fn short_revision(revision: &str) -> String {
+    if revision.len() == 40 && revision.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        revision[..12].to_owned()
+    } else {
+        revision.to_owned()
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::action::{ActionPlan, PlannedAction};
     use crate::doctor::{DoctorCheck, DoctorReport, DoctorStatus, DoctorSummary, ToolStatus};
+    use crate::invocation::Invocation;
 
-    use super::doctor_document;
+    use super::{action_plan_document, doctor_document, short_revision};
 
     fn unhealthy_report() -> DoctorReport {
         DoctorReport {
             summary: DoctorSummary {
                 status: DoctorStatus::Unhealthy,
-                total: 2,
+                total: 3,
                 ok: 1,
                 missing: 0,
-                mismatched: 1,
+                mismatched: 2,
             },
             checks: vec![
                 DoctorCheck {
                     tool: "rustc".to_owned(),
                     expected: "1.96.1".to_owned(),
-                    actual: Some("rustc 1.96.1".to_owned()),
+                    actual: Some("1.96.1".to_owned()),
                     status: ToolStatus::Ok,
                     remediation: None,
                 },
                 DoctorCheck {
+                    tool: "cargo".to_owned(),
+                    expected: "1.96.1".to_owned(),
+                    actual: Some("1.95.0".to_owned()),
+                    status: ToolStatus::Mismatched,
+                    remediation: Some("Update the Rust toolchain.".to_owned()),
+                },
+                DoctorCheck {
                     tool: "cargo|deny".to_owned(),
                     expected: "0.19.0".to_owned(),
-                    actual: Some("0.18.0\ninstall required".to_owned()),
+                    actual: Some("0.18.0".to_owned()),
                     status: ToolStatus::Mismatched,
-                    remediation: Some("Update with Cargo.".to_owned()),
+                    remediation: Some("Update the Rust toolchain.".to_owned()),
                 },
             ],
         }
@@ -440,19 +523,52 @@ mod tests {
         let output = doctor_document(&unhealthy_report()).to_text();
 
         assert!(output.starts_with("Developer Environment\nStatus: unhealthy\n"));
-        assert!(output.contains("Checks: 2 total, 1 ok, 0 missing, 1 mismatched"));
+        assert!(output.contains("Checks: 3 total, 1 ok, 0 missing, 2 mismatched"));
         assert!(output.contains("Status      Tool"));
     }
 
     #[test]
-    fn markdown_output_escapes_cells() {
+    fn shared_remediation_text_renders_once_for_all_affected_tools() {
+        let output = doctor_document(&unhealthy_report()).to_text();
+
+        assert!(output.contains("cargo, cargo|deny remediation:\n  Update the Rust toolchain."));
+        assert_eq!(output.matches("Update the Rust toolchain.").count(), 1);
+    }
+
+    #[test]
+    fn markdown_output_escapes_cells_and_lists_summary() {
         let output = doctor_document(&unhealthy_report()).to_markdown();
 
         assert!(output.starts_with("## Developer Environment"));
-        assert!(
-            output.contains("| mismatched | cargo\\|deny | 0.19.0 | 0.18.0; install required |")
+        assert!(output.contains("- Status: unhealthy"));
+        assert!(output.contains("| mismatched | cargo\\|deny | 0.19.0 | 0.18.0 |"));
+        assert!(output.contains("### cargo, cargo|deny remediation"));
+        assert!(output.contains("Update the Rust toolchain."));
+    }
+
+    #[test]
+    fn action_plans_render_as_numbered_steps_with_full_width_commands() {
+        let plan = ActionPlan::new(
+            "Developer setup",
+            vec![PlannedAction::command(
+                "Sync locked Python dependencies",
+                Invocation::new("uv", ["sync", "--locked"]),
+            )],
         );
-        assert!(output.contains("### cargo|deny remediation"));
-        assert!(output.contains("Update with Cargo."));
+
+        let text = action_plan_document(&plan).to_text();
+        assert!(text.contains("1. Sync locked Python dependencies\n   uv sync --locked"));
+
+        let markdown = action_plan_document(&plan).to_markdown();
+        assert!(markdown.contains("1. Sync locked Python dependencies: `uv sync --locked`"));
+    }
+
+    #[test]
+    fn full_commit_shas_shorten_for_display_and_other_revisions_do_not() {
+        assert_eq!(
+            short_revision("9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"),
+            "9c091bb21b7c"
+        );
+        assert_eq!(short_revision("v7.0.0"), "v7.0.0");
     }
 }
