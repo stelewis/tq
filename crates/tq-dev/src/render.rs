@@ -292,21 +292,7 @@ pub fn audit_document(title: &str, report: &AuditReport) -> Document {
                 report.summary.failed
             ),
         ],
-        body: Body::Table(Table {
-            headers: vec!["Status", "Name", "Pinned", "Latest"],
-            rows: report
-                .checks
-                .iter()
-                .map(|check| {
-                    vec![
-                        check.status.to_string(),
-                        check.name.clone(),
-                        check.pinned.clone().unwrap_or_else(|| "-".to_owned()),
-                        check.latest.clone().unwrap_or_else(|| "-".to_owned()),
-                    ]
-                })
-                .collect(),
-        }),
+        body: Body::Table(audit_table(report)),
         sections: {
             let mut sections = report
                 .checks
@@ -324,6 +310,38 @@ pub fn audit_document(title: &str, report: &AuditReport) -> Document {
             )));
             sections
         },
+    }
+}
+
+/// The audit table: pin columns appear only when at least one check
+/// compares a pin against upstream.
+fn audit_table(report: &AuditReport) -> Table {
+    let has_pins = report.checks.iter().any(|check| check.pinned.is_some());
+    if has_pins {
+        Table {
+            headers: vec!["Status", "Name", "Pinned", "Latest"],
+            rows: report
+                .checks
+                .iter()
+                .map(|check| {
+                    vec![
+                        check.status.to_string(),
+                        check.name.clone(),
+                        check.pinned.clone().unwrap_or_else(|| "-".to_owned()),
+                        check.latest.clone().unwrap_or_else(|| "-".to_owned()),
+                    ]
+                })
+                .collect(),
+        }
+    } else {
+        Table {
+            headers: vec!["Status", "Name"],
+            rows: report
+                .checks
+                .iter()
+                .map(|check| vec![check.status.to_string(), check.name.clone()])
+                .collect(),
+        }
     }
 }
 
