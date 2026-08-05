@@ -35,7 +35,7 @@ fn node_and_docs_setup_have_separate_owners() {
     let node = include_str!("../../../.github/actions/setup-node/action.yml");
     let docs = include_str!("../../../.github/actions/setup-docs/action.yml");
 
-    assert!(node.contains("actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e"));
+    assert!(node.contains("actions/setup-node@820762786026740c76f36085b0efc47a31fe5020"));
     assert!(node.contains("node-version-file: package.json"));
     assert!(node.contains("require('./package.json').packageManager"));
     assert!(docs.contains("uses: ./.github/actions/setup-node"));

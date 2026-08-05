@@ -58,11 +58,6 @@ impl ToolVersion {
         self.minor
     }
 
-    #[must_use]
-    pub(crate) const fn patch(&self) -> u64 {
-        self.patch
-    }
-
     /// The `major.minor` prefix, as used for the workspace MSRV pin.
     #[must_use]
     pub fn minor_pin(&self) -> String {

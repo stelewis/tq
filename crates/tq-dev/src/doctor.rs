@@ -142,7 +142,7 @@ pub fn diagnose(repo_root: &Path) -> Result<DoctorReport, DevError> {
             &node.npm,
             "npm",
             &["--version"],
-            "Update npm with the Node toolchain manager that owns it.",
+            "Reinstall the pinned Node release to restore its bundled npm version.",
         ),
         version_check(
             "actionlint",

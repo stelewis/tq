@@ -19,12 +19,14 @@ Use `cargo dev --help` and subcommand help for the complete command surface. The
 | Diagnose the local toolchain | `cargo dev health doctor --repo-root .` |
 | Audit dependency freshness | `cargo dev deps audit-latest --repo-root .` |
 | Audit dependency vulnerabilities | `cargo dev deps audit-security --repo-root .` |
-| Plan or apply dependency updates | `cargo dev deps update --dry-run --repo-root .` |
+| Plan or apply repository dependency updates | `cargo dev deps update --dry-run --repo-root .` |
 | Verify repository automation policy | `cargo dev policy verify-automation --repo-root .` |
 | Audit frozen external pins | `cargo dev policy audit-external-pins --repo-root .` |
 | Build local release artifacts | `cargo dev release build --repo-root .` |
 
 Use `cargo dev runtime-deps --repo-root . --base-ref <base> --head-ref <head>` to determine whether a change alters the shipped CLI dependency graph.
+
+Run `cargo update` separately before `cargo dev deps update`. The harness runs beneath Cargo, so a nested Cargo lockfile update would be overwritten when the parent process exits. Review both lockfiles after the two commands complete.
 
 Detailed pin rotation belongs in [Pin maintenance](./pin-maintenance.md). Artifact profiles and publishing contracts belong in [Docs and release](./docs-and-release.md).
 

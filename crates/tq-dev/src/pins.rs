@@ -39,7 +39,6 @@ pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
             &node.node,
             "Update engines.node in package.json.",
         ),
-        npm_registry_pin_check(repo_root, &node.npm),
         pypi_maturin_pin_check(repo_root, &manifest.maturin).with_remediation(
             "Update the maturin pin in .github/dev-tools.toml and validate the release build.",
         ),
@@ -78,7 +77,7 @@ pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
                     ],
                 ),
                 signal: FindingsSignal::ExitCodeOne,
-                remediation: Some("Run cargo dev deps update and review Cargo.lock."),
+                remediation: Some("Run cargo update and review Cargo.lock."),
             },
             AuditCommand {
                 name: "npm-dependencies",
@@ -209,47 +208,6 @@ fn github_release_pin_check(
     }
 }
 
-fn npm_registry_pin_check(repo_root: &Path, pinned: &ToolVersion) -> AuditCheck {
-    let requirement = format!("npm@{}", pinned.major());
-    let invocation = Invocation::new("npm", ["view", &requirement, "version", "--json"]);
-    let command = invocation.display();
-    let captured = match invocation.capture(repo_root) {
-        Ok(captured) if captured.success => captured,
-        Ok(captured) => return AuditCheck::failed("npm", &command, captured.output),
-        Err(error) => return AuditCheck::failed("npm", &command, error.to_string()),
-    };
-
-    match parse_npm_versions(&captured.output) {
-        Some(latest) => AuditCheck::pin_comparison("npm", &command, pinned.as_str(), &latest)
-            .with_remediation("Update packageManager in package.json."),
-        None => AuditCheck::failed(
-            "npm",
-            &command,
-            format!(
-                "could not parse npm registry versions from {}",
-                captured.output
-            ),
-        ),
-    }
-}
-
-fn parse_npm_versions(output: &str) -> Option<String> {
-    let value = serde_json::from_str::<serde_json::Value>(output).ok()?;
-    let values = match value {
-        serde_json::Value::String(version) => vec![version],
-        serde_json::Value::Array(values) => values
-            .into_iter()
-            .map(|value| value.as_str().map(ToOwned::to_owned))
-            .collect::<Option<Vec<_>>>()?,
-        _ => return None,
-    };
-    values
-        .into_iter()
-        .filter_map(|value| ToolVersion::parse(&value).ok())
-        .max_by_key(|version| (version.major(), version.minor(), version.patch()))
-        .map(|version| version.as_str().to_owned())
-}
-
 fn pypi_maturin_pin_check(repo_root: &Path, pinned: &ToolVersion) -> AuditCheck {
     let invocation = Invocation::new(
         "uv",
@@ -287,8 +245,10 @@ fn pypi_maturin_pin_check(repo_root: &Path, pinned: &ToolVersion) -> AuditCheck 
 }
 
 fn parse_maturin_version(output: &str) -> Option<ToolVersion> {
-    let version = output.trim().strip_prefix("maturin ")?;
-    ToolVersion::parse(version).ok()
+    output.lines().find_map(|line| {
+        let version = line.trim().strip_prefix("maturin ")?;
+        ToolVersion::parse(version).ok()
+    })
 }
 
 fn crates_io_pin_check(repo_root: &Path, crate_name: &str, pinned: &ToolVersion) -> AuditCheck {
@@ -327,7 +287,7 @@ fn parse_cargo_search_version(crate_name: &str, output: &str) -> Option<String> 
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_cargo_search_version, parse_maturin_version, parse_npm_versions};
+    use super::{parse_cargo_search_version, parse_maturin_version};
 
     #[test]
     fn parses_cargo_search_exact_crate_version() {
@@ -341,25 +301,16 @@ mod tests {
     }
 
     #[test]
-    fn parses_exact_maturin_version_output() {
+    fn parses_maturin_version_output() {
         assert_eq!(
             parse_maturin_version("maturin 1.14.1\n").map(|version| version.to_string()),
             Some("1.14.1".to_owned())
         );
+        assert_eq!(
+            parse_maturin_version("Installed 1 package in 6ms\nmaturin 1.14.1\n")
+                .map(|version| version.to_string()),
+            Some("1.14.1".to_owned())
+        );
         assert_eq!(parse_maturin_version("maturin 1.14"), None);
-        assert_eq!(parse_maturin_version("warning\nmaturin 1.14.1"), None);
-    }
-
-    #[test]
-    fn parses_latest_npm_version_from_string_or_array() {
-        assert_eq!(
-            parse_npm_versions(r#""11.18.0""#),
-            Some("11.18.0".to_owned())
-        );
-        assert_eq!(
-            parse_npm_versions(r#"["11.17.0","11.18.0","11.9.1"]"#),
-            Some("11.18.0".to_owned())
-        );
-        assert_eq!(parse_npm_versions("{}"), None);
     }
 }

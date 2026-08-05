@@ -13,7 +13,7 @@ inputs:
   cargo-outdated-version:
     description: cargo-outdated release to install with the active Rust toolchain
     required: false
-    default: "0.17.0"
+    default: "0.19.0"
   install-cargo-audit:
     description: Install cargo-audit from the pinned crates.io release
     required: false
@@ -21,7 +21,7 @@ inputs:
   cargo-audit-version:
     description: cargo-audit release to install with the stable toolchain
     required: false
-    default: "0.22.1"
+    default: "0.22.2"
   install-cargo-deny:
     description: Install cargo-deny from the pinned stable release
     required: false
@@ -29,7 +29,7 @@ inputs:
   cargo-deny-version:
     description: cargo-deny release to install with the stable toolchain
     required: false
-    default: "0.19.0"
+    default: "0.20.2"
 
 runs:
   using: composite

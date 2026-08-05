@@ -12,7 +12,7 @@ repos:
       - id: check-added-large-files
 
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 84ed656d5ada0b07830b74fb0fe18b3bc1029441  # frozen: 0.11.26
+    rev: 8ff2449591c8de025b17661ba76d60237a1ae62b  # frozen: 0.12.1
     hooks:
       - id: uv-lock
 
@@ -22,7 +22,7 @@ repos:
       - id: gitleaks
 
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: 205e71c26d6dd6a802ca674c9ae4d12f1103a9bb  # frozen: v4.16.4
+    rev: 93c7b51d860138c34a0613756c0151209b88d56f  # frozen: v4.17.0
     hooks:
       - id: commitizen
         stages: [commit-msg]

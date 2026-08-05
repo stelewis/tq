@@ -37,10 +37,6 @@ pub fn plan(repo_root: &Path, latest_rust: &ToolVersion) -> Result<ActionPlan, D
     }
     actions.extend([
         PlannedAction::command(
-            "Update Cargo lockfile within manifest ranges",
-            Invocation::new("cargo", ["update"]),
-        ),
-        PlannedAction::command(
             "Upgrade uv lockfile",
             Invocation::new("uv", ["lock", "--upgrade"]),
         ),
@@ -59,7 +55,7 @@ pub fn plan(repo_root: &Path, latest_rust: &ToolVersion) -> Result<ActionPlan, D
 pub fn latest_stable_rust(repo_root: &Path) -> Result<ToolVersion, DevError> {
     let invocation = Invocation::new("rustup", ["check"]);
     let captured = invocation.capture(repo_root)?;
-    if !captured.success {
+    if !captured.success && captured.code != Some(100) {
         return Err(DevError::CommandFailed {
             program: invocation.program,
             args: invocation.args,

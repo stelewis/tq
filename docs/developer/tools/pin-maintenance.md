@@ -22,9 +22,9 @@ The repository uses four separate controls so frozen refs stay both strict and m
 
 Dependabot remains the default update path for supported GitHub Action and pre-commit dependencies. Use manual rotation for Docker image digests, urgent updates, drift responses, and any dependency that Dependabot cannot update completely.
 
-Use `cargo dev deps update --dry-run --repo-root .` before applying repository-owned dependency and toolchain updates when you need to inspect the planned commands and Rust pin file edits.
+Run `cargo update` for the Rust lockfile, then use `cargo dev deps update --dry-run --repo-root .` before applying the remaining repository-owned dependency and toolchain updates. Cargo launches the harness, so the harness does not nest a Cargo lockfile mutation that its parent process would overwrite.
 
-Use `cargo dev deps audit-maintenance-tools --repo-root .` to run the scheduled Rust maintenance-tool subset locally. `cargo dev deps audit-latest --repo-root .` is the comprehensive freshness command for every pinned tool and project dependency ecosystem. Python is compared within its pinned minor series; Node and npm are compared within their pinned major series; other tool pins are compared with the latest stable SemVer release.
+Use `cargo dev deps audit-maintenance-tools --repo-root .` to run the scheduled Rust maintenance-tool subset locally. `cargo dev deps audit-latest --repo-root .` is the comprehensive freshness command for every pinned tool and project dependency ecosystem. Python is compared within its pinned minor series, Node within its pinned major series, and other tool pins against the latest stable SemVer release. The exact npm version in `packageManager` follows the npm release bundled with the pinned Node version.
 
 Node and npm versions are owned by `package.json`. Actionlint and ShellCheck versions are owned by `.github/dev-tools.toml`; developers install those versions with their environment manager. When actionlint changes, resolve the official image tag to its registry digest and update `automation.actionlint-image.digest` in the same change. Pin policy derives the required versioned image reference and rejects a stale workflow consumer.
 
