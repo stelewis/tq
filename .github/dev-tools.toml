@@ -3,8 +3,8 @@ version = 1
 
 [tools]
 rust = "1.97.1"
-python = "3.14.6"
-uv = "0.12.1"
+python = "3.14.7"
+uv = "0.12.4"
 maturin = "1.14.1"
 actionlint = "1.7.12"
 shellcheck = "0.11.0"
