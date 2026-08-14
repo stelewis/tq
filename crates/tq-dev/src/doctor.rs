@@ -17,21 +17,82 @@ labeled_enum! {
     }
 }
 
-labeled_enum! {
-    pub enum ToolStatus {
-        Ok => "ok",
-        Missing => "missing",
-        Mismatched => "mismatched",
-    }
-}
-
+/// One tool the manifest requires, and what the local machine reports.
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct DoctorCheck {
     pub tool: String,
-    pub expected: String,
-    pub actual: Option<String>,
-    pub status: ToolStatus,
+    pub required: ToolRequirement,
+    pub state: ToolState,
     pub remediation: Option<String>,
+}
+
+impl DoctorCheck {
+    /// Remediation is attached only to unmet requirements, so a healthy check
+    /// can never carry advice and an unhealthy one can never omit it.
+    pub(crate) fn new(
+        tool: &str,
+        required: ToolRequirement,
+        state: ToolState,
+        remediation: &str,
+    ) -> Self {
+        Self {
+            tool: tool.to_owned(),
+            required,
+            remediation: (!state.is_ok()).then(|| remediation.to_owned()),
+            state,
+        }
+    }
+}
+
+/// What the manifest requires of a tool.
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub enum ToolRequirement {
+    /// The tool must report this pinned version.
+    Version { version: ToolVersion },
+    /// The tool must be installed; the repository pins no version for it.
+    Presence,
+}
+
+/// What a check observed about the local installation.
+///
+/// Doctor reports are shared in issue reports and CI logs, so a state carries
+/// only manifest vocabulary: a parsed version, or nothing at all. Raw command
+/// output and filesystem paths never reach this type.
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(tag = "status", rename_all = "kebab-case")]
+pub enum ToolState {
+    /// The requirement is met.
+    Ok,
+    /// The tool is installed but reports a different version.
+    Mismatched { installed: ToolVersion },
+    /// The tool ran but reported no version, so the pin cannot be verified.
+    Unreadable,
+    /// The tool is not installed, or could not run.
+    Missing,
+}
+
+impl ToolState {
+    /// The status label shared by rendered tables and the serialized `status`
+    /// tag.
+    #[must_use]
+    pub(crate) const fn label(&self) -> &'static str {
+        match self {
+            Self::Ok => "ok",
+            Self::Mismatched { .. } => "mismatched",
+            Self::Unreadable => "unreadable",
+            Self::Missing => "missing",
+        }
+    }
+
+    #[must_use]
+    pub(crate) const fn is_ok(&self) -> bool {
+        matches!(self, Self::Ok)
+    }
+
+    const fn present(is_present: bool) -> Self {
+        if is_present { Self::Ok } else { Self::Missing }
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -46,7 +107,9 @@ impl DoctorReport {
         self.summary.status == DoctorStatus::Healthy
     }
 
-    fn new(checks: Vec<DoctorCheck>) -> Self {
+    /// The only way to build a report: the summary is always derived from the
+    /// checks it describes.
+    pub(crate) fn new(checks: Vec<DoctorCheck>) -> Self {
         Self {
             summary: DoctorSummary::from_checks(&checks),
             checks,
@@ -59,28 +122,23 @@ pub struct DoctorSummary {
     pub status: DoctorStatus,
     pub total: usize,
     pub ok: usize,
-    pub missing: usize,
-    pub mismatched: usize,
+    pub unhealthy: usize,
 }
 
 impl DoctorSummary {
     fn from_checks(checks: &[DoctorCheck]) -> Self {
-        let count =
-            |status: ToolStatus| checks.iter().filter(|check| check.status == status).count();
-        let ok = count(ToolStatus::Ok);
-        let missing = count(ToolStatus::Missing);
-        let mismatched = count(ToolStatus::Mismatched);
+        let ok = checks.iter().filter(|check| check.state.is_ok()).count();
+        let unhealthy = checks.len() - ok;
 
         Self {
-            status: if missing == 0 && mismatched == 0 {
+            status: if unhealthy == 0 {
                 DoctorStatus::Healthy
             } else {
                 DoctorStatus::Unhealthy
             },
             total: checks.len(),
             ok,
-            missing,
-            mismatched,
+            unhealthy,
         }
     }
 }
@@ -196,162 +254,110 @@ fn version_check(
     args: &[&str],
     remediation: &str,
 ) -> DoctorCheck {
-    match invocation::probe(program, args) {
-        Ok(captured) if captured.success => {
-            let status = if expected.matches_version_output(&captured.output) {
-                ToolStatus::Ok
-            } else {
-                ToolStatus::Mismatched
-            };
-            DoctorCheck {
-                tool: tool.to_owned(),
-                expected: expected.as_str().to_owned(),
-                actual: Some(installed_version(&captured.output)),
-                remediation: (status != ToolStatus::Ok).then(|| remediation.to_owned()),
-                status,
-            }
-        }
-        Ok(captured) => DoctorCheck {
-            tool: tool.to_owned(),
-            expected: expected.as_str().to_owned(),
-            actual: Some(installed_version(&captured.output)),
-            status: ToolStatus::Missing,
-            remediation: Some(remediation.to_owned()),
+    DoctorCheck::new(
+        tool,
+        ToolRequirement::Version {
+            version: expected.clone(),
         },
-        Err(_) => DoctorCheck {
-            tool: tool.to_owned(),
-            expected: expected.as_str().to_owned(),
-            actual: None,
-            status: ToolStatus::Missing,
-            remediation: Some(remediation.to_owned()),
-        },
-    }
+        reported_version_state(expected, program, args),
+        remediation,
+    )
 }
 
-/// The version reported by a tool's version output: the first
-/// `major.minor.patch` token, falling back to the first output line when no
-/// version token is present.
-fn installed_version(output: &str) -> String {
-    output
-        .split(|character: char| !(character.is_ascii_digit() || character == '.'))
-        .find(|token| is_three_part_version(token))
-        .or_else(|| output.lines().next())
-        .unwrap_or_default()
-        .to_owned()
-}
-
-fn is_three_part_version(token: &str) -> bool {
-    let mut parts = token.split('.');
-    let is_numeric = |part: Option<&str>| {
-        part.is_some_and(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit()))
+/// Probes `program` and compares the version it reports against the pin. The
+/// captured output stops here: only the parsed version escapes.
+fn reported_version_state(expected: &ToolVersion, program: &str, args: &[&str]) -> ToolState {
+    let Ok(captured) = invocation::probe(program, args) else {
+        return ToolState::Missing;
     };
-    is_numeric(parts.next())
-        && is_numeric(parts.next())
-        && is_numeric(parts.next())
-        && parts.next().is_none()
+    if !captured.success {
+        return ToolState::Missing;
+    }
+    match ToolVersion::from_version_output(&captured.output) {
+        None => ToolState::Unreadable,
+        Some(installed) if installed == *expected => ToolState::Ok,
+        Some(installed) => ToolState::Mismatched { installed },
+    }
 }
 
+/// `uv python find` resolves an interpreter for the pinned version, so a
+/// successful probe already proves the pin is satisfied.
 fn python_check(expected: &ToolVersion) -> DoctorCheck {
-    let remediation = format!(
-        "Install Python {} with uv or the Python manager that owns it.",
-        expected.as_str()
-    );
-    match invocation::probe("uv", &["python", "find", expected.as_str()]) {
-        Ok(captured) if captured.success => DoctorCheck {
-            tool: "python".to_owned(),
-            expected: expected.as_str().to_owned(),
-            actual: Some(captured.output),
-            status: ToolStatus::Ok,
-            remediation: None,
+    let found = invocation::probe("uv", &["python", "find", expected.as_str()])
+        .is_ok_and(|captured| captured.success);
+    DoctorCheck::new(
+        "python",
+        ToolRequirement::Version {
+            version: expected.clone(),
         },
-        Ok(captured) => DoctorCheck {
-            tool: "python".to_owned(),
-            expected: expected.as_str().to_owned(),
-            actual: Some(captured.output),
-            status: ToolStatus::Missing,
-            remediation: Some(remediation),
-        },
-        Err(_) => DoctorCheck {
-            tool: "python".to_owned(),
-            expected: expected.as_str().to_owned(),
-            actual: None,
-            status: ToolStatus::Missing,
-            remediation: Some(remediation),
-        },
-    }
+        ToolState::present(found),
+        &format!("Install Python {expected} with uv or the Python manager that owns it."),
+    )
 }
 
 fn pkg_config_check() -> DoctorCheck {
-    let expected = "pkg-config or pkgconf on PATH".to_owned();
-    match native_env::pkg_config_path() {
-        Some(path) => DoctorCheck {
-            tool: "pkg-config".to_owned(),
-            expected,
-            actual: Some(path),
-            status: ToolStatus::Ok,
-            remediation: None,
-        },
-        None => DoctorCheck {
-            tool: "pkg-config".to_owned(),
-            expected,
-            actual: None,
-            status: ToolStatus::Missing,
-            remediation: Some(
-                "Install pkg-config or pkgconf with the system package manager.".to_owned(),
-            ),
-        },
-    }
+    DoctorCheck::new(
+        "pkg-config",
+        ToolRequirement::Presence,
+        ToolState::present(native_env::pkg_config_path().is_some()),
+        "Install pkg-config or pkgconf with the system package manager.",
+    )
 }
 
 fn homebrew_openssl_check() -> DoctorCheck {
-    let expected = "Homebrew openssl@3".to_owned();
-    match native_env::homebrew_openssl_prefix() {
-        Some(path) => DoctorCheck {
-            tool: "openssl@3".to_owned(),
-            expected,
-            actual: Some(path),
-            status: ToolStatus::Ok,
-            remediation: None,
-        },
-        None => DoctorCheck {
-            tool: "openssl@3".to_owned(),
-            expected,
-            actual: None,
-            status: ToolStatus::Missing,
-            remediation: Some("Install openssl@3 with Homebrew.".to_owned()),
-        },
-    }
+    DoctorCheck::new(
+        "openssl@3",
+        ToolRequirement::Presence,
+        ToolState::present(native_env::homebrew_openssl_prefix().is_some()),
+        "Install openssl@3 with Homebrew.",
+    )
 }
 
 #[cfg(test)]
 mod tests {
-    use super::installed_version;
+    use serde_json::json;
 
-    #[test]
-    fn extracts_the_version_token_from_verbose_banners() {
-        assert_eq!(
-            installed_version("rustc 1.96.1 (31fca3adb 2026-06-26)"),
-            "1.96.1"
-        );
-        assert_eq!(installed_version("v26.4.0"), "26.4.0");
-        assert_eq!(
-            installed_version(
-                "ShellCheck - shell script analysis tool\nversion: 0.11.0\nlicense: GPLv3"
-            ),
-            "0.11.0"
-        );
-        assert_eq!(
-            installed_version("1.7.12\ninstalled from Homebrew\nbuilt with go1.26.3 compiler"),
-            "1.7.12"
-        );
+    use super::{ToolRequirement, ToolState};
+    use crate::manifest::ToolVersion;
+
+    fn version(text: &str) -> ToolVersion {
+        ToolVersion::parse(text).expect("valid version")
     }
 
     #[test]
-    fn falls_back_to_the_first_line_when_no_version_token_exists() {
+    fn states_serialize_with_their_rendered_status_label() {
+        for state in [
+            ToolState::Ok,
+            ToolState::Mismatched {
+                installed: version("1.95.0"),
+            },
+            ToolState::Unreadable,
+            ToolState::Missing,
+        ] {
+            let serialized = serde_json::to_value(&state).expect("state serializes");
+            assert_eq!(serialized["status"], state.label());
+        }
+    }
+
+    #[test]
+    fn states_carry_manifest_vocabulary_only() {
         assert_eq!(
-            installed_version("command not found\ndetails"),
-            "command not found"
+            serde_json::to_value(ToolState::Mismatched {
+                installed: version("1.95.0"),
+            })
+            .expect("state serializes"),
+            json!({"status": "mismatched", "installed": "1.95.0"})
         );
-        assert_eq!(installed_version(""), "");
+        assert_eq!(
+            serde_json::to_value(ToolRequirement::Version {
+                version: version("1.96.1"),
+            })
+            .expect("requirement serializes"),
+            json!({"kind": "version", "version": "1.96.1"})
+        );
+        assert_eq!(
+            serde_json::to_value(ToolRequirement::Presence).expect("requirement serializes"),
+            json!({"kind": "presence"})
+        );
     }
 }

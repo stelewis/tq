@@ -40,6 +40,8 @@ Reporting commands support three output formats:
 - `json` for automation
 - `agent` for Markdown summaries
 
+`health doctor` describes each tool by its required and installed version alone, so its reports are safe to paste into public issues. Check and audit reports quote the output of the commands that failed, which can contain local paths; read them before sharing.
+
 Use `--quiet` to suppress clean success output without suppressing findings, errors, or non-zero exit codes.
 
 ## Exit Codes

@@ -12,6 +12,9 @@ const SUPPORTED_SCHEMA_VERSION: i64 = 1;
 
 /// A pinned `major.minor.patch` tool version, validated at the manifest
 /// boundary.
+///
+/// Versions compare by their exact text, so a non-canonical rendering such as
+/// `0.19.01` never satisfies a `0.19.0` pin.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ToolVersion {
     text: String,
@@ -64,19 +67,29 @@ impl ToolVersion {
         format!("{}.{}", self.major, self.minor)
     }
 
-    /// Whether `candidate` is exactly this version, ignoring surrounding text
-    /// such as a program name in `--version` output.
+    /// The version a tool reports in `--version` output: the first
+    /// `major.minor.patch` token, ignoring surrounding text such as the
+    /// program name, build metadata, or a bundled compiler version.
+    ///
+    /// Returns `None` when the output carries no version token. Callers must
+    /// not fall back to the raw output, which can contain filesystem paths.
     #[must_use]
-    pub fn matches_version_output(&self, output: &str) -> bool {
+    pub fn from_version_output(output: &str) -> Option<Self> {
         output
             .split(|character: char| !(character.is_ascii_digit() || character == '.'))
-            .any(|token| token == self.text)
+            .find_map(|token| Self::parse(token).ok())
     }
 }
 
 impl std::fmt::Display for ToolVersion {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(&self.text)
+    }
+}
+
+impl serde::Serialize for ToolVersion {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.text)
     }
 }
 
@@ -248,15 +261,48 @@ mod tests {
     }
 
     #[test]
-    fn version_output_matching_is_exact_not_substring() {
-        let version = ToolVersion::parse("0.19.0").expect("valid version");
-        assert!(version.matches_version_output("cargo-deny 0.19.0"));
-        assert!(!version.matches_version_output("cargo-deny 0.19.01"));
-        assert!(!version.matches_version_output("cargo-deny 10.19.0"));
+    fn reads_the_leading_version_token_from_verbose_banners() {
+        let extract = |output| {
+            ToolVersion::from_version_output(output).map(|version| version.as_str().to_owned())
+        };
 
-        let rust = ToolVersion::parse("1.96.1").expect("valid version");
-        assert!(rust.matches_version_output("rustc 1.96.1 (abcdef 2026-01-01)"));
-        assert!(!rust.matches_version_output("rustc 1.96.10"));
+        assert_eq!(
+            extract("rustc 1.96.1 (31fca3adb 2026-06-26)").as_deref(),
+            Some("1.96.1")
+        );
+        assert_eq!(extract("v26.4.0").as_deref(), Some("26.4.0"));
+        assert_eq!(
+            extract("ShellCheck - shell script analysis tool\nversion: 0.11.0\nlicense: GPLv3")
+                .as_deref(),
+            Some("0.11.0")
+        );
+        assert_eq!(
+            extract("1.7.12\ninstalled from Homebrew\nbuilt with go1.26.3 compiler").as_deref(),
+            Some("1.7.12")
+        );
+    }
+
+    #[test]
+    fn reads_no_version_from_output_without_a_version_token() {
+        assert_eq!(
+            ToolVersion::from_version_output("/Users/example/.local/bin/tool"),
+            None
+        );
+        assert_eq!(
+            ToolVersion::from_version_output("command not found\ndetails"),
+            None
+        );
+        assert_eq!(ToolVersion::from_version_output(""), None);
+    }
+
+    #[test]
+    fn near_miss_version_output_does_not_satisfy_the_pin() {
+        let pin = ToolVersion::parse("0.19.0").expect("valid version");
+        let installed = |output| ToolVersion::from_version_output(output).expect("version token");
+
+        assert_eq!(installed("cargo-deny 0.19.0"), pin);
+        assert_ne!(installed("cargo-deny 0.19.01"), pin);
+        assert_ne!(installed("cargo-deny 10.19.0"), pin);
     }
 
     #[test]

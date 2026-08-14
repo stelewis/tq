@@ -6,7 +6,7 @@ use serde::Serialize;
 use crate::action::ActionPlan;
 use crate::audit::{AuditReport, AuditStatus};
 use crate::check::{CheckPlan, CheckReport, CheckStatus};
-use crate::doctor::DoctorReport;
+use crate::doctor::{DoctorCheck, DoctorReport, ToolRequirement, ToolState};
 use crate::error::DevError;
 use crate::external_pins::{ExternalPin, ExternalPinReport, ExternalPinStatus};
 
@@ -244,27 +244,21 @@ pub fn doctor_document(report: &DoctorReport) -> Document {
         summary: vec![
             format!("Status: {}", report.summary.status),
             format!(
-                "Checks: {} total, {} ok, {} missing, {} mismatched",
-                report.summary.total,
-                report.summary.ok,
-                report.summary.missing,
-                report.summary.mismatched
+                "Checks: {} total, {} ok, {} unhealthy",
+                report.summary.total, report.summary.ok, report.summary.unhealthy
             ),
         ],
         body: Body::Table(Table {
-            headers: vec!["Status", "Tool", "Expected", "Installed"],
+            headers: vec!["Status", "Tool", "Required", "Installed"],
             rows: report
                 .checks
                 .iter()
                 .map(|check| {
                     vec![
-                        check.status.to_string(),
+                        check.state.label().to_owned(),
                         check.tool.clone(),
-                        check.expected.clone(),
-                        check
-                            .actual
-                            .clone()
-                            .unwrap_or_else(|| "not found".to_owned()),
+                        required_cell(&check.required),
+                        installed_cell(check),
                     ]
                 })
                 .collect(),
@@ -275,6 +269,24 @@ pub fn doctor_document(report: &DoctorReport) -> Document {
                 .as_deref()
                 .map(|remediation| (check.tool.as_str(), remediation))
         })),
+    }
+}
+
+fn required_cell(required: &ToolRequirement) -> String {
+    match required {
+        ToolRequirement::Version { version } => version.to_string(),
+        ToolRequirement::Presence => "installed".to_owned(),
+    }
+}
+
+/// A met requirement reports itself back, so an `ok` row shows the version or
+/// presence the check confirmed rather than an empty cell.
+fn installed_cell(check: &DoctorCheck) -> String {
+    match &check.state {
+        ToolState::Ok => required_cell(&check.required),
+        ToolState::Mismatched { installed } => installed.to_string(),
+        ToolState::Unreadable => "unknown".to_owned(),
+        ToolState::Missing => "not found".to_owned(),
     }
 }
 
@@ -496,44 +508,48 @@ fn short_revision(revision: &str) -> String {
 #[cfg(test)]
 mod tests {
     use crate::action::{ActionPlan, PlannedAction};
-    use crate::doctor::{DoctorCheck, DoctorReport, DoctorStatus, DoctorSummary, ToolStatus};
+    use crate::doctor::{DoctorCheck, DoctorReport, ToolRequirement, ToolState};
     use crate::invocation::Invocation;
+    use crate::manifest::ToolVersion;
 
-    use super::{action_plan_document, doctor_document, short_revision};
+    use super::{action_plan_document, doctor_document, short_revision, to_json};
+
+    fn version(text: &str) -> ToolVersion {
+        ToolVersion::parse(text).expect("valid version")
+    }
+
+    fn check(tool: &str, required: ToolRequirement, state: ToolState) -> DoctorCheck {
+        DoctorCheck::new(tool, required, state, "Update the Rust toolchain.")
+    }
+
+    fn pinned(tool: &str, pin: &str, state: ToolState) -> DoctorCheck {
+        check(
+            tool,
+            ToolRequirement::Version {
+                version: version(pin),
+            },
+            state,
+        )
+    }
 
     fn unhealthy_report() -> DoctorReport {
-        DoctorReport {
-            summary: DoctorSummary {
-                status: DoctorStatus::Unhealthy,
-                total: 3,
-                ok: 1,
-                missing: 0,
-                mismatched: 2,
-            },
-            checks: vec![
-                DoctorCheck {
-                    tool: "rustc".to_owned(),
-                    expected: "1.96.1".to_owned(),
-                    actual: Some("1.96.1".to_owned()),
-                    status: ToolStatus::Ok,
-                    remediation: None,
+        DoctorReport::new(vec![
+            pinned("rustc", "1.96.1", ToolState::Ok),
+            pinned(
+                "cargo",
+                "1.96.1",
+                ToolState::Mismatched {
+                    installed: version("1.95.0"),
                 },
-                DoctorCheck {
-                    tool: "cargo".to_owned(),
-                    expected: "1.96.1".to_owned(),
-                    actual: Some("1.95.0".to_owned()),
-                    status: ToolStatus::Mismatched,
-                    remediation: Some("Update the Rust toolchain.".to_owned()),
+            ),
+            pinned(
+                "cargo|deny",
+                "0.19.0",
+                ToolState::Mismatched {
+                    installed: version("0.18.0"),
                 },
-                DoctorCheck {
-                    tool: "cargo|deny".to_owned(),
-                    expected: "0.19.0".to_owned(),
-                    actual: Some("0.18.0".to_owned()),
-                    status: ToolStatus::Mismatched,
-                    remediation: Some("Update the Rust toolchain.".to_owned()),
-                },
-            ],
-        }
+            ),
+        ])
     }
 
     #[test]
@@ -541,7 +557,7 @@ mod tests {
         let output = doctor_document(&unhealthy_report()).to_text();
 
         assert!(output.starts_with("Developer Environment\nStatus: unhealthy\n"));
-        assert!(output.contains("Checks: 3 total, 1 ok, 0 missing, 2 mismatched"));
+        assert!(output.contains("Checks: 3 total, 1 ok, 2 unhealthy"));
         assert!(output.contains("Status      Tool"));
     }
 
@@ -562,6 +578,34 @@ mod tests {
         assert!(output.contains("| mismatched | cargo\\|deny | 0.19.0 | 0.18.0 |"));
         assert!(output.contains("### cargo, cargo|deny remediation"));
         assert!(output.contains("Update the Rust toolchain."));
+    }
+
+    #[test]
+    fn every_tool_state_renders_an_installed_cell() {
+        let report = DoctorReport::new(vec![
+            pinned("rustc", "1.96.1", ToolState::Ok),
+            pinned("actionlint", "1.7.12", ToolState::Unreadable),
+            pinned("uv", "0.9.7", ToolState::Missing),
+            check("pkg-config", ToolRequirement::Presence, ToolState::Ok),
+            check("openssl@3", ToolRequirement::Presence, ToolState::Missing),
+        ]);
+
+        let output = doctor_document(&report).to_markdown();
+
+        assert!(output.contains("| ok | rustc | 1.96.1 | 1.96.1 |"));
+        assert!(output.contains("| unreadable | actionlint | 1.7.12 | unknown |"));
+        assert!(output.contains("| missing | uv | 0.9.7 | not found |"));
+        assert!(output.contains("| ok | pkg-config | installed | installed |"));
+        assert!(output.contains("| missing | openssl@3 | installed | not found |"));
+    }
+
+    #[test]
+    fn serialized_reports_describe_requirements_and_states_by_tag() {
+        let json = to_json(&unhealthy_report()).expect("doctor report should serialize");
+
+        assert!(json.contains("\"kind\": \"version\""));
+        assert!(json.contains("\"status\": \"mismatched\""));
+        assert!(json.contains("\"installed\": \"1.95.0\""));
     }
 
     #[test]
