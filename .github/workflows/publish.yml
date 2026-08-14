@@ -11,7 +11,8 @@ permissions:
   contents: read
 
 env:
-  CARGO_TERM_COLOR: always
+  PUBLISH_PYTHON_VERSION: "3.14.7"
+  PUBLISH_UV_VERSION: "0.12.4"
 
 jobs:
   prepare:
@@ -153,16 +154,18 @@ jobs:
               --deny-self-hosted-runners
           done
 
-      - name: Setup Python
+      - &setup-python
+        name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.14.7"
+          python-version: ${{ env.PUBLISH_PYTHON_VERSION }}
 
-      - name: Setup uv
+      - &setup-uv
+        name: Setup uv
         uses: astral-sh/setup-uv@ae62891fec2bb8e7d6c99fc78c9fec3a63790f8d # v10.0.0
         with:
           enable-cache: false
-          version: "0.12.4"
+          version: ${{ env.PUBLISH_UV_VERSION }}
 
       - name: Validate package metadata
         run: uv run --isolated --no-project --with twine -- twine check dist/*
@@ -274,11 +277,7 @@ jobs:
               --deny-self-hosted-runners
           done
 
-      - name: Setup uv
-        uses: astral-sh/setup-uv@ae62891fec2bb8e7d6c99fc78c9fec3a63790f8d # v10.0.0
-        with:
-          enable-cache: false
-          version: "0.12.4"
+      - *setup-uv
 
       - name: Require release tag to remain bound to validated revision
         env:
@@ -372,16 +371,8 @@ jobs:
       attestations: read
       contents: read
     steps:
-      - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.14.7"
-
-      - name: Setup uv
-        uses: astral-sh/setup-uv@ae62891fec2bb8e7d6c99fc78c9fec3a63790f8d # v10.0.0
-        with:
-          enable-cache: false
-          version: "0.12.4"
+      - *setup-python
+      - *setup-uv
 
       - name: Post-publish smoke
         env:

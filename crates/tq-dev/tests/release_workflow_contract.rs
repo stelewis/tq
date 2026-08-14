@@ -104,10 +104,16 @@ fn checkout_free_jobs_use_manifest_owned_tool_versions() {
     let manifest = tq_dev::manifest::DevToolsManifest::load(&root)
         .expect("developer tool manifest should load");
 
-    let python_pin = format!("python-version: \"{}\"", manifest.python);
-    let uv_pin = format!("version: \"{}\"", manifest.uv);
-    assert_eq!(workflow.matches(&python_pin).count(), 2);
-    assert_eq!(workflow.matches(&uv_pin).count(), 3);
+    let python_pin = format!("PUBLISH_PYTHON_VERSION: \"{}\"", manifest.python);
+    let uv_pin = format!("PUBLISH_UV_VERSION: \"{}\"", manifest.uv);
+    assert_eq!(workflow.matches(&python_pin).count(), 1);
+    assert_eq!(workflow.matches(&uv_pin).count(), 1);
+    assert_eq!(workflow.matches("&setup-python").count(), 1);
+    assert_eq!(workflow.matches("&setup-uv").count(), 1);
+    assert_eq!(workflow.matches("*setup-python").count(), 1);
+    assert_eq!(workflow.matches("*setup-uv").count(), 2);
+    assert!(workflow.contains("python-version: ${{ env.PUBLISH_PYTHON_VERSION }}"));
+    assert!(workflow.contains("version: ${{ env.PUBLISH_UV_VERSION }}"));
 }
 
 #[test]
