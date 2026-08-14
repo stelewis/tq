@@ -210,6 +210,23 @@ fn unprivileged_ci_owns_release_set_and_content_policy() {
     assert!(!publish.contains("verify-release-artifact-set.sh"));
 }
 
+#[test]
+fn publish_derives_release_identity_from_the_source_run() {
+    let publish = include_str!("../../../.github/workflows/publish.yml");
+
+    let candidate = publish
+        .find("- name: Resolve validated release candidate")
+        .expect("publish must classify the source run artifact");
+    let remote_policy = publish
+        .find("- name: Require immutable tag ruleset")
+        .expect("publish must enforce immutable tags");
+
+    assert!(candidate < remote_policy);
+    assert!(publish.contains("github.event.workflow_run.head_branch"));
+    assert!(publish.contains("actions/runs/$run_id/artifacts"));
+    assert!(!publish.contains("repos/$GITHUB_REPOSITORY/tags?per_page="));
+}
+
 fn write_zip(path: &Path, members: &[(&str, &str)]) {
     let file = fs::File::create(path).expect("create zip file");
     let mut archive = zip::ZipWriter::new(file);

@@ -21,12 +21,57 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     outputs:
-      should_publish: ${{ steps.release.outputs.should_publish }}
-      release_tag: ${{ steps.release.outputs.release_tag }}
-      source_head_sha: ${{ steps.release.outputs.source_head_sha }}
-      source_run_id: ${{ steps.release.outputs.source_run_id }}
+      should_publish: ${{ steps.candidate.outputs.should_publish }}
+      release_tag: ${{ steps.candidate.outputs.release_tag }}
+      source_head_sha: ${{ steps.candidate.outputs.source_head_sha }}
+      source_run_id: ${{ steps.candidate.outputs.source_run_id }}
     steps:
+      - name: Resolve validated release candidate
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          run_id='${{ github.event.workflow_run.id }}'
+          artifact_count="$(
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" \
+              --jq '[.artifacts[] | select(.name == "validated-dist" and .expired == false)] | length'
+          )"
+
+          if [ "$artifact_count" -eq 0 ]; then
+            echo "CI run $run_id has no validated release artifact; skipping publish."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$artifact_count" -ne 1 ]; then
+            echo "Expected exactly one validated-dist artifact for CI run $run_id, found $artifact_count"
+            exit 1
+          fi
+
+          release_tag='${{ github.event.workflow_run.head_branch }}'
+          if [[ ! "$release_tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "CI run $run_id produced a validated release artifact for non-SemVer ref '$release_tag'"
+            exit 1
+          fi
+
+          if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "GitHub release '$release_tag' already exists; skipping publish."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          {
+            echo "should_publish=true"
+            echo "release_tag=$release_tag"
+            echo "source_head_sha=${{ github.event.workflow_run.head_sha }}"
+            echo "source_run_id=$run_id"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Require immutable tag ruleset
+        if: ${{ steps.candidate.outputs.should_publish == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -57,63 +102,29 @@ jobs:
             exit 1
           fi
 
-      - name: Resolve SemVer tag for successful CI run
-        id: release
+      - name: Require release tag binding
+        if: ${{ steps.candidate.outputs.should_publish == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.candidate.outputs.release_tag }}
+          SOURCE_HEAD_SHA: ${{ steps.candidate.outputs.source_head_sha }}
         shell: bash
-        run: |
+        run: &require-release-tag-binding |
           set -euo pipefail
 
-          head_sha='${{ github.event.workflow_run.head_sha }}'
-
-          mapfile -t release_tags < <(
-            gh api --paginate "repos/$GITHUB_REPOSITORY/tags?per_page=100" \
-              --jq '.[] | select(.commit.sha == "'"$head_sha"'" and (.name | test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))) | .name'
+          read -r object_type object_sha < <(
+            gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" \
+              --jq '.object.type + " " + .object.sha'
           )
+          while [ "$object_type" = "tag" ]; do
+            read -r object_type object_sha < <(
+              gh api "repos/$GITHUB_REPOSITORY/git/tags/$object_sha" \
+                --jq '.object.type + " " + .object.sha'
+            )
+          done
 
-          if [ "${#release_tags[@]}" -eq 0 ]; then
-            echo "No SemVer tag points at $head_sha; skipping publish."
-            echo "should_publish=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [ "${#release_tags[@]}" -gt 1 ]; then
-            printf 'Multiple SemVer tags point at %s: %s\n' "$head_sha" "${release_tags[*]}"
-            exit 1
-          fi
-
-          release_tag="${release_tags[0]}"
-
-          if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "GitHub release '$release_tag' already exists; skipping publish."
-            echo "should_publish=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          {
-            echo "should_publish=true"
-            echo "release_tag=$release_tag"
-            echo "source_head_sha=$head_sha"
-            echo "source_run_id=${{ github.event.workflow_run.id }}"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Require validated release artifact
-        if: ${{ steps.release.outputs.should_publish == 'true' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          run_id='${{ github.event.workflow_run.id }}'
-          artifact_count="$(
-            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" \
-              --jq '[.artifacts[] | select(.name == "validated-dist" and .expired == false)] | length'
-          )"
-
-          if [ "$artifact_count" -ne 1 ]; then
-            echo "Expected exactly one validated-dist artifact for tagged CI run $run_id, found $artifact_count"
+          if [ "$object_type" != "commit" ] || [ "$object_sha" != "$SOURCE_HEAD_SHA" ]; then
+            echo "Release tag '$RELEASE_TAG' does not resolve to validated commit '$SOURCE_HEAD_SHA'"
             exit 1
           fi
 
@@ -285,24 +296,7 @@ jobs:
           RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
           SOURCE_HEAD_SHA: ${{ needs.prepare.outputs.source_head_sha }}
         shell: bash
-        run: |
-          set -euo pipefail
-
-          read -r object_type object_sha < <(
-            gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" \
-              --jq '.object.type + " " + .object.sha'
-          )
-          while [ "$object_type" = "tag" ]; do
-            read -r object_type object_sha < <(
-              gh api "repos/$GITHUB_REPOSITORY/git/tags/$object_sha" \
-                --jq '.object.type + " " + .object.sha'
-            )
-          done
-
-          if [ "$object_type" != "commit" ] || [ "$object_sha" != "$SOURCE_HEAD_SHA" ]; then
-            echo "Release tag '$RELEASE_TAG' no longer resolves to validated commit '$SOURCE_HEAD_SHA'"
-            exit 1
-          fi
+        run: *require-release-tag-binding
 
       - name: Publish
         run: uv publish dist/*.whl dist/*.tar.gz
@@ -320,24 +314,7 @@ jobs:
           RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
           SOURCE_HEAD_SHA: ${{ needs.prepare.outputs.source_head_sha }}
         shell: bash
-        run: |
-          set -euo pipefail
-
-          read -r object_type object_sha < <(
-            gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" \
-              --jq '.object.type + " " + .object.sha'
-          )
-          while [ "$object_type" = "tag" ]; do
-            read -r object_type object_sha < <(
-              gh api "repos/$GITHUB_REPOSITORY/git/tags/$object_sha" \
-                --jq '.object.type + " " + .object.sha'
-            )
-          done
-
-          if [ "$object_type" != "commit" ] || [ "$object_sha" != "$SOURCE_HEAD_SHA" ]; then
-            echo "Release tag '$RELEASE_TAG' no longer resolves to validated commit '$SOURCE_HEAD_SHA'"
-            exit 1
-          fi
+        run: *require-release-tag-binding
 
       - name: Create GitHub release
         env:
