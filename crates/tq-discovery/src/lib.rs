@@ -4,4 +4,4 @@ pub(crate) mod index;
 
 pub use error::DiscoveryError;
 pub use filesystem::build_analysis_index;
-pub use index::AnalysisIndex;
+pub use index::{AnalysisIndex, AnalyzedTestFile};

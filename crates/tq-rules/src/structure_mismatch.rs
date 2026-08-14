@@ -1,32 +1,41 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-use tq_core::RelativePathBuf;
+use tq_core::{
+    RelativePathBuf, is_python_test_file, path_to_forward_slashes, python_test_module_name,
+    source_directory_for_unit_test,
+};
 use tq_engine::{AnalysisContext, Finding, Rule, RuleId};
 
-use crate::builtin::{
-    BuiltinRule, is_non_unit_test_path, is_unit_test_filename, path_to_forward_slashes,
-    starts_with_path_prefix,
-};
+use crate::builtin::{BuiltinRule, is_non_unit_test_path, starts_with_path_prefix};
 
 pub struct StructureMismatchRule {
     rule_id: RuleId,
 }
 
 impl StructureMismatchRule {
-    pub fn new() -> Result<Self, crate::error::RulesError> {
-        Ok(Self {
-            rule_id: BuiltinRule::StructureMismatch.rule_id()?,
-        })
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            rule_id: BuiltinRule::StructureMismatch.rule_id(),
+        }
+    }
+}
+
+impl Default for StructureMismatchRule {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
 impl Rule for StructureMismatchRule {
+    type Error = crate::error::RulesError;
+
     fn rule_id(&self) -> &RuleId {
         &self.rule_id
     }
 
-    fn evaluate(&self, context: &AnalysisContext) -> Vec<Finding> {
+    fn evaluate(&self, context: &AnalysisContext) -> Result<Vec<Finding>, Self::Error> {
         let package_path = context.package_path();
         let test_root_display = context.test_root_display();
         let known_target_paths = context.known_target_package_paths();
@@ -39,16 +48,13 @@ impl Rule for StructureMismatchRule {
 
         let mut findings = Vec::new();
         for test_file in context.index().test_files() {
-            if is_non_unit_test_path(test_file) {
+            let test_file = test_file.path();
+            if is_non_unit_test_path(test_file) || !is_python_test_file(test_file) {
                 continue;
             }
-
-            let Some(file_name) = test_file.file_name().and_then(std::ffi::OsStr::to_str) else {
+            let Some(file_name) = test_file.file_name() else {
                 continue;
             };
-            if !is_unit_test_filename(file_name) {
-                continue;
-            }
 
             if !starts_with_path_prefix(test_file, package_path) {
                 if belongs_to_other_target(test_file, package_path, known_target_paths) {
@@ -56,7 +62,7 @@ impl Rule for StructureMismatchRule {
                 }
 
                 let suggestion_path = test_root_display.join(package_path).join(file_name);
-                if let Ok(finding) = Finding::new(
+                findings.push(Finding::new(
                     self.rule_id.clone(),
                     BuiltinRule::StructureMismatch.default_severity(),
                     "Unit test is not located under the package test root",
@@ -67,9 +73,7 @@ impl Rule for StructureMismatchRule {
                         path_to_forward_slashes(&suggestion_path)
                     )),
                     None,
-                ) {
-                    findings.push(finding);
-                }
+                )?);
                 continue;
             }
 
@@ -82,7 +86,7 @@ impl Rule for StructureMismatchRule {
                 continue;
             }
 
-            if let Ok(finding) = Finding::new(
+            findings.push(Finding::new(
                 self.rule_id.clone(),
                 BuiltinRule::StructureMismatch.default_severity(),
                 "Test file is not in the expected location",
@@ -93,12 +97,10 @@ impl Rule for StructureMismatchRule {
                     path_to_forward_slashes(&test_root_display.join(expected_path))
                 )),
                 None,
-            ) {
-                findings.push(finding);
-            }
+            )?);
         }
 
-        findings
+        Ok(findings)
     }
 }
 
@@ -121,10 +123,7 @@ fn resolve_source_candidate(
     source_files: &BTreeSet<PathBuf>,
     package_path: &Path,
 ) -> Option<PathBuf> {
-    let module_stem = test_file
-        .file_stem()
-        .and_then(std::ffi::OsStr::to_str)
-        .and_then(|stem| stem.strip_prefix("test_"))?;
+    let module_stem = python_test_module_name(test_file)?;
     for candidate in candidate_source_paths(test_file, module_stem, package_path) {
         if source_files.contains(&candidate) {
             return Some(candidate);
@@ -151,21 +150,9 @@ fn candidate_source_paths(
     module_stem: &str,
     package_path: &Path,
 ) -> Vec<PathBuf> {
-    let prefix_len = package_path.components().count();
-    let test_components = test_file.components().collect::<Vec<_>>();
-    let relative_components = test_components
-        .iter()
-        .skip(prefix_len)
-        .take(test_components.len().saturating_sub(prefix_len + 1))
-        .copied()
-        .collect::<Vec<_>>();
-
-    let relative_source_dir = relative_components
-        .iter()
-        .fold(PathBuf::new(), |path, component| {
-            path.join(component.as_os_str())
-        });
-
+    let Some(relative_source_dir) = source_directory_for_unit_test(test_file, package_path) else {
+        return Vec::new();
+    };
     let direct_source = relative_source_dir.join(format!("{module_stem}.py"));
     if !module_stem.contains('_') {
         return vec![direct_source];

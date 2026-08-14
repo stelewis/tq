@@ -3,53 +3,46 @@ use std::path::{Path, PathBuf};
 use crate::{
     ConfigError,
     loader_materialize::{materialize_config, merge_partial},
-    loader_parse::{ensure_unique_strings, load_partial_from_pyproject},
+    loader_parse::{SectionPolicy, ensure_unique_strings, load_partial_from_pyproject},
     model::{CliOverrides, PartialRuleConfig, PartialTqConfig, TqConfig},
     paths::normalize_absolute,
 };
 
+/// Resolves the effective configuration from explicit, user, and project
+/// pyproject sources plus CLI overrides.
+///
+/// The loader performs no ambient environment access: `cwd` must be an
+/// absolute path and `user_config_path` (typically under the user's home
+/// configuration directory) is supplied by the composition root.
 pub fn resolve_tq_config(
     cwd: &Path,
     explicit_config_path: Option<&Path>,
     isolated: bool,
+    user_config_path: Option<&Path>,
     cli_overrides: &CliOverrides,
 ) -> Result<TqConfig, ConfigError> {
-    resolve_tq_config_with_user_config(cwd, explicit_config_path, isolated, None, cli_overrides)
-}
-
-pub fn resolve_tq_config_with_user_config(
-    cwd: &Path,
-    explicit_config_path: Option<&Path>,
-    isolated: bool,
-    discovered_user_config_path: Option<&Path>,
-    cli_overrides: &CliOverrides,
-) -> Result<TqConfig, ConfigError> {
-    let cwd = absolute_from_process(cwd)?;
+    let cwd = require_absolute(cwd)?;
     let mut discovered = PartialTqConfig::default();
     let mut targets_base_dir: Option<PathBuf> = None;
 
     if let Some(explicit_path) = explicit_config_path {
-        let config_path = absolute_from_process(explicit_path)?;
-        let loaded = load_partial_from_pyproject(&config_path, true)?;
+        let config_path = absolute_from(&cwd, explicit_path);
+        let loaded = load_partial_from_pyproject(&config_path, SectionPolicy::Required)?;
         targets_base_dir = resolve_targets_base_dir(targets_base_dir, &loaded, &config_path);
         discovered = loaded;
     } else if !isolated {
-        let user_config_path = discovered_user_config_path
-            .map(Path::to_path_buf)
-            .or_else(|| {
-                home_dir().map(|home| home.join(".config").join("tq").join("pyproject.toml"))
-            });
-        let project_config_path = find_project_pyproject(&cwd);
-
         if let Some(user_config_path) = user_config_path.filter(|path| path.exists()) {
-            let user_partial = load_partial_from_pyproject(&user_config_path, false)?;
+            let user_config_path = absolute_from(&cwd, user_config_path);
+            let user_partial =
+                load_partial_from_pyproject(&user_config_path, SectionPolicy::Optional)?;
             targets_base_dir =
                 resolve_targets_base_dir(targets_base_dir, &user_partial, &user_config_path);
             discovered = merge_partial(&discovered, &user_partial);
         }
 
-        if let Some(project_config_path) = project_config_path {
-            let project_partial = load_partial_from_pyproject(&project_config_path, false)?;
+        if let Some(project_config_path) = find_project_pyproject(&cwd) {
+            let project_partial =
+                load_partial_from_pyproject(&project_config_path, SectionPolicy::Optional)?;
             targets_base_dir =
                 resolve_targets_base_dir(targets_base_dir, &project_partial, &project_config_path);
             discovered = merge_partial(&discovered, &project_partial);
@@ -60,19 +53,22 @@ pub fn resolve_tq_config_with_user_config(
     materialize_config(&cwd, &discovered, &cli_partial, targets_base_dir.as_deref())
 }
 
-fn home_dir() -> Option<PathBuf> {
-    std::env::var_os("HOME").map(PathBuf::from)
+fn require_absolute(cwd: &Path) -> Result<PathBuf, ConfigError> {
+    if cwd.is_absolute() {
+        Ok(normalize_absolute(cwd))
+    } else {
+        Err(ConfigError::RelativeWorkingDirectory {
+            path: cwd.to_path_buf(),
+        })
+    }
 }
 
-fn absolute_from_process(path: &Path) -> Result<PathBuf, ConfigError> {
+fn absolute_from(cwd: &Path, path: &Path) -> PathBuf {
     if path.is_absolute() {
-        return Ok(normalize_absolute(path));
+        normalize_absolute(path)
+    } else {
+        normalize_absolute(&cwd.join(path))
     }
-
-    let current = std::env::current_dir().map_err(|error| ConfigError::CurrentDirectory {
-        message: error.to_string(),
-    })?;
-    Ok(normalize_absolute(&current.join(path)))
 }
 
 fn resolve_targets_base_dir(

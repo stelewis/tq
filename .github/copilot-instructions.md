@@ -10,29 +10,35 @@ Use the Rust workspace for product code and `uv` for packaging and repository au
 
 ### Core checks
 
-- Format: `cargo fmt --all --check`
-- Lint: `cargo clippy --workspace --all-targets --locked -- -D warnings`
-- Tests: `cargo test --workspace --locked`
-- Docs sync: `cargo run -p tq-docsgen --locked -- generate all`
-- Release policy: `cargo run -p tq-release --locked -- verify-release-policy --repo-root .`
-- Packaging check: `cargo package --workspace --locked && mise run release-build`
+- Routine gate: `cargo dev check routine --repo-root .`
+- Broad gate: `cargo dev check all --repo-root .`
+- Full release-sensitive gate: `cargo dev check --profile full all --repo-root .`
 
 ### Commands
 
 - Rust CLI: `cargo run -p tq-cli --locked -- <args>`
 - Docs generator: `cargo run -p tq-docsgen --locked -- <args>`
-- Release tooling: `cargo run -p tq-release --locked -- <args>`
+- Developer harness: `cargo dev <group> <command>`
+  - Check plan: `cargo dev check --dry-run --output agent --profile full all --repo-root .`
+  - Routine check: `cargo dev check routine --repo-root .`
+  - Repo policy: `cargo dev policy verify-pins --repo-root .`
+  - Automation policy: `cargo dev policy verify-automation --repo-root .`
+  - Release policy: `cargo dev policy verify-release --repo-root .`
+  - External pin drift: `cargo dev policy audit-external-pins --repo-root .`
+  - Local health: `cargo dev health doctor --repo-root .`
+  - Cleanup plan: `cargo dev health cleanup --dry-run --repo-root .`
+  - Setup plan: `cargo dev setup --dry-run --repo-root .`
+  - Dependency freshness check: `cargo dev deps audit-latest --output agent --repo-root .`
+  - Dependency update plan: `cargo dev deps update --dry-run --repo-root .`
+  - Dependency update apply: `cargo dev deps update --repo-root .`
+  - Security audit: `cargo dev deps audit-security --repo-root .`
+  - Runtime dependency change check: `cargo dev runtime-deps --repo-root . --base-ref <base> --head-ref <head>`
+  - Release build plan: `cargo dev release build --dry-run --repo-root .`
+  - Release build: `cargo dev release build --repo-root .`
+  - Release artifact policy: `cargo dev release verify-artifacts --dist-dir dist --profile <expected-profile>`
 - Python: `uv run python <args>`
 - File system operations: `git mv`, `git rm`, `mv`, `rm`
 - For complex multiline shell input that causes terminal wrapping issues, write a temporary script in `tmp/` instead.
-
-### Full validation
-
-Run the relevant subset for the task. When full validation is required:
-
-```bash
-cargo fmt --all --check && cargo clippy --workspace --all-targets --locked -- -D warnings && cargo test --workspace --locked && cargo run -p tq-docsgen --locked -- generate all && cargo run -p tq-release --locked -- verify-release-policy --repo-root . && cargo package --workspace --locked && mise run release-build
-```
 
 ## Guidelines
 
@@ -47,12 +53,12 @@ cargo fmt --all --check && cargo clippy --workspace --all-targets --locked -- -D
 - MUST treat internal crate APIs as current-only interfaces, not compatibility surfaces.
   - When an internal crate API changes, MUST update all workspace callers in the same change.
   - MUST remove the old API immediately instead of adding shims, aliases, adapter helpers, or dual-path call sites.
-  - MUST bump the shared workspace/internal crate minor version before packaging or release validation when an internal public API changes.
-  - If `cargo package --workspace --locked` fails because a published crate version no longer matches the current internal API, MUST fix that by bumping the workspace/internal crate version, not by restoring compatibility code.
+  - Workspace crates are never published to crates.io; the PyPI distribution built from `tq-cli` is the only published artifact.
 - MUST ensure that test modules are properly refactored when source code changes (split, merge, replace, delete).
 - MUST develop clean, maintainable, well factored, and elegant code.
 - MUST NOT blindly comply with lint rules or contort otherwise clear code to satisfy linting heuristics.
-- MUST use the repository's dependency and security tooling when dependency changes are involved, including `cargo audit`, `cargo deny check`, and relevant lockfile review.
+- MUST use the repository's dependency and security tooling when dependency changes are involved, including `cargo audit -D warnings`, `cargo deny check`, and relevant lockfile review.
+- MUST improve `cargo dev` when recurring local friction, security maintenance, dependency drift, release validation, or setup cleanup can be made deterministic instead of documented as manual process.
 
 ## Security
 

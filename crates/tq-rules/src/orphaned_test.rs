@@ -1,13 +1,11 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
+use tq_core::{path_to_forward_slashes, python_test_module_name, source_directory_for_unit_test};
 use tq_engine::{AnalysisContext, Finding, Rule, RuleId};
 
 use crate::QualifierStrategy;
-use crate::builtin::{
-    BuiltinRule, is_non_unit_test_path, is_unit_test_filename, path_to_forward_slashes,
-    starts_with_path_prefix,
-};
+use crate::builtin::{BuiltinRule, is_non_unit_test_path, starts_with_path_prefix};
 use crate::candidate_module_names;
 use crate::error::RulesError;
 
@@ -27,7 +25,7 @@ impl OrphanedTestRule {
         }
 
         Ok(Self {
-            rule_id: BuiltinRule::OrphanedTest.rule_id()?,
+            rule_id: BuiltinRule::OrphanedTest.rule_id(),
             qualifier_strategy,
             allowed_qualifiers,
         })
@@ -39,25 +37,14 @@ impl OrphanedTestRule {
         source_files: &BTreeSet<PathBuf>,
         package_path: &Path,
     ) -> bool {
-        let prefix_len = package_path.components().count();
-        let test_parts = test_file.components().collect::<Vec<_>>();
-        let relative_parts = test_parts
-            .iter()
-            .skip(prefix_len)
-            .take(test_parts.len().saturating_sub(prefix_len + 1))
-            .copied()
-            .collect::<Vec<_>>();
-        let relative_source_dir = relative_parts
-            .iter()
-            .fold(PathBuf::new(), |path, component| {
-                path.join(component.as_os_str())
-            });
+        let Some(relative_source_dir) = source_directory_for_unit_test(test_file, package_path)
+        else {
+            return false;
+        };
+        let Some(module_stem) = python_test_module_name(test_file) else {
+            return false;
+        };
 
-        let module_stem = test_file
-            .file_stem()
-            .and_then(std::ffi::OsStr::to_str)
-            .and_then(|stem| stem.strip_prefix("test_"))
-            .unwrap_or_default();
         for module_name in candidate_module_names(
             module_stem,
             self.qualifier_strategy,
@@ -74,11 +61,13 @@ impl OrphanedTestRule {
 }
 
 impl Rule for OrphanedTestRule {
+    type Error = RulesError;
+
     fn rule_id(&self) -> &RuleId {
         &self.rule_id
     }
 
-    fn evaluate(&self, context: &AnalysisContext) -> Vec<Finding> {
+    fn evaluate(&self, context: &AnalysisContext) -> Result<Vec<Finding>, Self::Error> {
         let package_path = context.package_path();
         let source_files = context
             .index()
@@ -89,14 +78,8 @@ impl Rule for OrphanedTestRule {
         let mut findings = Vec::new();
 
         for test_file in context.index().test_files() {
-            if is_non_unit_test_path(test_file) {
-                continue;
-            }
-
-            let Some(file_name) = test_file.file_name().and_then(std::ffi::OsStr::to_str) else {
-                continue;
-            };
-            if !is_unit_test_filename(file_name) {
+            let test_file = test_file.path();
+            if is_non_unit_test_path(test_file) || !tq_core::is_python_test_file(test_file) {
                 continue;
             }
 
@@ -108,7 +91,7 @@ impl Rule for OrphanedTestRule {
                 continue;
             }
 
-            if let Ok(finding) = Finding::new(
+            findings.push(Finding::new(
                 self.rule_id.clone(),
                 BuiltinRule::OrphanedTest.default_severity(),
                 format!(
@@ -122,11 +105,9 @@ impl Rule for OrphanedTestRule {
                         .to_owned(),
                 ),
                 None,
-            ) {
-                findings.push(finding);
-            }
+            )?);
         }
 
-        findings
+        Ok(findings)
     }
 }

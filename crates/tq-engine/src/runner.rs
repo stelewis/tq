@@ -1,20 +1,23 @@
 use std::collections::BTreeSet;
 
-use crate::context::path_to_forward_slashes;
+use tq_core::path_to_forward_slashes;
+
 use crate::{AnalysisContext, EngineError, EngineResult, Finding, RuleId, Severity};
 
 pub trait Rule {
+    type Error;
+
     fn rule_id(&self) -> &RuleId;
-    fn evaluate(&self, context: &AnalysisContext) -> Vec<Finding>;
+    fn evaluate(&self, context: &AnalysisContext) -> Result<Vec<Finding>, Self::Error>;
 }
 
 #[derive(Default)]
-pub struct RuleEngine {
-    rules: Vec<Box<dyn Rule>>,
+pub struct RuleEngine<E> {
+    rules: Vec<Box<dyn Rule<Error = E>>>,
 }
 
-impl RuleEngine {
-    pub fn new(rules: Vec<Box<dyn Rule>>) -> Result<Self, EngineError> {
+impl<E> RuleEngine<E> {
+    pub fn new(rules: Vec<Box<dyn Rule<Error = E>>>) -> Result<Self, EngineError> {
         let rule_ids = rules
             .iter()
             .map(|rule| rule.rule_id().clone())
@@ -26,12 +29,11 @@ impl RuleEngine {
         Ok(Self { rules })
     }
 
-    #[must_use]
-    pub fn run(&self, context: &AnalysisContext) -> EngineResult {
+    pub fn run(&self, context: &AnalysisContext) -> Result<EngineResult, E> {
         let mut findings = Vec::new();
 
         for rule in &self.rules {
-            let rule_findings = rule.evaluate(context);
+            let rule_findings = rule.evaluate(context)?;
             findings.extend(
                 rule_findings
                     .iter()
@@ -40,7 +42,7 @@ impl RuleEngine {
         }
 
         findings.sort_by_key(finding_sort_key);
-        EngineResult::new(findings)
+        Ok(EngineResult::new(findings))
     }
 }
 
@@ -54,18 +56,29 @@ pub fn aggregate_results(results: &[EngineResult]) -> EngineResult {
     EngineResult::new(findings)
 }
 
-fn finding_sort_key(finding: &Finding) -> (String, String, u32, Severity, String, usize, String) {
-    (
-        finding
+#[derive(Eq, Ord, PartialEq, PartialOrd)]
+struct FindingOrderKey {
+    target: String,
+    path: String,
+    line: u32,
+    rule_id: String,
+    severity: Severity,
+    message: String,
+    suggestion: Option<String>,
+}
+
+fn finding_sort_key(finding: &Finding) -> FindingOrderKey {
+    FindingOrderKey {
+        target: finding
             .target()
             .map_or_else(String::new, ToString::to_string),
-        path_to_forward_slashes(finding.path()),
-        finding.line().unwrap_or(0),
-        finding.severity(),
-        finding.rule_id().as_str().to_owned(),
-        finding.message().len(),
-        finding.message().to_owned(),
-    )
+        path: path_to_forward_slashes(finding.path()),
+        line: finding.line().unwrap_or(0),
+        rule_id: finding.rule_id().as_str().to_owned(),
+        severity: finding.severity(),
+        message: finding.message().to_owned(),
+        suggestion: finding.suggestion().map(ToOwned::to_owned),
+    }
 }
 
 #[must_use]

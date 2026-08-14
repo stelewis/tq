@@ -7,7 +7,6 @@ fn builtin_rule_docs_cover_the_runtime_rule_registry() {
     let docs = builtin_rule_docs();
     let doc_ids = docs.iter().map(|entry| entry.id).collect::<BTreeSet<_>>();
     let runtime_ids = builtin_rule_ids()
-        .expect("builtin rule ids")
         .into_iter()
         .map(|rule_id| rule_id.to_string())
         .collect::<BTreeSet<_>>();

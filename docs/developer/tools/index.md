@@ -10,10 +10,11 @@ Distribution is through PyPI: the package name is `tqlint` and the installed com
 
 Artifacts are built from the workspace CLI crate through `maturin`.
 
-The product MSRV is Rust 1.94.0. Local and CI commands should use the pinned workspace toolchain unless a workflow explicitly documents a different bootstrap boundary.
+The product MSRV is Rust 1.96. Local and CI commands should use the pinned workspace toolchain unless a workflow explicitly documents a different bootstrap boundary.
 
 ## Guides
 
+- [Developer harness](./dev-harness.md)
 - [Local workflows](./local-workflows.md)
 - [Docs and release tooling](./docs-and-release.md)
 - [CI and automation](./ci.md)
@@ -22,14 +23,13 @@ The product MSRV is Rust 1.94.0. Local and CI commands should use the pinned wor
 ## Core commands
 
 - `cargo check --workspace --all-targets --locked`
-- `cargo fmt --all --check`
-- `cargo clippy --workspace --all-targets --locked -- -D warnings`
-- `cargo test --workspace --locked`
-- `cargo audit`
+- `cargo dev check routine --repo-root .`
+- `cargo dev check all --repo-root .`
+- `cargo dev check --profile full all --repo-root .`
+- `cargo audit -D warnings`
 - `cargo deny check`
-- `cargo outdated --workspace --root-deps-only`
-- `cargo run -p tq-docsgen --locked -- generate all`
-- `cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist`
+- `cargo update --dry-run`
+- `cargo dev release verify-artifacts --dist-dir dist --profile <expected-profile>`
 
 ## Governance
 

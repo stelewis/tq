@@ -11,7 +11,8 @@ use tq_config::{
     CliOverrides, InitModulesMode, QualifierStrategy, RuleId, Severity, TqTargetConfig,
     resolve_tq_config,
 };
-use tq_engine::{RuleEngine, TargetPlanInput, aggregate_results, plan_target_runs};
+use tq_discovery::build_analysis_index;
+use tq_engine::{AnalysisContext, RuleEngine, TargetContext, aggregate_results};
 use tq_reporting::{JsonReporter, TextReporter, TextStyling};
 use tq_rules::{
     BuiltinRuleOptions, BuiltinRuleRegistry, RuleSelection, validate_severity_override_rule_ids,
@@ -22,8 +23,7 @@ use crate::error::{CliError, Result};
 fn validate_active_targets(targets: &[TqTargetConfig]) -> Result<()> {
     for target in targets {
         validate_target_paths(target)?;
-        validate_severity_override_rule_ids(target.severity_overrides())
-            .map_err(|error| CliError::validation(error.to_string()))?;
+        validate_severity_override_rule_ids(target.severity_overrides())?;
     }
 
     Ok(())
@@ -66,18 +66,38 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
     }
 
     let cwd = std::env::current_dir().map_err(|error| CliError::from_current_dir(&error))?;
+    let user_config_path = default_user_config_path();
     let overrides = build_cli_overrides(args)?;
-    let config = resolve_tq_config(&cwd, args.config.as_deref(), args.isolated, &overrides)?;
+    let config = resolve_tq_config(
+        &cwd,
+        args.config.as_deref(),
+        args.isolated,
+        user_config_path.as_deref(),
+        &overrides,
+    )?;
 
     let active_targets = select_targets(config.targets(), &args.target_names)?;
     validate_active_targets(&active_targets)?;
 
-    let configured_targets = build_target_inputs(config.targets())?;
-    let active_target_inputs = build_target_inputs(&active_targets)?;
-    let planned_runs = plan_target_runs(&configured_targets, &active_target_inputs)?;
+    let known_target_package_paths = config
+        .targets()
+        .iter()
+        .map(|target| target.package_path().clone())
+        .collect::<Vec<_>>();
+    let mut target_results = Vec::with_capacity(active_targets.len());
+    for target_config in &active_targets {
+        let index = build_analysis_index(
+            &target_config.source_package_root(),
+            target_config.test_root(),
+        )?;
+        let target_context = TargetContext::new(
+            target_config.name().clone(),
+            target_config.package_path().clone(),
+            known_target_package_paths.clone(),
+            target_config.test_root_display().to_path_buf(),
+        );
+        let analysis_context = AnalysisContext::with_target(index, target_context);
 
-    let mut target_results = Vec::with_capacity(planned_runs.len());
-    for (target_config, planned_run) in active_targets.iter().zip(planned_runs) {
         let options = BuiltinRuleOptions::new(
             target_config.init_modules(),
             target_config.max_test_file_non_blank_lines(),
@@ -91,7 +111,7 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
         let rules = BuiltinRuleRegistry::build_rules(&selection, &options)?;
         let engine = RuleEngine::new(rules)?;
         let result = engine
-            .run(planned_run.context())
+            .run(&analysis_context)?
             .with_severity_overrides(target_config.severity_overrides());
         target_results.push(result);
     }
@@ -121,6 +141,18 @@ fn terminal_text_styling(is_terminal: bool) -> TextStyling {
     TextStyling::enabled(is_terminal && std::env::var_os("NO_COLOR").is_none())
 }
 
+/// The conventional user-level config location, derived from `HOME` at the
+/// composition root so the config crate stays free of ambient environment
+/// access.
+fn default_user_config_path() -> Option<std::path::PathBuf> {
+    std::env::var_os("HOME").map(|home| {
+        std::path::Path::new(&home)
+            .join(".config")
+            .join("tq")
+            .join("pyproject.toml")
+    })
+}
+
 fn build_cli_overrides(args: &CheckArgs) -> Result<CliOverrides> {
     Ok(CliOverrides::new()
         .with_init_modules(args.init_modules.map(map_init_module_mode))
@@ -144,12 +176,10 @@ fn parse_cli_rule_ids(values: &[String]) -> Result<Option<Vec<RuleId>>> {
     let mut seen = BTreeSet::new();
     for value in values {
         let rule_id =
-            RuleId::parse(value).map_err(|error| CliError::validation(error.to_string()))?;
+            RuleId::parse(value).map_err(|error| CliError::invalid_rule_id(value, error))?;
         let rendered = rule_id.to_string();
         if !seen.insert(rendered.clone()) {
-            return Err(CliError::validation(format!(
-                "Duplicate rule ID in CLI values: {rendered}"
-            )));
+            return Err(CliError::duplicate_cli_rule_id(rendered));
         }
         parsed.push(rule_id);
     }
@@ -176,26 +206,19 @@ fn select_targets(
         .cloned()
         .collect::<BTreeSet<_>>();
     if !unknown_names.is_empty() {
-        return Err(CliError::validation(format!(
-            "Unknown target name(s): {}",
-            unknown_names.into_iter().collect::<Vec<_>>().join(", ")
-        )));
+        return Err(CliError::UnknownTargetNames {
+            names: unknown_names.into_iter().collect::<Vec<_>>().join(", "),
+        });
     }
 
     let mut selected = Vec::new();
     let mut seen = BTreeSet::new();
     for name in selected_target_names {
-        if !seen.insert(name.clone()) {
-            continue;
+        if seen.insert(name.clone())
+            && let Some(target) = by_name.get(name.as_str())
+        {
+            selected.push((*target).clone());
         }
-
-        let Some(target) = by_name.get(name.as_str()) else {
-            return Err(CliError::validation(format!(
-                "target selection became inconsistent after validation: {name}"
-            )));
-        };
-
-        selected.push((*target).clone());
     }
 
     Ok(selected)
@@ -218,21 +241,6 @@ fn validate_target_paths(target: &TqTargetConfig) -> Result<()> {
     }
 
     Ok(())
-}
-
-fn build_target_inputs(targets: &[TqTargetConfig]) -> Result<Vec<TargetPlanInput>> {
-    targets
-        .iter()
-        .map(|target| {
-            Ok(TargetPlanInput::new(
-                target.name().clone(),
-                target.package_path().clone(),
-                target.source_package_root(),
-                target.test_root().to_path_buf(),
-                target.test_root_display().to_path_buf(),
-            ))
-        })
-        .collect()
 }
 
 const fn map_cli_qualifier_strategy(strategy: QualifierStrategyArg) -> QualifierStrategy {
@@ -267,25 +275,22 @@ fn parse_cli_severity_overrides(values: &[String]) -> Result<Option<BTreeMap<Rul
     let mut seen = BTreeSet::new();
     for value in values {
         let Some((rule_id_str, severity_str)) = value.split_once('=') else {
-            return Err(CliError::validation(format!(
-                "Invalid --severity value '{value}': expected RULE_ID=SEVERITY"
-            )));
+            return Err(CliError::MalformedSeverityOverride {
+                value: value.clone(),
+            });
         };
 
-        let rule_id =
-            RuleId::parse(rule_id_str).map_err(|error| CliError::validation(error.to_string()))?;
+        let rule_id = RuleId::parse(rule_id_str)
+            .map_err(|error| CliError::invalid_rule_id(rule_id_str, error))?;
 
-        let severity = Severity::parse(severity_str).ok_or_else(|| {
-            CliError::validation(format!(
-                "Invalid severity '{severity_str}' in --severity {value}: expected error, warning, or info"
-            ))
+        let severity = Severity::parse(severity_str).ok_or_else(|| CliError::UnknownSeverity {
+            severity: severity_str.to_owned(),
+            value: value.clone(),
         })?;
 
         let rendered = rule_id.to_string();
         if !seen.insert(rendered.clone()) {
-            return Err(CliError::validation(format!(
-                "Duplicate rule ID in CLI values: {rendered}"
-            )));
+            return Err(CliError::duplicate_cli_rule_id(rendered));
         }
         overrides.insert(rule_id, severity);
     }

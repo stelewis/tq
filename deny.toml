@@ -17,6 +17,7 @@ allow = [
 [bans]
 multiple-versions = "allow"
 wildcards = "deny"
+allow-wildcard-paths = true
 deny = [
   { crate = "serde_yaml", reason = "deprecated upstream", use-instead = "workspace JSON manifests or a crate-local strict parser" },
   { crate = "serde_yml", reason = "unsound and unmaintained", use-instead = "workspace JSON manifests or a crate-local strict parser" },

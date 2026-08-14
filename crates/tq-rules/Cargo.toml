@@ -6,17 +6,18 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 readme.workspace = true
+publish.workspace = true
 description = "Built-in rule implementations and selection logic for tq"
 exclude = ["tests/**"]
 
 [dependencies]
 thiserror.workspace = true
 tq-core.workspace = true
+tq-discovery.workspace = true
 tq-engine.workspace = true
 
 [dev-dependencies]
 tempfile = "3.27.0"
-tq-discovery.workspace = true
 
 [lints]
 workspace = true

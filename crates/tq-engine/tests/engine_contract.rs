@@ -2,10 +2,10 @@ use std::path::{Path, PathBuf};
 
 use tempfile::tempdir;
 use tq_core::{RelativePathBuf, TargetName};
-use tq_discovery::AnalysisIndex;
+use tq_discovery::{AnalysisIndex, AnalyzedTestFile};
 use tq_engine::{
     AnalysisContext, EngineError, EngineResult, Finding, Rule, RuleEngine, RuleId, Severity,
-    TargetPlanInput, aggregate_results, plan_target_runs,
+    TargetContext, aggregate_results,
 };
 
 struct NoFindingRule {
@@ -21,12 +21,14 @@ impl NoFindingRule {
 }
 
 impl Rule for NoFindingRule {
+    type Error = EngineError;
+
     fn rule_id(&self) -> &RuleId {
         &self.rule_id
     }
 
-    fn evaluate(&self, _context: &AnalysisContext) -> Vec<Finding> {
-        Vec::new()
+    fn evaluate(&self, _context: &AnalysisContext) -> Result<Vec<Finding>, Self::Error> {
+        Ok(Vec::new())
     }
 }
 
@@ -43,12 +45,14 @@ impl MixedRuleA {
 }
 
 impl Rule for MixedRuleA {
+    type Error = EngineError;
+
     fn rule_id(&self) -> &RuleId {
         &self.rule_id
     }
 
-    fn evaluate(&self, _context: &AnalysisContext) -> Vec<Finding> {
-        vec![
+    fn evaluate(&self, _context: &AnalysisContext) -> Result<Vec<Finding>, Self::Error> {
+        Ok(vec![
             Finding::new(
                 self.rule_id.clone(),
                 Severity::Warning,
@@ -57,8 +61,7 @@ impl Rule for MixedRuleA {
                 Some(12),
                 None,
                 None,
-            )
-            .expect("valid finding"),
+            )?,
             Finding::new(
                 self.rule_id.clone(),
                 Severity::Error,
@@ -67,9 +70,8 @@ impl Rule for MixedRuleA {
                 Some(4),
                 None,
                 None,
-            )
-            .expect("valid finding"),
-        ]
+            )?,
+        ])
     }
 }
 
@@ -98,12 +100,14 @@ impl DuplicateRuleA {
 }
 
 impl Rule for DuplicateRuleA {
+    type Error = EngineError;
+
     fn rule_id(&self) -> &RuleId {
         &self.rule_id
     }
 
-    fn evaluate(&self, _context: &AnalysisContext) -> Vec<Finding> {
-        Vec::new()
+    fn evaluate(&self, _context: &AnalysisContext) -> Result<Vec<Finding>, Self::Error> {
+        Ok(Vec::new())
     }
 }
 
@@ -120,40 +124,77 @@ impl DuplicateRuleB {
 }
 
 impl Rule for DuplicateRuleB {
+    type Error = EngineError;
+
     fn rule_id(&self) -> &RuleId {
         &self.rule_id
     }
 
-    fn evaluate(&self, _context: &AnalysisContext) -> Vec<Finding> {
-        Vec::new()
+    fn evaluate(&self, _context: &AnalysisContext) -> Result<Vec<Finding>, Self::Error> {
+        Ok(Vec::new())
     }
 }
 
 impl Rule for MixedRuleB {
+    type Error = EngineError;
+
     fn rule_id(&self) -> &RuleId {
         &self.rule_id
     }
 
-    fn evaluate(&self, _context: &AnalysisContext) -> Vec<Finding> {
-        vec![
-            Finding::new(
-                self.rule_id.clone(),
-                Severity::Info,
-                "info same path",
-                PathBuf::from("tests/tq/test_alpha.py"),
-                Some(2),
-                None,
-                None,
-            )
-            .expect("valid finding"),
-        ]
+    fn evaluate(&self, _context: &AnalysisContext) -> Result<Vec<Finding>, Self::Error> {
+        Ok(vec![Finding::new(
+            self.rule_id.clone(),
+            Severity::Info,
+            "info same path",
+            PathBuf::from("tests/tq/test_alpha.py"),
+            Some(2),
+            None,
+            None,
+        )?])
     }
 }
 
-fn write(path: &Path) {
-    std::fs::create_dir_all(path.parent().expect("parent path must exist"))
-        .expect("create parent directories");
-    std::fs::write(path, "pass\n").expect("write fixture file");
+struct InvalidFindingRule {
+    rule_id: RuleId,
+}
+
+impl InvalidFindingRule {
+    fn new() -> Self {
+        Self {
+            rule_id: RuleId::parse("invalid-finding").expect("valid rule id"),
+        }
+    }
+}
+
+impl Rule for InvalidFindingRule {
+    type Error = EngineError;
+
+    fn rule_id(&self) -> &RuleId {
+        &self.rule_id
+    }
+
+    fn evaluate(&self, _context: &AnalysisContext) -> Result<Vec<Finding>, Self::Error> {
+        let _valid_finding = Finding::new(
+            self.rule_id.clone(),
+            Severity::Warning,
+            "valid finding before failure",
+            PathBuf::from("tests/tq/test_alpha.py"),
+            None,
+            None,
+            None,
+        )?;
+        let invalid_finding = Finding::new(
+            self.rule_id.clone(),
+            Severity::Error,
+            "",
+            PathBuf::from("tests/tq/test_beta.py"),
+            None,
+            None,
+            None,
+        )?;
+        Ok(vec![invalid_finding])
+    }
 }
 
 fn test_context() -> AnalysisContext {
@@ -167,7 +208,7 @@ fn test_context() -> AnalysisContext {
         &source_root,
         &test_root,
         vec![PathBuf::from("foo.py")],
-        vec![PathBuf::from("tq/test_foo.py")],
+        vec![AnalyzedTestFile::new(PathBuf::from("tq/test_foo.py"), 0)],
     )
     .expect("index should be created");
 
@@ -177,9 +218,10 @@ fn test_context() -> AnalysisContext {
 #[test]
 fn engine_no_rules_returns_empty_result() {
     let context = test_context();
-    let engine = RuleEngine::new(Vec::new()).expect("engine should allow empty rule list");
+    let engine =
+        RuleEngine::<EngineError>::new(Vec::new()).expect("engine should allow empty rule list");
 
-    let result = engine.run(&context);
+    let result = engine.run(&context).expect("empty engine should run");
 
     assert!(result.findings().is_empty());
     assert_eq!(result.summary().errors(), 0);
@@ -207,7 +249,7 @@ fn engine_aggregates_and_sorts_findings_deterministically() {
     ])
     .expect("engine should accept unique rule ids");
 
-    let result = engine.run(&context);
+    let result = engine.run(&context).expect("rules should evaluate");
 
     let found_paths = result
         .findings()
@@ -242,7 +284,7 @@ fn engine_executes_rule_instances() {
     ])
     .expect("engine should accept unique rule ids");
 
-    let result = engine.run(&context);
+    let result = engine.run(&context).expect("rules should evaluate");
 
     assert_eq!(result.findings().len(), 1);
     assert_eq!(
@@ -254,12 +296,18 @@ fn engine_executes_rule_instances() {
 #[test]
 fn aggregate_results_merges_and_sorts_findings() {
     let context = test_context();
-    let result_a = RuleEngine::new(vec![Box::new(MixedRuleA::new())])
-        .expect("engine should accept unique rule ids")
-        .run(&context);
-    let result_b = RuleEngine::new(vec![Box::new(MixedRuleB::new())])
-        .expect("engine should accept unique rule ids")
-        .run(&context);
+    let result_a = RuleEngine::new(vec![
+        Box::new(MixedRuleA::new()) as Box<dyn Rule<Error = EngineError>>
+    ])
+    .expect("engine should accept unique rule ids")
+    .run(&context)
+    .expect("rule should evaluate");
+    let result_b = RuleEngine::new(vec![
+        Box::new(MixedRuleB::new()) as Box<dyn Rule<Error = EngineError>>
+    ])
+    .expect("engine should accept unique rule ids")
+    .run(&context)
+    .expect("rule should evaluate");
 
     let merged: EngineResult = aggregate_results(&[result_b, result_a]);
 
@@ -283,9 +331,84 @@ fn aggregate_results_merges_and_sorts_findings() {
 }
 
 #[test]
+fn aggregate_results_uses_domain_stable_finding_order() {
+    let path = PathBuf::from("tests/tq/test_alpha.py");
+    let findings = vec![
+        Finding::new(
+            RuleId::parse("rule-b").expect("valid rule id"),
+            Severity::Info,
+            "a",
+            path.clone(),
+            Some(3),
+            Some("second suggestion".to_owned()),
+            None,
+        )
+        .expect("valid finding"),
+        Finding::new(
+            RuleId::parse("rule-a").expect("valid rule id"),
+            Severity::Warning,
+            "longer message",
+            path.clone(),
+            Some(3),
+            None,
+            None,
+        )
+        .expect("valid finding"),
+        Finding::new(
+            RuleId::parse("rule-b").expect("valid rule id"),
+            Severity::Info,
+            "a",
+            path,
+            Some(3),
+            Some("first suggestion".to_owned()),
+            None,
+        )
+        .expect("valid finding"),
+    ];
+
+    let merged = aggregate_results(&[EngineResult::new(findings)]);
+    let ordered = merged
+        .findings()
+        .iter()
+        .map(|finding| {
+            (
+                finding.rule_id().as_str(),
+                finding.message(),
+                finding.suggestion(),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(
+        ordered,
+        vec![
+            ("rule-a", "longer message", None),
+            ("rule-b", "a", Some("first suggestion")),
+            ("rule-b", "a", Some("second suggestion")),
+        ]
+    );
+}
+
+#[test]
+fn engine_propagates_rule_errors_without_partial_results() {
+    let context = test_context();
+    let engine = RuleEngine::new(vec![
+        Box::new(MixedRuleA::new()) as Box<dyn Rule<Error = EngineError>>,
+        Box::new(InvalidFindingRule::new()),
+    ])
+    .expect("engine should accept unique rule ids");
+
+    let error = engine
+        .run(&context)
+        .expect_err("invalid finding must fail the complete rule run");
+
+    assert!(matches!(error, EngineError::EmptyFindingMessage));
+}
+
+#[test]
 fn engine_rejects_duplicate_rule_ids_at_construction() {
     let result = RuleEngine::new(vec![
-        Box::new(DuplicateRuleA::new()),
+        Box::new(DuplicateRuleA::new()) as Box<dyn Rule<Error = EngineError>>,
         Box::new(DuplicateRuleB::new()),
     ]);
 
@@ -329,120 +452,28 @@ fn finding_rejects_non_positive_line_with_typed_error() {
 }
 
 #[test]
-fn plan_target_runs_creates_context_per_active_target() {
-    let temp = tempdir().expect("tempdir");
-
-    write(&temp.path().join("src").join("tq").join("module.py"));
-    write(&temp.path().join("tests").join("tq").join("test_module.py"));
-
-    let target = TargetPlanInput::new(
-        TargetName::parse("tq").expect("target name should parse"),
-        RelativePathBuf::new("tq").expect("package path should parse"),
-        temp.path().join("src").join("tq"),
-        temp.path().join("tests"),
-        PathBuf::from("tests"),
-    );
-
-    let planned = plan_target_runs(std::slice::from_ref(&target), std::slice::from_ref(&target))
-        .expect("planning should succeed");
-
-    assert_eq!(planned.len(), 1);
-    let target_context = planned[0]
-        .context()
-        .target()
-        .expect("planner must attach target context");
-    assert_eq!(target_context.name().as_str(), "tq");
-    assert_eq!(target_context.package_path().as_path(), Path::new("tq"));
-    assert_eq!(target_context.test_root_display(), Path::new("tests"));
-    assert_eq!(
-        target_context.known_target_package_paths(),
-        &[RelativePathBuf::new("tq").expect("package path should parse")]
-    );
-}
-
-#[test]
-fn plan_target_runs_preserves_nested_test_root_display() {
-    let temp = tempdir().expect("tempdir");
-
-    write(&temp.path().join("src").join("tq").join("module.py"));
-    write(
-        &temp
-            .path()
-            .join("python")
-            .join("tests")
-            .join("tq")
-            .join("test_module.py"),
-    );
-
-    let target = TargetPlanInput::new(
-        TargetName::parse("tq").expect("target name should parse"),
-        RelativePathBuf::new("tq").expect("package path should parse"),
-        temp.path().join("src").join("tq"),
-        temp.path().join("python").join("tests"),
+fn analysis_context_uses_prebuilt_target_metadata() {
+    let context = test_context();
+    let index = context.index().clone();
+    let target = TargetContext::new(
+        TargetName::parse("scripts").expect("target name should parse"),
+        RelativePathBuf::new("scripts/docs").expect("package path should parse"),
+        vec![
+            RelativePathBuf::new("tq").expect("package path should parse"),
+            RelativePathBuf::new("scripts/docs").expect("package path should parse"),
+        ],
         PathBuf::from("python/tests"),
     );
 
-    let planned = plan_target_runs(std::slice::from_ref(&target), std::slice::from_ref(&target))
-        .expect("planning should succeed");
+    let context = AnalysisContext::with_target(index, target);
 
+    assert_eq!(context.package_path(), Path::new("scripts/docs"));
+    assert_eq!(context.test_root_display(), Path::new("python/tests"));
     assert_eq!(
-        planned[0]
-            .context()
-            .target()
-            .expect("planner must attach target context")
-            .test_root_display(),
-        Path::new("python/tests")
-    );
-}
-
-#[test]
-fn plan_target_runs_uses_configured_targets_for_known_paths() {
-    let temp = tempdir().expect("tempdir");
-
-    write(&temp.path().join("src").join("tq").join("module.py"));
-    write(&temp.path().join("tests").join("tq").join("test_module.py"));
-    write(&temp.path().join("scripts").join("docs").join("generate.py"));
-    write(
-        &temp
-            .path()
-            .join("tests")
-            .join("scripts")
-            .join("docs")
-            .join("test_generate.py"),
-    );
-
-    let tq_target = TargetPlanInput::new(
-        TargetName::parse("tq").expect("target name should parse"),
-        RelativePathBuf::new("tq").expect("package path should parse"),
-        temp.path().join("src").join("tq"),
-        temp.path().join("tests"),
-        PathBuf::from("tests"),
-    );
-    let scripts_target = TargetPlanInput::new(
-        TargetName::parse("scripts").expect("target name should parse"),
-        RelativePathBuf::new("scripts").expect("package path should parse"),
-        temp.path().join("scripts"),
-        temp.path().join("tests"),
-        PathBuf::from("tests"),
-    );
-
-    let planned = plan_target_runs(
-        &[tq_target, scripts_target.clone()],
-        std::slice::from_ref(&scripts_target),
-    )
-    .expect("planning should succeed");
-
-    assert_eq!(planned.len(), 1);
-    let target_context = planned[0]
-        .context()
-        .target()
-        .expect("planner must attach target context");
-    assert_eq!(target_context.name().as_str(), "scripts");
-    assert_eq!(
-        target_context.known_target_package_paths(),
+        context.known_target_package_paths(),
         &[
             RelativePathBuf::new("tq").expect("package path should parse"),
-            RelativePathBuf::new("scripts").expect("package path should parse"),
+            RelativePathBuf::new("scripts/docs").expect("package path should parse"),
         ]
     );
 }

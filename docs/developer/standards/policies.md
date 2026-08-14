@@ -51,7 +51,7 @@ Required coverage:
 
 Enforcement:
 
-- CI runs `cargo run -p tq-release --locked -- verify-dependabot --repo-root .`
+- CI runs `cargo dev policy verify-dependabot --repo-root .`
 
 Why this matters:
 
@@ -82,8 +82,8 @@ Rust advisory and dependency-policy scans must run on a weekly schedule and on d
 
 Enforcement:
 
-- the scheduled workflow runs `cargo audit` and `cargo deny check` weekly and on demand.
-- the main CI workflow reruns `cargo audit` and `cargo deny check` when `Cargo.lock`, any `Cargo.toml`, `deny.toml`, or the Rust security workflow and action definitions change.
+- the scheduled workflow runs `cargo audit -D warnings` and `cargo deny check` weekly and on demand.
+- the main CI workflow reruns both scanners when `Cargo.lock`, any `Cargo.toml`, `deny.toml`, or the Rust security workflow and action definitions change.
 
 Why this matters:
 
@@ -101,7 +101,7 @@ Docs toolchain advisory scans must run on a weekly schedule and on demand, with 
 Enforcement:
 
 - the scheduled workflow runs `npm audit --package-lock-only` weekly and on demand.
-- the main CI workflow reruns `npm audit --package-lock-only` when `package.json`, `package-lock.json`, `mise.toml`, or the docs-toolchain workflow and action definitions change.
+- the main CI workflow reruns `npm audit --package-lock-only` when `package.json`, `package-lock.json`, or the docs-toolchain workflow and action definitions change.
 
 Why this matters:
 
@@ -139,7 +139,7 @@ Forbidden repository paths in wheel and sdist artifacts:
 
 Enforcement:
 
-- CI and publish checks run `cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist`
+- CI and publish checks run `cargo dev release verify-artifacts --dist-dir dist --profile <expected-profile>` to validate the expected artifact topology and archive contents together
 
 Why this matters:
 

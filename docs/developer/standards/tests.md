@@ -25,7 +25,7 @@ Keep tests:
 
 ### Cross-crate workflows
 
-- Put end-to-end or composition-root workflows in the crate that owns that workflow, usually `tq-cli`, `tq-docsgen`, or `tq-release`.
+- Put end-to-end or composition-root workflows in the crate that owns that workflow, usually `tq-cli`, `tq-docsgen`, or `tq-dev`.
 - Do not create repository-root test grab bags that bypass crate ownership.
 
 ## Structure Rules

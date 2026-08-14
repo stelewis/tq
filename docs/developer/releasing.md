@@ -21,34 +21,29 @@ Publishing is handled by the [publish workflow](https://github.com/stelewis/tq/b
 The workflow performs:
 
 - download of the validated wheels and sdist produced by the successful tag CI run
-- promotion of artifacts that were built in an unprivileged CI job and attested in a separate tag-only CI job
+- promotion of artifacts built and fully validated in unprivileged CI, then attested in a checkout-free tag-only job
 - verification of the CI-generated artifact attestations
-- artifact content policy validation via `tq-release`
-- package metadata validation (`twine check dist/*`)
-- smoke checks against the validated Linux wheel and sdist entrypoints
-- fixture smoke validation with the validated Linux wheel
+- checkout-free, read-only package metadata and artifact smoke validation
+- a minimal privileged job that reverifies attestations and tag binding before trusted publishing
 - trusted publish with `uv publish` on tag-triggered runs
-- post-publish smoke validation via `uvx --from tqlint tq`
-- consumer provenance verification against the PyPI Linux wheel
+- checkout-free post-publish smoke and consumer provenance verification without publish credentials
 - GitHub release upload for wheels, sdist, and checksums
 
 Dry-run validation happens in local release checks and in the tag-triggered CI build path before the publish workflow is allowed to promote artifacts.
 
+The publish workflow never checks out or executes the triggering revision. Source-owned release policy, archive-content validation, and build smoke checks run in unprivileged CI before `validated-dist` is attested. The follow-on workflow separates read-only candidate execution, credentialed publication, and read-only consumer verification into distinct jobs.
+
 Publishing runs in the `pypi` GitHub Actions environment. This environment must be configured with required reviewers for manual approval before publish runs.
+
+Repository rules must also keep the active `Immutable tags` ruleset enabled for all tags, with no bypass actors and both update and deletion restrictions. The publish workflow verifies that remote policy before resolving a release candidate and rechecks the release tag binding immediately before PyPI publication and GitHub release creation.
 
 ## Maintainer checklist
 
 1. Ensure `CHANGELOG.md` and version are ready.
 2. Run the local validation commands:
-   - `cargo fmt --all --check`
-   - `cargo clippy --workspace --all-targets --locked -- -D warnings`
-   - `cargo test --workspace --locked`
-   - `cargo run -p tq-docsgen --locked -- generate all`
-   - `cargo run -p tq-release --locked -- verify-release-policy --repo-root .`
-   - `cargo package --workspace --locked`
-   - `mise run release-build`
+   - `cargo dev check --profile full all --repo-root .`
 3. Create and push a signed release tag.
-4. Confirm the tag-triggered CI run completes, including the tag-only artifact attestation job.
+4. Confirm the tag-triggered CI run completes, including the read-only full-set validation and checkout-free attestation jobs.
 5. Approve the pending `pypi` environment deployment in GitHub Actions.
 6. Confirm publish workflow success.
 7. Verify install paths in a clean environment:
@@ -56,13 +51,13 @@ Publishing runs in the `pypi` GitHub Actions environment. This environment must 
    - `uvx --from tqlint tq check --help`
    - `uv tool install tqlint && tq --help`
 
-`mise run release-build` validates the source distribution plus a host-platform wheel. The full publishable artifact set is built in CI as Linux x86_64, macOS x86_64, macOS arm64, Windows x86_64 wheels, and the source distribution.
+`cargo dev check --profile full all` validates the source distribution plus a host-platform wheel. The full publishable artifact set is built in CI as Linux x86_64, macOS x86_64, macOS arm64, Windows x86_64 wheels, and the source distribution.
 
 ## Rollback guidance
 
 - If publish fails before upload, fix workflow and re-run.
 - If a bad version is published, publish a corrected patch release.
-- Avoid deleting artifacts once consumed; prefer forward fix releases.
+- Release tags and published artifacts are immutable; recover with a forward fix release.
 
 ## Versioning when tag-triggered publish fails
 

@@ -8,13 +8,9 @@ Describe what this PR changes and why.
 
 ## Validation
 
-- [ ] `cargo fmt --all --check`
-- [ ] `cargo clippy --workspace --all-targets --locked -- -D warnings`
-- [ ] `cargo test --workspace --locked`
-- [ ] `cargo run -p tq-docsgen --locked -- generate all`
-- [ ] `cargo run -p tq-release --locked -- verify-release-policy --repo-root .`
-- [ ] `cargo package --workspace --locked`
-- [ ] `mise run release-build`
+- [ ] `cargo dev check routine --repo-root .`
+- [ ] `cargo dev check all --repo-root .`
+- [ ] `cargo dev check --profile full all --repo-root .`
 
 ## Notes
 

@@ -1,7 +1,8 @@
 use std::collections::BTreeSet;
+use std::num::NonZeroU64;
 use std::path::Path;
 
-use tq_core::{InitModulesMode, QualifierStrategy, RuleId};
+use tq_core::{DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES, InitModulesMode, QualifierStrategy, RuleId};
 use tq_engine::Rule;
 
 use crate::error::RulesError;
@@ -40,8 +41,8 @@ impl BuiltinRule {
         self.doc().default_severity
     }
 
-    pub(crate) fn rule_id(self) -> Result<RuleId, RulesError> {
-        parse_builtin_rule_id(self.as_str())
+    pub(crate) const fn rule_id(self) -> RuleId {
+        RuleId::from_static(self.as_str())
     }
 
     #[must_use]
@@ -65,17 +66,20 @@ impl BuiltinRule {
         }
     }
 
-    fn build(self, options: &BuiltinRuleOptions) -> Result<Box<dyn Rule>, RulesError> {
+    fn build(
+        self,
+        options: &BuiltinRuleOptions,
+    ) -> Result<Box<dyn Rule<Error = RulesError>>, RulesError> {
         match self {
             Self::MappingMissingTest => Ok(Box::new(MappingMissingTestRule::new(
                 options.init_modules(),
                 options.qualifier_strategy(),
                 options.allowed_qualifiers().clone(),
             )?)),
-            Self::StructureMismatch => Ok(Box::new(StructureMismatchRule::new()?)),
+            Self::StructureMismatch => Ok(Box::new(StructureMismatchRule::new())),
             Self::TestFileTooLarge => Ok(Box::new(TestFileTooLargeRule::new(
                 options.max_test_file_non_blank_lines(),
-            )?)),
+            ))),
             Self::OrphanedTest => Ok(Box::new(OrphanedTestRule::new(
                 options.qualifier_strategy(),
                 options.allowed_qualifiers().clone(),
@@ -87,7 +91,7 @@ impl BuiltinRule {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct BuiltinRuleOptions {
     init_modules: InitModulesMode,
-    max_test_file_non_blank_lines: u64,
+    max_test_file_non_blank_lines: NonZeroU64,
     qualifier_strategy: QualifierStrategy,
     allowed_qualifiers: BTreeSet<String>,
 }
@@ -95,16 +99,10 @@ pub struct BuiltinRuleOptions {
 impl BuiltinRuleOptions {
     pub fn new(
         init_modules: InitModulesMode,
-        max_test_file_non_blank_lines: u64,
+        max_test_file_non_blank_lines: NonZeroU64,
         qualifier_strategy: QualifierStrategy,
         allowed_qualifiers: impl IntoIterator<Item = String>,
     ) -> Result<Self, RulesError> {
-        if max_test_file_non_blank_lines < 1 {
-            return Err(RulesError::value_must_be_positive(
-                "max_test_file_non_blank_lines",
-            ));
-        }
-
         let allowed_qualifiers = normalize_non_empty_trimmed_strings(allowed_qualifiers);
         if qualifier_strategy == QualifierStrategy::Allowlist && allowed_qualifiers.is_empty() {
             return Err(RulesError::allowlist_requires_qualifiers());
@@ -124,7 +122,7 @@ impl BuiltinRuleOptions {
     }
 
     #[must_use]
-    pub const fn max_test_file_non_blank_lines(&self) -> u64 {
+    pub const fn max_test_file_non_blank_lines(&self) -> NonZeroU64 {
         self.max_test_file_non_blank_lines
     }
 
@@ -143,7 +141,7 @@ impl Default for BuiltinRuleOptions {
     fn default() -> Self {
         Self {
             init_modules: InitModulesMode::Include,
-            max_test_file_non_blank_lines: 600,
+            max_test_file_non_blank_lines: DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES,
             qualifier_strategy: QualifierStrategy::AnySuffix,
             allowed_qualifiers: BTreeSet::new(),
         }
@@ -179,10 +177,11 @@ impl BuiltinRuleRegistry {
     pub fn build_rules(
         selection: &RuleSelection,
         options: &BuiltinRuleOptions,
-    ) -> Result<Vec<Box<dyn Rule>>, RulesError> {
+    ) -> Result<Vec<Box<dyn Rule<Error = RulesError>>>, RulesError> {
         let active_rules = resolve_active_rules(selection)?;
 
-        let mut rules: Vec<Box<dyn Rule>> = Vec::with_capacity(active_rules.len());
+        let mut rules: Vec<Box<dyn Rule<Error = RulesError>>> =
+            Vec::with_capacity(active_rules.len());
         for builtin_rule in active_rules {
             rules.push(builtin_rule.build(options)?);
         }
@@ -205,7 +204,7 @@ pub fn validate_severity_override_rule_ids(
     Ok(())
 }
 
-pub fn builtin_rule_ids() -> Result<Vec<RuleId>, RulesError> {
+pub fn builtin_rule_ids() -> Vec<RuleId> {
     BuiltinRule::ALL
         .into_iter()
         .map(BuiltinRule::rule_id)
@@ -213,10 +212,10 @@ pub fn builtin_rule_ids() -> Result<Vec<RuleId>, RulesError> {
 }
 
 pub fn resolve_active_rule_ids(selection: &RuleSelection) -> Result<Vec<RuleId>, RulesError> {
-    resolve_active_rules(selection)?
+    Ok(resolve_active_rules(selection)?
         .into_iter()
         .map(BuiltinRule::rule_id)
-        .collect::<Result<Vec<_>, _>>()
+        .collect())
 }
 
 fn resolve_active_rules(selection: &RuleSelection) -> Result<Vec<BuiltinRule>, RulesError> {
@@ -267,10 +266,6 @@ fn normalize_non_empty_trimmed_strings(
         .collect()
 }
 
-pub fn parse_builtin_rule_id(value: &'static str) -> Result<RuleId, RulesError> {
-    RuleId::parse(value).map_err(|source| RulesError::invalid_builtin_rule_id(value, source))
-}
-
 #[must_use]
 pub fn starts_with_path_prefix(test_file: &Path, prefix: &Path) -> bool {
     let prefix_parts = prefix.components().collect::<Vec<_>>();
@@ -290,17 +285,4 @@ pub fn is_non_unit_test_path(test_file: &Path) -> bool {
             .to_str()
             .is_some_and(|segment| segment == "integration" || segment == "e2e")
     })
-}
-
-#[must_use]
-pub fn is_unit_test_filename(file_name: &str) -> bool {
-    file_name.starts_with("test_")
-        && Path::new(file_name)
-            .extension()
-            .is_some_and(|extension| extension.eq_ignore_ascii_case("py"))
-}
-
-#[must_use]
-pub fn path_to_forward_slashes(path: &Path) -> String {
-    path.to_string_lossy().replace('\\', "/")
 }

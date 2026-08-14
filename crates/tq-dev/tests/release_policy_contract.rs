@@ -1,0 +1,222 @@
+use std::fs;
+use std::path::Path;
+
+fn write(path: &Path, contents: &str) {
+    fs::create_dir_all(path.parent().expect("parent path must exist"))
+        .expect("create parent directories");
+    fs::write(path, contents).expect("write file");
+}
+
+#[test]
+fn verify_release_policy_passes_when_workspace_and_dependabot_policies_pass() {
+    let temp = tempfile::tempdir().expect("tempdir");
+
+    write(
+        &temp.path().join("Cargo.toml"),
+        concat!(
+            "[workspace]\n",
+            "members = [\"crates/tq-core\"]\n",
+            "\n",
+            "[workspace.package]\n",
+            "version = \"0.7.0\"\n",
+            "rust-version = \"1.96\"\n",
+            "publish = false\n",
+            "\n",
+            "[workspace.dependencies]\n",
+            "tq-core = { path = \"crates/tq-core\" }\n",
+        ),
+    );
+    write(
+        &temp.path().join("CHANGELOG.md"),
+        concat!(
+            "# Changelog\n\n",
+            "## [0.7.0] - 2026-04-06\n\n",
+            "### Changed\n\n",
+            "- Example\n",
+        ),
+    );
+    write(
+        &temp.path().join("crates/tq-core/Cargo.toml"),
+        concat!(
+            "[package]\n",
+            "name = \"tq-core\"\n",
+            "version.workspace = true\n",
+            "publish.workspace = true\n",
+        ),
+    );
+    write(
+        &temp.path().join(".github/dependabot.yml"),
+        concat!(
+            "version: 2\n",
+            "updates:\n",
+            "  - package-ecosystem: \"github-actions\"\n",
+            "    directories:\n",
+            "      - \"/\"\n",
+            "      - \"/.github/actions/*\"\n",
+            "    schedule:\n",
+            "      interval: \"weekly\"\n",
+            "  - package-ecosystem: \"pre-commit\"\n",
+            "    directory: \"/\"\n",
+            "    schedule:\n",
+            "      interval: \"weekly\"\n",
+            "  - package-ecosystem: \"uv\"\n",
+            "    directory: \"/\"\n",
+            "    schedule:\n",
+            "      interval: \"weekly\"\n",
+            "  - package-ecosystem: \"cargo\"\n",
+            "    directory: \"/\"\n",
+            "    schedule:\n",
+            "      interval: \"weekly\"\n",
+            "  - package-ecosystem: \"rust-toolchain\"\n",
+            "    directory: \"/\"\n",
+            "    schedule:\n",
+            "      interval: \"weekly\"\n",
+            "  - package-ecosystem: \"npm\"\n",
+            "    directory: \"/\"\n",
+            "    schedule:\n",
+            "      interval: \"weekly\"\n",
+        ),
+    );
+    write(
+        &temp.path().join(".github/dev-tools.toml"),
+        concat!(
+            "[schema]\n",
+            "version = 1\n",
+            "\n",
+            "[tools]\n",
+            "rust = \"1.96.1\"\n",
+            "python = \"3.14.6\"\n",
+            "uv = \"0.11.28\"\n",
+            "maturin = \"1.11.0\"\n",
+            "actionlint = \"1.7.12\"\n",
+            "shellcheck = \"0.11.0\"\n",
+            "\n",
+            "[automation.actionlint-image]\n",
+            "repository = \"rhysd/actionlint\"\n",
+            "digest = \"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\n",
+            "\n",
+            "[rust-maintenance.cargo-audit]\n",
+            "version = \"0.22.1\"\n",
+            "repository = \"https://github.com/rustsec/rustsec\"\n",
+            "\n",
+            "[rust-maintenance.cargo-deny]\n",
+            "version = \"0.19.0\"\n",
+            "repository = \"https://github.com/EmbarkStudios/cargo-deny\"\n",
+        ),
+    );
+    write(
+        &temp.path().join("rust-toolchain.toml"),
+        concat!(
+            "[toolchain]\n",
+            "channel = \"1.96.1\"\n",
+            "components = [\"rustfmt\", \"clippy\"]\n",
+        ),
+    );
+    write(
+        &temp.path().join("package.json"),
+        concat!(
+            "{\n",
+            "  \"packageManager\": \"npm@11.17.0\",\n",
+            "  \"engines\": {\n",
+            "    \"node\": \"26.4.0\"\n",
+            "  }\n",
+            "}\n",
+        ),
+    );
+    write(
+        &temp
+            .path()
+            .join(".github/actions/setup-python-uv/action.yml"),
+        concat!(
+            "inputs:\n",
+            "  python-version:\n",
+            "    default: \"3.14.6\"\n",
+            "  uv-version:\n",
+            "    default: \"0.11.28\"\n",
+            "runs:\n",
+            "  using: composite\n",
+            "  steps:\n",
+            "    - uses: astral-sh/setup-uv@example\n",
+            "      with:\n",
+            "        version: ${{ inputs.uv-version }}\n",
+        ),
+    );
+    write(
+        &temp
+            .path()
+            .join(".github/actions/setup-rust-maintenance-tools/action.yml"),
+        concat!(
+            "inputs:\n",
+            "  cargo-audit-version:\n",
+            "    default: \"0.22.1\"\n",
+            "  cargo-deny-version:\n",
+            "    default: \"0.19.0\"\n",
+        ),
+    );
+    write(
+        &temp.path().join(".github/actions/setup-rust/action.yml"),
+        "name: Setup Rust\n",
+    );
+    write(
+        &temp.path().join(".github/workflows/ci.yml"),
+        concat!(
+            "name: CI\n",
+            "jobs:\n",
+            "  automation-policy:\n",
+            "    steps:\n",
+            "      - uses: docker://rhysd/actionlint:1.7.12@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
+            "  release-wheels:\n",
+            "    steps:\n",
+            "      - id: release-tools\n",
+            "        run: cargo dev release build-tool-requirements --repo-root .\n",
+            "      - run: maturin_requirement='${{ steps.release-tools.outputs.maturin }}'\n",
+            "      - run: maturin_requirement='${{ steps.release-tools.outputs.maturin_zig }}'\n",
+            "      - run: uv run --isolated --with \"$maturin_requirement\" -- maturin build\n",
+            "      - run: uv run --isolated --with \"${{ steps.release-tools.outputs.maturin_zig }}\" -- maturin build --zig\n",
+        ),
+    );
+
+    tq_dev::policy::verify_release_policy(temp.path()).expect("release policy should pass");
+}
+
+#[test]
+fn verify_release_policy_fails_when_either_policy_fails() {
+    let temp = tempfile::tempdir().expect("tempdir");
+
+    write(
+        &temp.path().join("Cargo.toml"),
+        concat!(
+            "[workspace]\n",
+            "members = [\"crates/tq-core\"]\n",
+            "\n",
+            "[workspace.package]\n",
+            "version = \"0.7.0\"\n",
+            "publish = false\n",
+            "\n",
+            "[workspace.dependencies]\n",
+            "tq-core = { path = \"crates/tq-core\" }\n",
+        ),
+    );
+    write(
+        &temp.path().join("CHANGELOG.md"),
+        "# Changelog\n\n## [0.6.3] - 2026-03-04\n",
+    );
+    write(
+        &temp.path().join("crates/tq-core/Cargo.toml"),
+        concat!(
+            "[package]\n",
+            "name = \"tq-core\"\n",
+            "version.workspace = true\n",
+            "publish.workspace = true\n",
+        ),
+    );
+
+    let error = tq_dev::policy::verify_release_policy(temp.path())
+        .expect_err("release policy should fail when workspace version policy fails");
+
+    assert!(
+        error
+            .to_string()
+            .contains("CHANGELOG.md top release heading")
+    );
+}

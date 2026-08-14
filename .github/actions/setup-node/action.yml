@@ -1,0 +1,28 @@
+name: Setup Node
+
+description: Configure the package.json-pinned Node and npm toolchain
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version-file: package.json
+        cache: npm
+
+    - name: Verify bundled npm
+      shell: bash
+      run: |
+        set -euo pipefail
+        npm_package="$(node --print "require('./package.json').packageManager")"
+        if [[ ! "$npm_package" =~ ^npm@([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+          echo "package.json packageManager must be an exact npm@major.minor.patch version" >&2
+          exit 1
+        fi
+        expected_npm_version="${BASH_REMATCH[1]}"
+        actual_npm_version="$(npm --version)"
+        if [[ "$actual_npm_version" != "$expected_npm_version" ]]; then
+          echo "Expected npm $expected_npm_version from package.json, found $actual_npm_version" >&2
+          exit 1
+        fi

@@ -51,13 +51,9 @@ exclude = [
     "tmp/**",
 ]
 
-[tool.uv.build-backend]
-module-name = "tq"
-
 [dependency-groups]
 dev = [
     "commitizen>=4.16.4",
-    "detect-secrets>=1.5.0",
     "prek>=0.4.5",
     "ruff>=0.15.20",
     "ty>=0.0.55",
@@ -111,9 +107,6 @@ update_changelog_on_bump = false
 changelog_file = "CHANGELOG.md"
 template = "CHANGELOG.md.j2"
 change_type_order = ["Added", "Changed", "Deprecated", "Removed", "Fixed", "Security"]
-version_files = [
-    'Cargo.toml:^tq-(cli|core|config|discovery|docsgen|engine|release|reporting|rules) = \{',
-]
 gpg_sign = true
 major_version_zero = true
 

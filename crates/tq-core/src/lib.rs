@@ -1,4 +1,6 @@
 mod domain;
+mod paths;
+mod python;
 
 use std::borrow::Cow;
 
@@ -6,6 +8,12 @@ use thiserror::Error;
 
 pub use domain::{
     PackageName, PackageNameError, RelativePathBuf, RelativePathError, TargetName, TargetNameError,
+};
+pub use paths::path_to_forward_slashes;
+pub use python::{
+    DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES, is_python_module, is_python_test_file,
+    python_module_name, python_test_module_name, source_directory_for_unit_test,
+    unit_test_path_for_source,
 };
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Default)]
@@ -96,6 +104,12 @@ impl QualifierStrategy {
 pub struct RuleId(Cow<'static, str>);
 
 impl RuleId {
+    #[must_use]
+    pub const fn from_static(value: &'static str) -> Self {
+        assert!(has_valid_rule_id_format(value), "invalid static rule id");
+        Self(Cow::Borrowed(value))
+    }
+
     pub fn parse(value: &str) -> Result<Self, RuleIdError> {
         validate_rule_id(value)?;
         Ok(Self(Cow::Owned(value.to_owned())))
@@ -121,40 +135,53 @@ pub enum RuleIdError {
     InvalidFormat,
 }
 
-fn validate_rule_id(value: &str) -> Result<(), RuleIdError> {
+const fn validate_rule_id(value: &str) -> Result<(), RuleIdError> {
     if value.is_empty() {
         return Err(RuleIdError::Empty);
     }
 
-    let mut chars = value.chars();
-    let Some(first) = chars.next() else {
-        return Err(RuleIdError::Empty);
-    };
-
-    if !first.is_ascii_lowercase() {
-        return Err(RuleIdError::InvalidFormat);
-    }
-
-    let mut previous_was_dash = false;
-    for character in chars {
-        if character == '-' {
-            if previous_was_dash {
-                return Err(RuleIdError::InvalidFormat);
-            }
-            previous_was_dash = true;
-            continue;
-        }
-
-        if !character.is_ascii_lowercase() && !character.is_ascii_digit() {
-            return Err(RuleIdError::InvalidFormat);
-        }
-
-        previous_was_dash = false;
-    }
-
-    if previous_was_dash {
+    if !has_valid_rule_id_format(value) {
         return Err(RuleIdError::InvalidFormat);
     }
 
     Ok(())
+}
+
+const fn has_valid_rule_id_format(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.is_empty() || !bytes[0].is_ascii_lowercase() {
+        return false;
+    }
+
+    let mut index = 1;
+    let mut previous_was_dash = false;
+    while index < bytes.len() {
+        let byte = bytes[index];
+        if byte == b'-' {
+            if previous_was_dash {
+                return false;
+            }
+            previous_was_dash = true;
+        } else {
+            if !byte.is_ascii_lowercase() && !byte.is_ascii_digit() {
+                return false;
+            }
+            previous_was_dash = false;
+        }
+        index += 1;
+    }
+
+    !previous_was_dash
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RuleId;
+
+    const STATIC_RULE_ID: RuleId = RuleId::from_static("mapping-missing-test");
+
+    #[test]
+    fn static_rule_id_uses_valid_borrowed_literal() {
+        assert_eq!(STATIC_RULE_ID.as_str(), "mapping-missing-test");
+    }
 }

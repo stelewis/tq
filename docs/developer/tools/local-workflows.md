@@ -11,27 +11,23 @@ Use `cargo check` as the fast compile, type, trait, and borrow-check loop before
 
 ## Quality gates
 
-- `cargo fmt --all --check`
-- `cargo clippy --workspace --all-targets --locked -- -D warnings`
-- `cargo test --workspace --locked`
-- `cargo build --workspace --locked`
-- `cargo build -p tq-cli --release --locked`
-- `cargo package --workspace --locked`
-- `mise run release-build`
+- `cargo dev check routine --repo-root .`
+- `cargo dev check all --repo-root .`
+- `cargo dev check --profile full all --repo-root .`
 
-`mise run release-build` validates the source distribution plus a wheel for the current host platform. The full publishable artifact matrix is validated in CI.
+`cargo dev check routine` runs formatting, clippy, tests, actionlint with ShellCheck integration, and automation policy. `cargo dev check all` adds generated-doc sync and release-policy validation. `cargo dev check --profile full all` adds the local release artifact build. The release build validates the source distribution plus a wheel for the current host platform; the full publishable artifact matrix is validated in CI.
 
 ## Combined local check
 
-- `cargo fmt --all --check && cargo clippy --workspace --all-targets --locked -- -D warnings && cargo test --workspace --locked`
+- `cargo dev check routine --repo-root .`
 
 ## Security and dependency audit
 
-- `cargo audit`
+- `cargo audit -D warnings`
 - `cargo deny check`
-- `cargo outdated --workspace --root-deps-only`
+- `cargo update --dry-run`
 
-Secret scanning and commit policy remain part of the standard workflow through `gitleaks`, `detect-secrets`, and `commitizen`.
+Secret scanning and commit policy remain part of the standard workflow through `gitleaks` and `commitizen`, with GitHub secret scanning enabled on the repository.
 
 These checks are only the baseline. Before adding or upgrading external dependencies, follow the broader [Security standards](../standards/security.md) guidance and the dependency review bar in [Supply-chain security standards](../standards/supply-chain-security.md).
 
@@ -40,5 +36,6 @@ These checks are only the baseline. Before adding or upgrading external dependen
 The language-specific pre-commit hooks are Rust-native:
 
 - `cargo fmt --all` on `pre-commit`
-- `cargo clippy --workspace --all-targets --locked -- -D warnings` on `pre-push`
-- `cargo test --workspace --locked` on `pre-push`
+- `cargo dev check routine` on `pre-push`
+
+The pre-push hook is the same routine gate CI runs, so a push that passes hooks does not fail CI on gate checks.

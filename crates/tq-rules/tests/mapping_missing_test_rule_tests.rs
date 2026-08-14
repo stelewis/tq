@@ -29,7 +29,9 @@ fn mapping_rule_emits_error_for_unmapped_source() {
         BTreeSet::new(),
     )
     .expect("rule should be valid");
-    let findings = rule.evaluate(&context);
+    let findings = rule
+        .evaluate(&context)
+        .expect("rule evaluation should succeed");
 
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].rule_id().as_str(), "mapping-missing-test");
@@ -57,7 +59,9 @@ fn mapping_rule_allowlist_rejects_unknown_suffix_match() {
         std::iter::once("regression".to_owned()).collect(),
     )
     .expect("rule should be valid");
-    let findings = rule.evaluate(&context);
+    let findings = rule
+        .evaluate(&context)
+        .expect("rule evaluation should succeed");
 
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].rule_id().as_str(), "mapping-missing-test");

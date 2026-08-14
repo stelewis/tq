@@ -19,7 +19,7 @@ Goals:
 
 ## Architecture Rules
 
-- **Composition root**: construct runtime graphs in binaries such as `tq-cli`, `tq-docsgen`, and `tq-release`. No hidden construction inside domain crates.
+- **Composition root**: construct runtime graphs in binaries such as `tq-cli`, `tq-docsgen`, and `tq-dev`. No hidden construction inside domain crates.
 - **Crate ownership is explicit**: each crate owns one boundary. Do not create convenience layers that blur config, discovery, engine, rules, reporting, and tooling responsibilities.
 - **Boundaries are strict**: adapters convert formats; they do not guess intent or silently coerce.
 - **Internal APIs are current-only**: workspace crates must move together. If an internal crate API changes, update all callers and bump the shared version; do not keep transitional compatibility layers between workspace crates.

@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
+use std::num::NonZeroU64;
 use std::path::Path;
 
 use toml::Table;
@@ -10,9 +11,19 @@ use crate::{
     model::{PartialRuleConfig, PartialTargetConfig, PartialTqConfig},
 };
 
+/// Whether a pyproject file must contain a `[tool.tq]` section.
+///
+/// Explicitly passed configs must declare the section; discovered configs may
+/// simply not configure tq.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SectionPolicy {
+    Required,
+    Optional,
+}
+
 pub fn load_partial_from_pyproject(
     path: &Path,
-    require_section: bool,
+    section_policy: SectionPolicy,
 ) -> Result<PartialTqConfig, ConfigError> {
     if !path.exists() {
         return Err(ConfigError::ConfigNotFound {
@@ -20,13 +31,13 @@ pub fn load_partial_from_pyproject(
         });
     }
 
-    let raw = fs::read_to_string(path).map_err(|error| ConfigError::Read {
+    let raw = fs::read_to_string(path).map_err(|source| ConfigError::Read {
         path: path.to_path_buf(),
-        message: error.to_string(),
+        source,
     })?;
-    let document = toml::from_str::<toml::Value>(&raw).map_err(|error| ConfigError::Parse {
+    let document = toml::from_str::<toml::Value>(&raw).map_err(|source| ConfigError::Parse {
         path: path.to_path_buf(),
-        message: error.to_string(),
+        source,
     })?;
 
     let Some(root_table) = document.as_table() else {
@@ -34,7 +45,7 @@ pub fn load_partial_from_pyproject(
     };
 
     let Some(tool_value) = root_table.get("tool") else {
-        if require_section {
+        if section_policy == SectionPolicy::Required {
             return Err(ConfigError::MissingToolTqSection {
                 path: path.to_path_buf(),
             });
@@ -44,7 +55,7 @@ pub fn load_partial_from_pyproject(
 
     let tool_table = as_table(tool_value, "[tool]")?;
     let Some(tq_value) = tool_table.get("tq") else {
-        if require_section {
+        if section_policy == SectionPolicy::Required {
             return Err(ConfigError::MissingToolTqSection {
                 path: path.to_path_buf(),
             });
@@ -199,7 +210,7 @@ fn expect_optional_positive_int(
     table: &Table,
     key: &str,
     location: &str,
-) -> Result<Option<u64>, ConfigError> {
+) -> Result<Option<NonZeroU64>, ConfigError> {
     let Some(value) = table.get(key) else {
         return Ok(None);
     };
@@ -209,15 +220,13 @@ fn expect_optional_positive_int(
             location: format!("{location}.{key}"),
         });
     };
-    if integer < 1 {
-        return Err(ConfigError::PositiveIntegerExpected {
+    u64::try_from(integer)
+        .ok()
+        .and_then(NonZeroU64::new)
+        .map(Some)
+        .ok_or_else(|| ConfigError::PositiveIntegerExpected {
             location: format!("{location}.{key}"),
-        });
-    }
-    let integer = u64::try_from(integer).map_err(|_| ConfigError::PositiveIntegerExpected {
-        location: format!("{location}.{key}"),
-    })?;
-    Ok(Some(integer))
+        })
 }
 
 fn expect_optional_qualifier_strategy(

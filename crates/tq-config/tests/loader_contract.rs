@@ -1,14 +1,43 @@
 use std::path::Path;
 
 use tq_config::{
-    CliOverrides, InitModulesMode, QualifierStrategy, resolve_tq_config,
-    resolve_tq_config_with_user_config,
+    CliOverrides, DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES, InitModulesMode, QualifierStrategy,
+    resolve_tq_config,
 };
 
 fn write(path: &Path, content: &str) {
     std::fs::create_dir_all(path.parent().expect("parent directory"))
         .expect("create parent directory");
     std::fs::write(path, content).expect("write file");
+}
+
+#[test]
+fn resolve_uses_shared_default_test_file_limit() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let config_path = temp.path().join("pyproject.toml");
+    write(
+        &config_path,
+        "[tool.tq]\n\
+         [[tool.tq.targets]]\n\
+         name = \"app\"\n\
+         package = \"pkg\"\n\
+         source_root = \"src\"\n\
+         test_root = \"tests\"\n",
+    );
+
+    let resolved = resolve_tq_config(
+        temp.path(),
+        Some(&config_path),
+        true,
+        None,
+        &CliOverrides::default(),
+    )
+    .expect("config should resolve");
+
+    assert_eq!(
+        resolved.targets()[0].max_test_file_non_blank_lines(),
+        DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES
+    );
 }
 
 #[test]
@@ -21,6 +50,7 @@ fn resolve_requires_targets() {
         temp.path(),
         Some(&config_path),
         true,
+        None,
         &CliOverrides::default(),
     )
     .expect_err("must fail without targets");
@@ -37,6 +67,7 @@ fn resolve_rejects_unknown_tool_tq_keys() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::default(),
     )
     .expect_err("must reject unknown key");
@@ -62,6 +93,7 @@ fn resolve_rejects_legacy_python_init_modules_key() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::default(),
     )
     .expect_err("must reject legacy key");
@@ -91,6 +123,7 @@ fn resolve_rejects_unknown_target_keys() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::default(),
     )
     .expect_err("must reject unknown target key");
@@ -124,6 +157,7 @@ fn resolve_rejects_duplicate_target_names() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::default(),
     )
     .expect_err("must reject duplicate target names");
@@ -148,6 +182,7 @@ fn resolve_reports_precise_target_field_type_errors() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::default(),
     )
     .expect_err("must reject invalid field type");
@@ -168,6 +203,7 @@ fn resolve_reports_indexed_error_for_non_table_targets_entry() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::default(),
     )
     .expect_err("must reject non-table target");
@@ -196,6 +232,7 @@ fn resolve_rejects_invalid_package_import_syntax() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::default(),
     )
     .expect_err("must reject invalid package syntax");
@@ -225,6 +262,7 @@ fn resolve_rejects_platform_prefixed_target_paths() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::default(),
     )
     .expect_err("must reject platform-prefixed target paths");
@@ -255,6 +293,7 @@ fn resolve_rejects_duplicate_allowed_qualifiers_in_target() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::default(),
     )
     .expect_err("must reject duplicate qualifiers");
@@ -284,6 +323,7 @@ fn resolve_rejects_duplicate_rule_ids_in_target_select() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::default(),
     )
     .expect_err("must reject duplicate select rule ids");
@@ -312,6 +352,7 @@ fn resolve_rejects_duplicate_cli_allowed_qualifiers() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::new()
             .with_allowed_qualifiers(Some(vec!["regression".to_owned(), "regression".to_owned()])),
     )
@@ -343,6 +384,7 @@ fn cli_overrides_precede_config_defaults() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::new()
             .with_init_modules(Some(InitModulesMode::Ignore))
             .with_qualifier_strategy(Some(QualifierStrategy::AnySuffix)),
@@ -389,6 +431,7 @@ fn explicit_config_overrides_discovered_project_config() {
         temp.path(),
         Some(&explicit_config),
         false,
+        None,
         &CliOverrides::default(),
     )
     .expect("config should resolve");
@@ -422,7 +465,7 @@ fn discovered_project_targets_resolve_relative_to_project_config_from_subdir() {
     let cwd = temp.path().join("docs").join("developer");
     std::fs::create_dir_all(&cwd).expect("create nested cwd");
 
-    let resolved = resolve_tq_config(&cwd, None, false, &CliOverrides::default())
+    let resolved = resolve_tq_config(&cwd, None, false, None, &CliOverrides::default())
         .expect("config should resolve");
 
     assert_eq!(resolved.targets().len(), 1);
@@ -447,7 +490,7 @@ fn isolated_mode_ignores_discovered_project_config() {
          test_root = \"tests\"\n",
     );
 
-    let error = resolve_tq_config(temp.path(), None, true, &CliOverrides::default())
+    let error = resolve_tq_config(temp.path(), None, true, None, &CliOverrides::default())
         .expect_err("isolated mode should not read discovered project config");
     assert!(error.to_string().contains("tool.tq.targets"));
 }
@@ -470,6 +513,7 @@ fn resolve_rejects_non_kebab_target_name_with_leading_dash() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::default(),
     )
     .expect_err("must reject leading-dash target name");
@@ -510,7 +554,7 @@ fn discovery_project_overrides_user_for_defaults_and_targets() {
     let cwd = project_root.join("docs").join("developer");
     std::fs::create_dir_all(&cwd).expect("create cwd");
 
-    let resolved = resolve_tq_config_with_user_config(
+    let resolved = resolve_tq_config(
         &cwd,
         None,
         false,
@@ -551,7 +595,7 @@ fn discovery_keeps_user_targets_when_project_has_only_defaults() {
     let project_config = project_root.join("pyproject.toml");
     write(&project_config, "[tool.tq]\ninit_modules = \"include\"\n");
 
-    let resolved = resolve_tq_config_with_user_config(
+    let resolved = resolve_tq_config(
         &project_root,
         None,
         false,
@@ -600,6 +644,7 @@ fn rejects_duplicate_source_package_roots_for_symlink_aliases() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::default(),
     )
     .expect_err("must reject symlink-alias duplicate source package roots");
@@ -629,6 +674,7 @@ fn rejects_duplicate_source_package_roots() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::default(),
     )
     .expect_err("must reject duplicate source package root");
@@ -656,6 +702,7 @@ fn resolve_parses_fail_on_from_config() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::default(),
     )
     .expect("config should resolve");
@@ -683,6 +730,7 @@ fn resolve_fail_on_defaults_to_error() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::default(),
     )
     .expect("config should resolve");
@@ -708,7 +756,7 @@ fn cli_override_fail_on_takes_precedence_over_config() {
     );
 
     let overrides = CliOverrides::new().with_fail_on(Some(Severity::Error));
-    let resolved = resolve_tq_config(temp.path(), Some(&config_path), false, &overrides)
+    let resolved = resolve_tq_config(temp.path(), Some(&config_path), false, None, &overrides)
         .expect("config should resolve");
 
     assert_eq!(resolved.fail_on(), Severity::Error);
@@ -737,6 +785,7 @@ fn resolve_parses_severity_overrides_from_config() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::default(),
     )
     .expect("config should resolve");
@@ -773,6 +822,7 @@ fn target_severity_overrides_replace_top_level_severity_overrides() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::default(),
     )
     .expect("config should resolve");
@@ -812,7 +862,7 @@ fn cli_severity_overrides_replace_file_severity_overrides() {
         ))
         .collect(),
     ));
-    let resolved = resolve_tq_config(temp.path(), Some(&config_path), false, &cli_overrides)
+    let resolved = resolve_tq_config(temp.path(), Some(&config_path), false, None, &cli_overrides)
         .expect("config should resolve");
 
     let expected: BTreeMap<RuleId, Severity> = std::iter::once((
@@ -842,6 +892,7 @@ fn resolve_rejects_invalid_severity_in_severity_overrides() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::default(),
     )
     .expect_err("should reject invalid severity");
@@ -871,6 +922,7 @@ fn resolve_preserves_unknown_rule_id_in_severity_overrides() {
         temp.path(),
         Some(&config_path),
         false,
+        None,
         &CliOverrides::default(),
     )
     .expect("config should resolve");

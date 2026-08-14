@@ -9,16 +9,14 @@ on:
       - "crates/tq-cli/**"
       - "package.json"
       - "package-lock.json"
-      - "mise.toml"
       - ".github/workflows/ci.yml"
       - ".github/workflows/docs-pages.yml"
-      - ".github/actions/setup-mise-docs/action.yml"
+      - ".github/actions/setup-node/action.yml"
+      - ".github/actions/setup-docs/action.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: docs-pages
@@ -31,7 +29,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -39,10 +37,10 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Setup docs toolchain
-        uses: ./.github/actions/setup-mise-docs
+        uses: ./.github/actions/setup-docs
 
       - name: Build docs
-        run: mise run docs-build
+        run: npm run docs:build
 
       - name: Configure Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
@@ -57,6 +55,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: build
+    permissions:
+      contents: read
+      id-token: write
+      pages: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

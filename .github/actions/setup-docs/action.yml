@@ -1,0 +1,20 @@
+name: Setup docs
+
+description: Configure Node and install locked docs dependencies
+
+inputs:
+  install-dependencies:
+    description: Install docs npm dependencies after setting up Node
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: ./.github/actions/setup-node
+
+    - name: Install docs dependencies
+      if: ${{ inputs.install-dependencies == 'true' }}
+      shell: bash
+      run: npm ci --ignore-scripts

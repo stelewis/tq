@@ -3,7 +3,7 @@ mod support;
 use std::path::PathBuf;
 
 use tq_core::{RelativePathBuf, TargetName};
-use tq_discovery::AnalysisIndex;
+use tq_discovery::{AnalysisIndex, AnalyzedTestFile};
 use tq_engine::Rule;
 use tq_engine::{AnalysisContext, TargetContext};
 use tq_rules::StructureMismatchRule;
@@ -24,8 +24,10 @@ fn structure_rule_emits_warning_for_misplaced_test() {
         vec!["tq".to_owned()],
     );
 
-    let rule = StructureMismatchRule::new().expect("rule should be valid");
-    let findings = rule.evaluate(&context);
+    let rule = StructureMismatchRule::new();
+    let findings = rule
+        .evaluate(&context)
+        .expect("rule evaluation should succeed");
 
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].rule_id().as_str(), "structure-mismatch");
@@ -50,8 +52,10 @@ fn structure_rule_allows_correctly_placed_test() {
         vec!["tq".to_owned()],
     );
 
-    let rule = StructureMismatchRule::new().expect("rule should be valid");
-    let findings = rule.evaluate(&context);
+    let rule = StructureMismatchRule::new();
+    let findings = rule
+        .evaluate(&context)
+        .expect("rule evaluation should succeed");
 
     assert!(findings.is_empty());
 }
@@ -73,8 +77,10 @@ fn structure_rule_skips_non_unit_scopes() {
         vec!["tq".to_owned()],
     );
 
-    let rule = StructureMismatchRule::new().expect("rule should be valid");
-    let findings = rule.evaluate(&context);
+    let rule = StructureMismatchRule::new();
+    let findings = rule
+        .evaluate(&context)
+        .expect("rule evaluation should succeed");
 
     assert!(findings.is_empty());
 }
@@ -96,8 +102,10 @@ fn structure_rule_ignores_sibling_target_tests() {
         vec!["tq".to_owned(), "scripts".to_owned()],
     );
 
-    let rule = StructureMismatchRule::new().expect("rule should be valid");
-    let findings = rule.evaluate(&context);
+    let rule = StructureMismatchRule::new();
+    let findings = rule
+        .evaluate(&context)
+        .expect("rule evaluation should succeed");
 
     assert!(findings.is_empty());
 }
@@ -114,7 +122,7 @@ fn structure_rule_preserves_nested_test_root_in_suggestion() {
         &source_root,
         &test_root,
         vec![PathBuf::from("engine/runner.py")],
-        vec![PathBuf::from("tq/test_runner.py")],
+        vec![AnalyzedTestFile::new(PathBuf::from("tq/test_runner.py"), 0)],
     )
     .expect("index should be created");
     let context = AnalysisContext::with_target(
@@ -127,8 +135,10 @@ fn structure_rule_preserves_nested_test_root_in_suggestion() {
         ),
     );
 
-    let rule = StructureMismatchRule::new().expect("rule should be valid");
-    let findings = rule.evaluate(&context);
+    let rule = StructureMismatchRule::new();
+    let findings = rule
+        .evaluate(&context)
+        .expect("rule evaluation should succeed");
 
     assert_eq!(findings.len(), 1);
     assert_eq!(

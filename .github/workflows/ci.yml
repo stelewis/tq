@@ -28,7 +28,7 @@ jobs:
     timeout-minutes: 1
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -46,13 +46,9 @@ jobs:
           BEFORE_SHA="${{ github.event.before }}"
           HEAD_SHA="${{ github.sha }}"
 
-          git fetch --no-tags origin "$BEFORE_SHA" || true
-
-          if git rev-parse --verify --quiet "$BEFORE_SHA^{commit}" >/dev/null; then
-            uv run cz check --rev-range "$BEFORE_SHA..$HEAD_SHA"
-          else
-            uv run cz check --use-default-range
-          fi
+          git fetch --no-tags origin "$BEFORE_SHA"
+          git rev-parse --verify "$BEFORE_SHA^{commit}" >/dev/null
+          uv run cz check --rev-range "$BEFORE_SHA..$HEAD_SHA"
 
   hygiene:
     name: Hygiene (pre-commit)
@@ -60,7 +56,7 @@ jobs:
     timeout-minutes: 1
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -78,7 +74,7 @@ jobs:
     timeout-minutes: 1
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -94,7 +90,7 @@ jobs:
     timeout-minutes: 1
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -109,110 +105,32 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 1
     outputs:
-      rust_security_scan: ${{ steps.scope.outputs.rust_security_scan }}
-      docs_security_scan: ${{ steps.scope.outputs.docs_security_scan }}
+      rust_security: ${{ steps.scope.outputs.rust_security }}
+      docs_security: ${{ steps.scope.outputs.docs_security }}
       docs_sync: ${{ steps.scope.outputs.docs_sync }}
       docs_build: ${{ steps.scope.outputs.docs_build }}
-      cargo_deps_changed: ${{ steps.scope.outputs.cargo_deps_changed }}
+      runtime_dependency_inputs: ${{ steps.scope.outputs.runtime_dependency_inputs }}
+      docs_only: ${{ steps.scope.outputs.docs_only }}
+      release_relevant: ${{ steps.scope.outputs.release_relevant }}
+      broad_gate: ${{ steps.scope.outputs.broad_gate }}
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
       - name: Determine change scope
         id: scope
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          event_name='${{ github.event_name }}'
-          zero_sha='0000000000000000000000000000000000000000'
-
-          if [[ "$event_name" == "workflow_dispatch" ]]; then
-            echo "rust_security_scan=true" >> "$GITHUB_OUTPUT"
-            echo "docs_security_scan=true" >> "$GITHUB_OUTPUT"
-            echo "docs_sync=true" >> "$GITHUB_OUTPUT"
-            echo "docs_build=true" >> "$GITHUB_OUTPUT"
-            echo "cargo_deps_changed=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [[ "$event_name" == "pull_request" ]]; then
-            base_sha='${{ github.event.pull_request.base.sha }}'
-            head_sha='${{ github.event.pull_request.head.sha }}'
-
-            merge_base="$(git merge-base "$base_sha" "$head_sha" || true)"
-            if [[ -z "$merge_base" ]]; then
-              echo "Could not determine pull request merge base; enabling all scoped jobs."
-              echo "rust_security_scan=true" >> "$GITHUB_OUTPUT"
-              echo "docs_security_scan=true" >> "$GITHUB_OUTPUT"
-              echo "docs_sync=true" >> "$GITHUB_OUTPUT"
-              echo "docs_build=true" >> "$GITHUB_OUTPUT"
-              echo "cargo_deps_changed=true" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-
-            base_sha="$merge_base"
-          elif [[ "$event_name" == "push" ]]; then
-            base_sha='${{ github.event.before }}'
-            head_sha='${{ github.sha }}'
-
-            if [[ "$base_sha" == "$zero_sha" ]]; then
-              echo "rust_security_scan=true" >> "$GITHUB_OUTPUT"
-              echo "docs_security_scan=true" >> "$GITHUB_OUTPUT"
-              echo "docs_sync=true" >> "$GITHUB_OUTPUT"
-              echo "docs_build=true" >> "$GITHUB_OUTPUT"
-              echo "cargo_deps_changed=true" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-          else
-            echo "rust_security_scan=true" >> "$GITHUB_OUTPUT"
-            echo "docs_security_scan=true" >> "$GITHUB_OUTPUT"
-            echo "docs_sync=true" >> "$GITHUB_OUTPUT"
-            echo "docs_build=true" >> "$GITHUB_OUTPUT"
-            echo "cargo_deps_changed=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          changed_files="$(git diff --name-only "$base_sha" "$head_sha")"
-          printf '%s\n' "$changed_files"
-
-          # Keep these patterns aligned with dependency manifests, policy files,
-          # and scan-owning workflows/actions. New source files under already
-          # covered directories usually do not require updates.
-
-          rust_security_scan=false
-          if printf '%s\n' "$changed_files" | grep -Eq '^(Cargo\.lock|Cargo\.toml|deny\.toml|crates/[^/]+/Cargo\.toml|\.github/workflows/(ci|rust-security-advisories)\.yml|\.github/actions/(setup-rust|setup-rust-security-tools|setup-rust-maintenance-tools)/)'; then
-            rust_security_scan=true
-          fi
-
-          docs_security_scan=false
-          if printf '%s\n' "$changed_files" | grep -Eq '^(package\.json|package-lock\.json|mise\.toml|\.github/workflows/(ci|docs-security|docs-pages)\.yml|\.github/actions/setup-mise-docs/action\.yml)$'; then
-            docs_security_scan=true
-          fi
-
-          docs_sync=false
-          if printf '%s\n' "$changed_files" | grep -Eq '^(Cargo\.toml|pyproject\.toml|README\.md|crates/tq-docsgen/|crates/tq-cli/|crates/tq-rules/|docs/reference/cli/options-manifest\.json|docs/reference/config/examples-manifest\.json|docs/reference/cli\.md|docs/reference/configuration\.md|docs/guide/quickstart\.md|docs/\.vitepress/generated/rules-sidebar\.ts|docs/reference/rules/[^/]+\.md|\.github/workflows/ci\.yml)$'; then
-            docs_sync=true
-          fi
-
-          docs_build=false
-          if printf '%s\n' "$changed_files" | grep -Eq '^(docs/|crates/tq-docsgen/|crates/tq-cli/|crates/tq-rules/|package\.json|package-lock\.json|mise\.toml|\.github/workflows/(ci|docs-pages)\.yml|\.github/actions/setup-mise-docs/action\.yml)$'; then
-            docs_build=true
-          fi
-
-          cargo_deps_changed=false
-          if printf '%s\n' "$changed_files" | grep -Eq '^(Cargo\.lock|Cargo\.toml|crates/[^/]+/Cargo\.toml)$'; then
-            cargo_deps_changed=true
-          fi
-
-          echo "rust_security_scan=$rust_security_scan" >> "$GITHUB_OUTPUT"
-          echo "docs_security_scan=$docs_security_scan" >> "$GITHUB_OUTPUT"
-          echo "docs_sync=$docs_sync" >> "$GITHUB_OUTPUT"
-          echo "docs_build=$docs_build" >> "$GITHUB_OUTPUT"
-          echo "cargo_deps_changed=$cargo_deps_changed" >> "$GITHUB_OUTPUT"
+        run: >-
+          cargo dev change-scope
+          --event '${{ github.event_name }}'
+          --base-ref '${{ github.event.pull_request.base.sha || github.event.before || '' }}'
+          --head-ref '${{ github.event.pull_request.head.sha || github.sha || '' }}'
+          >> "$GITHUB_OUTPUT"
 
   docs-sync:
     name: Docs sync contracts
@@ -222,7 +140,7 @@ jobs:
     timeout-minutes: 2
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -251,7 +169,7 @@ jobs:
     timeout-minutes: 3
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -259,20 +177,20 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Setup docs toolchain
-        uses: ./.github/actions/setup-mise-docs
+        uses: ./.github/actions/setup-docs
 
       - name: Build docs
-        run: mise run docs-build
+        run: npm run docs:build
 
   runtime-dep-check:
     name: Runtime dependency check (advisory)
     needs: change-scope
-    if: ${{ github.event_name == 'pull_request' && needs.change-scope.outputs.cargo_deps_changed == 'true' }}
+    if: ${{ github.event_name == 'pull_request' && needs.change-scope.outputs.runtime_dependency_inputs == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -284,7 +202,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          output="$(cargo run -p tq-release --locked -- check-runtime-deps \
+          output="$(cargo dev runtime-deps \
             --repo-root . \
             --base-ref '${{ github.event.pull_request.base.sha }}' \
             --head-ref '${{ github.event.pull_request.head.sha }}')"
@@ -297,7 +215,7 @@ jobs:
     timeout-minutes: 3
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -313,7 +231,7 @@ jobs:
     timeout-minutes: 3
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -321,7 +239,7 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Verify release policy
-        run: cargo run -p tq-release --locked -- verify-release-policy --repo-root .
+        run: cargo dev policy verify-release --repo-root .
 
       - name: Setup Python + uv + deps
         uses: ./.github/actions/setup-python-uv
@@ -334,33 +252,13 @@ jobs:
       - name: Build release CLI
         run: cargo build -p tq-cli --release --locked
 
-      - name: Validate cargo package dry-run
-        run: cargo package --workspace --locked
-
       - name: Build Python source distribution
         run: |
           rm -rf dist
           uv build --sdist
 
-      - name: Verify artifact contents policy
-        run: cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist
-
-      - name: Verify built source distribution artifact set
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          wheel_count="$(find dist -maxdepth 1 -type f -name '*.whl' | wc -l | tr -d ' ')"
-          if [ "$wheel_count" -ne 0 ]; then
-            echo "Expected no wheel artifacts in dist/, found $wheel_count"
-            exit 1
-          fi
-
-          sdist_count="$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l | tr -d ' ')"
-          if [ "$sdist_count" -ne 1 ]; then
-            echo "Expected exactly one source distribution artifact in dist/, found $sdist_count"
-            exit 1
-          fi
+      - name: Verify source distribution
+        run: cargo dev release verify-artifacts --dist-dir dist --profile sdist
 
       - name: Smoke check built source distribution entrypoints
         shell: bash
@@ -396,38 +294,30 @@ jobs:
           - label: Linux x86_64
             runs_on: ubuntu-latest
             artifact_name: wheel-manylinux-x86_64
-            expected_wheel_pattern: '*manylinux*.whl|*musllinux*.whl'
-            build_command: >-
-              uv run --isolated --with 'maturin[zig]>=1.11,<2.0' --
-              maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml
-              --bindings bin --out dist -i python --compatibility pypi --zig
+            artifact_profile: linux-wheel
+            maturin_requirement: maturin_zig
+            build_mode: portable-linux
           - label: macOS x86_64
             runs_on: macos-15-intel
             artifact_name: wheel-macos-x86_64
-            expected_wheel_pattern: '*macosx*x86_64.whl'
-            build_command: >-
-              uv run --isolated --with 'maturin>=1.11,<2.0' --
-              maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml
-              --bindings bin --out dist -i python
+            artifact_profile: macos-x86-64-wheel
+            maturin_requirement: maturin
+            build_mode: native
           - label: macOS arm64
             runs_on: macos-14
             artifact_name: wheel-macos-arm64
-            expected_wheel_pattern: '*macosx*arm64.whl'
-            build_command: >-
-              uv run --isolated --with 'maturin>=1.11,<2.0' --
-              maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml
-              --bindings bin --out dist -i python
+            artifact_profile: macos-arm64-wheel
+            maturin_requirement: maturin
+            build_mode: native
           - label: Windows x86_64
             runs_on: windows-latest
             artifact_name: wheel-windows-x86_64
-            expected_wheel_pattern: '*win_amd64.whl'
-            build_command: >-
-              uv run --isolated --with 'maturin>=1.11,<2.0' --
-              maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml
-              --bindings bin --out dist -i python
+            artifact_profile: windows-x86-64-wheel
+            maturin_requirement: maturin
+            build_mode: native
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -439,51 +329,53 @@ jobs:
         with:
           sync-project: "false"
 
+      - name: Resolve release build tool requirements
+        id: release-tools
+        shell: bash
+        run: cargo dev release build-tool-requirements --repo-root . >> "$GITHUB_OUTPUT"
+
       - name: Build release wheel
         shell: bash
         run: |
           set -euo pipefail
 
-          rm -rf dist
-          ${{ matrix.build_command }}
-
-      - name: Verify artifact contents policy
-        shell: bash
-        run: cargo run -p tq-release --locked -- verify-artifact-contents --dist-dir dist
-
-      - name: Verify built wheel artifact set
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          wheel_count="$(find dist -maxdepth 1 -type f -name '*.whl' | wc -l | tr -d ' ')"
-          if [ "$wheel_count" -ne 1 ]; then
-            echo "Expected exactly one wheel artifact in dist/, found $wheel_count"
-            exit 1
-          fi
-
-          sdist_count="$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l | tr -d ' ')"
-          if [ "$sdist_count" -ne 0 ]; then
-            echo "Expected no source distribution artifacts in dist/, found $sdist_count"
-            exit 1
-          fi
-
-          wheel_path="$(find dist -maxdepth 1 -type f -name '*.whl' | head -n 1)"
-          wheel_name="$(basename "$wheel_path")"
-
-          case "$wheel_name" in
-            ${{ matrix.expected_wheel_pattern }})
+          case '${{ matrix.maturin_requirement }}' in
+            maturin)
+              maturin_requirement='${{ steps.release-tools.outputs.maturin }}'
+              ;;
+            maturin_zig)
+              maturin_requirement='${{ steps.release-tools.outputs.maturin_zig }}'
               ;;
             *)
-              echo "Wheel '$wheel_name' does not match expected pattern ${{ matrix.expected_wheel_pattern }}"
+              echo "Unknown maturin requirement output '${{ matrix.maturin_requirement }}'"
               exit 1
               ;;
           esac
 
-          if [[ "$wheel_name" == *linux_* && "$wheel_name" != *manylinux* && "$wheel_name" != *musllinux* ]]; then
-            echo "Wheel '$wheel_name' uses a native linux platform tag that PyPI will reject"
-            exit 1
-          fi
+          build_args=(
+            build --release --locked --manifest-path crates/tq-cli/Cargo.toml
+            --bindings bin --out dist -i python
+          )
+          case '${{ matrix.build_mode }}' in
+            native)
+              ;;
+            portable-linux)
+              build_args+=(--compatibility pypi --zig)
+              ;;
+            *)
+              echo "Unknown release wheel build mode '${{ matrix.build_mode }}'"
+              exit 1
+              ;;
+          esac
+
+          rm -rf dist
+          uv run --isolated --with "$maturin_requirement" -- maturin "${build_args[@]}"
+
+      - name: Verify wheel
+        run: >-
+          cargo dev release verify-artifacts
+          --dist-dir dist
+          --profile '${{ matrix.artifact_profile }}'
 
       - name: Smoke check built wheel entrypoints
         shell: bash
@@ -508,21 +400,20 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  tag-release-artifacts:
-    name: Tag release artifact attestation
+  tag-release-validation:
+    name: Tag release artifact validation
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
-    needs: [build, release-wheels]
+    needs: [automation-policy, commit-messages, hygiene, format, lint, tests, build, release-wheels, security, package-compatibility]
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    permissions:
-      attestations: write
-      contents: read
-      id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
 
       - name: Reset artifact directory
         run: rm -rf dist
@@ -534,19 +425,45 @@ jobs:
           merge-multiple: true
           path: dist
 
-      - name: Verify downloaded release artifacts are present
-        shell: bash
-        run: |
-          set -euo pipefail
+      - name: Verify downloaded release artifacts
+        run: cargo dev release verify-artifacts --dist-dir dist --profile full-release
 
-          bash .github/scripts/verify-release-artifact-set.sh dist
+      - name: Upload validated distribution candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: validated-dist-candidate
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  tag-release-artifacts:
+    name: Tag release artifact attestation
+    needs: tag-release-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      actions: read
+      attestations: write
+      contents: read
+      id-token: write
+    steps:
+      - name: Reset artifact directory
+        run: rm -rf dist
+
+      - name: Download validated distribution candidate
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: validated-dist-candidate
+          path: dist
 
       - name: Generate artifact attestations for validated distributions
-        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: dist/*
 
-      - name: Upload validated distribution artifacts
+      - name: Upload attested distribution artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: validated-dist
@@ -566,7 +483,7 @@ jobs:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -579,6 +496,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
           sync-project: "false"
 
+      - name: Resolve release build tool requirements
+        id: release-tools
+        shell: bash
+        run: cargo dev release build-tool-requirements --repo-root . >> "$GITHUB_OUTPUT"
+
       - name: Build Python source distribution
         run: |
           rm -rf dist
@@ -586,33 +508,12 @@ jobs:
 
       - name: Build publishable Linux wheel
         run: >-
-          uv run --isolated --with 'maturin[zig]>=1.11,<2.0' --
+          uv run --isolated --with "${{ steps.release-tools.outputs.maturin_zig }}" --
           maturin build --release --locked --manifest-path crates/tq-cli/Cargo.toml
           --bindings bin --out dist -i python --compatibility pypi --zig
 
-      - name: Verify built release artifact set
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          wheel_count="$(find dist -maxdepth 1 -type f -name '*.whl' | wc -l | tr -d ' ')"
-          if [ "$wheel_count" -ne 1 ]; then
-            echo "Expected exactly one wheel artifact in dist/, found $wheel_count"
-            exit 1
-          fi
-
-          sdist_count="$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l | tr -d ' ')"
-          if [ "$sdist_count" -ne 1 ]; then
-            echo "Expected exactly one source distribution artifact in dist/, found $sdist_count"
-            exit 1
-          fi
-
-          wheel_path="$(find dist -maxdepth 1 -type f -name '*.whl' | head -n 1)"
-          wheel_name="$(basename "$wheel_path")"
-          if [[ "$wheel_name" == *linux_* && "$wheel_name" != *manylinux* && "$wheel_name" != *musllinux* ]]; then
-            echo "Wheel '$wheel_name' uses a native linux platform tag that PyPI will reject"
-            exit 1
-          fi
+      - name: Verify built release artifacts
+        run: cargo dev release verify-artifacts --dist-dir dist --profile linux-pair
 
       - name: Smoke check built package entrypoints
         shell: bash
@@ -646,20 +547,20 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Setup Rust toolchain
-        if: ${{ needs.change-scope.outputs.rust_security_scan == 'true' }}
+        if: ${{ needs.change-scope.outputs.rust_security == 'true' }}
         uses: ./.github/actions/setup-rust
 
       - name: Setup Python + uv + deps
         uses: ./.github/actions/setup-python-uv
 
       - name: Setup Rust security tools
-        if: ${{ needs.change-scope.outputs.rust_security_scan == 'true' }}
+        if: ${{ needs.change-scope.outputs.rust_security == 'true' }}
         uses: ./.github/actions/setup-rust-security-tools
 
       - name: Gitleaks
@@ -668,26 +569,23 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_ENABLE_COMMENTS: "false"
 
-      - name: Detect secrets (baseline)
-        run: uv run detect-secrets-hook --baseline .detect-secrets.baseline
-
       - name: Cargo audit
-        if: ${{ needs.change-scope.outputs.rust_security_scan == 'true' }}
-        run: cargo audit
+        if: ${{ needs.change-scope.outputs.rust_security == 'true' }}
+        run: cargo audit -D warnings
 
       - name: Cargo deny
-        if: ${{ needs.change-scope.outputs.rust_security_scan == 'true' }}
+        if: ${{ needs.change-scope.outputs.rust_security == 'true' }}
         run: cargo deny check
 
       - name: Setup docs toolchain
-        if: ${{ needs.change-scope.outputs.docs_security_scan == 'true' }}
-        uses: ./.github/actions/setup-mise-docs
+        if: ${{ needs.change-scope.outputs.docs_security == 'true' }}
+        uses: ./.github/actions/setup-docs
         with:
           install-dependencies: "false"
 
       - name: npm audit (docs toolchain)
-        if: ${{ needs.change-scope.outputs.docs_security_scan == 'true' }}
-        run: mise exec -- npm audit --package-lock-only
+        if: ${{ needs.change-scope.outputs.docs_security == 'true' }}
+        run: npm audit --package-lock-only
 
       - name: Summarize gated dependency scans
         shell: bash
@@ -697,10 +595,35 @@ jobs:
           {
             echo "## Dependency security scope"
             echo
-            echo "- Rust dependency security scans: ${{ needs.change-scope.outputs.rust_security_scan }}"
-            echo "- Docs dependency security scans: ${{ needs.change-scope.outputs.docs_security_scan }}"
+            echo "- Rust dependency security scans: ${{ needs.change-scope.outputs.rust_security }}"
+            echo "- Docs dependency security scans: ${{ needs.change-scope.outputs.docs_security }}"
             echo "- Docs sync contracts: ${{ needs.change-scope.outputs.docs_sync }}"
             echo "- Docs site build: ${{ needs.change-scope.outputs.docs_build }}"
             echo
             echo "Secret scanning remains unconditional in main CI."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  automation-policy:
+    name: Automation policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Register actionlint problem matcher
+        shell: bash
+        run: echo "::add-matcher::.github/actionlint-matcher.json"
+
+      - name: Validate GitHub Actions workflows
+        uses: docker://rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: -color
+
+      - name: Verify fail-closed automation policy
+        run: cargo dev policy verify-automation --repo-root .

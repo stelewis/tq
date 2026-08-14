@@ -20,6 +20,8 @@ pub enum DiscoveryError {
     CurrentDirIndexPath { path: PathBuf },
     #[error("index file paths must not contain '..': {path}")]
     ParentDirIndexPath { path: PathBuf },
+    #[error("conflicting analysis for test file {path}")]
+    ConflictingTestFileAnalysis { path: PathBuf },
     #[error("discovered file {path} is not under root {root}")]
     DiscoveredPathOutsideRoot { path: PathBuf, root: PathBuf },
 }

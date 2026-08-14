@@ -24,7 +24,9 @@ fn orphaned_rule_emits_warning_for_missing_source() {
 
     let rule = OrphanedTestRule::new(QualifierStrategy::None, BTreeSet::new())
         .expect("rule should be valid");
-    let findings = rule.evaluate(&context);
+    let findings = rule
+        .evaluate(&context)
+        .expect("rule evaluation should succeed");
 
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].rule_id().as_str(), "orphaned-test");
@@ -50,7 +52,9 @@ fn orphaned_rule_allowlist_accepts_qualified_test() {
         std::iter::once("regression".to_owned()).collect(),
     )
     .expect("rule should be valid");
-    let findings = rule.evaluate(&context);
+    let findings = rule
+        .evaluate(&context)
+        .expect("rule evaluation should succeed");
 
     assert!(findings.is_empty());
 }

@@ -28,10 +28,9 @@ The Rust workspace uses one shared version for all internal crates.
 - Internal crate APIs are current-only. They are not compatibility surfaces.
 - When a workspace crate changes a public API consumed by another workspace crate, update all internal callers in the same change.
 - Do not preserve old internal APIs with shims, aliases, deprecated wrappers, or dual-path call sites.
-- If an internal public API changes, bump the shared workspace version as a minor pre-`1.0` release before packaging or release validation.
-- Version bumps must keep `workspace.package.version` and internal `workspace.dependencies.tq-*` version fields aligned. Commitizen updates the inline `workspace.dependencies.tq-*` entries in `Cargo.toml` during `cz bump`.
-- `cargo run -p tq-release --locked -- verify-release-policy --repo-root .` is the release-policy gate for this policy. It must pass before packaging.
-- `cargo package --workspace --locked` is the packaging gate for this policy. If it fails because a published crate with the same version no longer matches the current internal API, the correct fix is a version bump, not compatibility code.
+- Workspace crates are never published to crates.io (`workspace.package.publish = false`); the only published artifact is the PyPI distribution built from `tq-cli`.
+- Internal `workspace.dependencies.tq-*` entries are path-only. Members inherit `version` and `publish` from `workspace.package`.
+- `cargo dev policy verify-release --repo-root .` is the release-policy gate for this policy. It must pass before packaging.
 
 ## Release intent from Conventional Commits
 
@@ -53,7 +52,7 @@ Classify a dependency update by whether it ships in the published CLI:
 - Runtime dependency updates in the shipped Rust CLI path are shipped changes. Commit them as `fix:` (or `feat:` if they widen behavior) so the next `cz bump` releases them.
 - Tooling-only updates (`pyproject.toml`, docs toolchain, GitHub Actions, pre-commit hooks, other repo automation) are not shipped. Commit them as `chore`/`build`/`ci` so they do not force a release.
 
-Dependabot always opens dependency PRs with a `chore(deps): ...` subject, which carries no release intent on its own. CI resolves the ambiguity: the advisory `check-runtime-deps` step runs on every pull request that touches `Cargo.lock` or `Cargo.toml`, reports in its job summary whether the shipped CLI dependency graph changed, and never blocks the merge.
+Dependabot always opens dependency PRs with a `chore(deps): ...` subject, which carries no release intent on its own. CI resolves the ambiguity: the advisory `cargo dev runtime-deps` step runs on every pull request that touches `Cargo.lock` or `Cargo.toml`, reports in its job summary whether the shipped CLI dependency graph changed, and never blocks the merge.
 
 Handle a Dependabot Cargo PR by reading that summary:
 

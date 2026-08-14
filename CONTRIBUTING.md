@@ -10,14 +10,12 @@ Because `tq` is a developer tool used by multiple teams, we strive for consisten
 
 1. Fork and clone the repository.
 2. Create a short descriptive branch such as `feature/add-cli-command`, `fix/parser-bug`, or `docs/update-guide`.
-3. Install the local toolchain:
+3. Install the tool versions declared by the repository with the environment manager that owns your machine configuration, then bootstrap repository dependencies and hooks:
 
    ```sh
-   uv sync                   # install project dependencies
-   uv run prek install       # install pre‑commit hooks
-   mise trust                # trust project mise.toml tasks/tools in this repo
-   mise install              # install tool versions declared in mise.toml
-   mise exec -- npm install  # install node dependencies for docs
+   cargo dev health doctor --repo-root .
+   cargo dev setup --dry-run --repo-root .
+   cargo dev setup --repo-root .
    ```
 
 4. Use the Rust workspace loop while developing:
@@ -30,10 +28,10 @@ Because `tq` is a developer tool used by multiple teams, we strive for consisten
 5. Before opening a PR, run the relevant validation commands for your change. The common local checks are:
 
    ```sh
-   cargo fmt --all --check
-   cargo clippy --workspace --all-targets --locked -- -D warnings
-   cargo test --workspace --locked
+   cargo dev check routine --repo-root .
    ```
+
+   Use `cargo dev check all --repo-root .` for broad changes and `cargo dev check --profile full all --repo-root .` for release-sensitive changes.
 
 6. If you plan to use the signed local fast-forward exception instead of the default squash merge, clean up and sign your commit history before opening a PR. See the [Git workflow docs](docs/developer/standards/git.md) for the merge policy.
 

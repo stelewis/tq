@@ -38,10 +38,4 @@ I recognize this is a big refactor, but it is absolutely critical that we do it 
 
 Ensure all checks pass:
 
-- `cargo fmt --all --check`
-- `cargo clippy --workspace --all-targets --locked -- -D warnings`
-- `cargo test --workspace --locked`
-- `cargo run -p tq-docsgen --locked -- generate all`
-- `cargo run -p tq-release --locked -- verify-dependabot --repo-root .`
-- `cargo package --workspace --locked`
-- `mise run release-build`
+- `cargo dev check --profile full all --repo-root .`
