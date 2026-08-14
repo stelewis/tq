@@ -44,6 +44,18 @@ fn node_and_docs_setup_have_separate_owners() {
 }
 
 #[test]
+fn rust_maintenance_cache_requires_exact_scanner_versions() {
+    let action = include_str!("../../../.github/actions/setup-rust-maintenance-tools/action.yml");
+
+    assert!(action.contains("cargo-audit-version"));
+    assert!(action.contains("cargo-deny-version"));
+    assert!(action.contains("actual_version="));
+    assert!(action.contains("$tool_root/bin/cargo-audit\" audit --version"));
+    assert!(action.contains("$tool_root/bin/cargo-deny\" deny --version"));
+    assert!(!action.contains("cargo-outdated"));
+}
+
+#[test]
 fn every_workflow_and_job_satisfies_the_hardening_policy() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()

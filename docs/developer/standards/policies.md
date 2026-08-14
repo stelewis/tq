@@ -82,8 +82,8 @@ Rust advisory and dependency-policy scans must run on a weekly schedule and on d
 
 Enforcement:
 
-- the scheduled workflow runs `cargo audit` and `cargo deny check` weekly and on demand.
-- the main CI workflow reruns `cargo audit` and `cargo deny check` when `Cargo.lock`, any `Cargo.toml`, `deny.toml`, or the Rust security workflow and action definitions change.
+- the scheduled workflow runs `cargo audit -D warnings` and `cargo deny check` weekly and on demand.
+- the main CI workflow reruns both scanners when `Cargo.lock`, any `Cargo.toml`, `deny.toml`, or the Rust security workflow and action definitions change.
 
 Why this matters:
 

@@ -1,12 +1,16 @@
 //! Dependency and maintenance-tool drift audits.
 
-use std::path::Path;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::audit::{AuditCheck, AuditCommand, AuditReport, FindingsSignal, run_audit_commands};
+use crate::audit::{
+    AuditCheck, AuditCommand, AuditReport, FindingsSignal, run_audit_command, run_audit_commands,
+};
 use crate::error::DevError;
 use crate::external_pins::{self, ReleaseSeries};
 use crate::invocation::Invocation;
-use crate::manifest::{DevToolsManifest, NodeToolchain, ToolVersion};
+use crate::manifest::{CratesIoTool, DevToolsManifest, NodeToolchain, ToolVersion};
 use crate::update;
 
 /// Reports available updates for every pinned tool and project dependency ecosystem.
@@ -59,24 +63,14 @@ pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
             "Update the shellcheck pin in .github/dev-tools.toml.",
         ),
     ];
-    checks.extend(maintenance_tool_checks(repo_root, &manifest));
+    checks.extend(maintenance_tool_checks(repo_root, &manifest)?);
     checks.extend(run_audit_commands(
         repo_root,
         vec![
             AuditCommand {
                 name: "cargo-dependencies",
-                invocation: Invocation::new(
-                    "cargo",
-                    [
-                        "+stable",
-                        "outdated",
-                        "--workspace",
-                        "--root-deps-only",
-                        "--exit-code",
-                        "1",
-                    ],
-                ),
-                signal: FindingsSignal::ExitCodeOne,
+                invocation: Invocation::new("cargo", ["update", "--dry-run"]),
+                signal: FindingsSignal::CargoUpdateDryRun,
                 remediation: Some("Run cargo update and review Cargo.lock."),
             },
             AuditCommand {
@@ -106,16 +100,16 @@ pub fn audit_security(repo_root: &Path) -> Result<AuditReport, DevError> {
         vec![
             AuditCommand {
                 name: "cargo-audit",
-                invocation: Invocation::new("cargo", ["audit"]),
-                signal: FindingsSignal::ExitCodeOne,
+                invocation: Invocation::new("cargo", ["audit", "-D", "warnings"]),
+                signal: FindingsSignal::CargoAudit,
                 remediation: Some(
-                    "Review the advisory and update or explicitly deny the affected dependency.",
+                    "Review every RustSec vulnerability and warning before changing dependency state.",
                 ),
             },
             AuditCommand {
                 name: "cargo-deny",
                 invocation: Invocation::new("cargo", ["deny", "check"]),
-                signal: FindingsSignal::ExitCodeOne,
+                signal: FindingsSignal::CargoDeny,
                 remediation: Some(
                     "Review the cargo-deny policy violation before changing dependency state.",
                 ),
@@ -145,22 +139,169 @@ pub fn audit_maintenance_tools(repo_root: &Path) -> Result<AuditReport, DevError
     let manifest = DevToolsManifest::load(repo_root)?;
     Ok(AuditReport::new(maintenance_tool_checks(
         repo_root, &manifest,
-    )))
+    )?))
 }
 
-fn maintenance_tool_checks(repo_root: &Path, manifest: &DevToolsManifest) -> Vec<AuditCheck> {
-    [
-        ("cargo-outdated", &manifest.cargo_outdated),
+fn maintenance_tool_checks(
+    repo_root: &Path,
+    manifest: &DevToolsManifest,
+) -> Result<Vec<AuditCheck>, DevError> {
+    let mut checks = Vec::new();
+    for (name, tool) in [
         ("cargo-audit", &manifest.cargo_audit),
         ("cargo-deny", &manifest.cargo_deny),
-    ]
-    .into_iter()
-    .map(|(name, pinned)| {
-        crates_io_pin_check(repo_root, name, pinned).with_remediation(
+    ] {
+        checks.push(crates_io_pin_check(repo_root, name, &tool.version).with_remediation(
             "Update the rust-maintenance pin in .github/dev-tools.toml and its CI setup action defaults.",
-        )
-    })
-    .collect()
+        ));
+        checks.extend(packaged_tool_checks(repo_root, name, tool)?);
+    }
+    Ok(checks)
+}
+
+fn packaged_tool_checks(
+    repo_root: &Path,
+    crate_name: &str,
+    tool: &CratesIoTool,
+) -> Result<Vec<AuditCheck>, DevError> {
+    let cargo_home = TemporaryCargoHome::new()?;
+    let package = format!("{crate_name}@{}", tool.version);
+    let invocation =
+        Invocation::with_args("cargo", ["info".to_owned(), package.clone()]).with_env(vec![(
+            "CARGO_HOME".to_owned(),
+            cargo_home.path().display().to_string(),
+        )]);
+    let command = invocation.display();
+    let captured = invocation.capture(repo_root)?;
+    let identity_name = format!("{crate_name}-metadata");
+    if !captured.success {
+        return Ok(vec![AuditCheck::failed(
+            &identity_name,
+            &command,
+            captured.output,
+        )]);
+    }
+
+    let Some(repository) = parse_cargo_info_repository(&captured.output) else {
+        return Ok(vec![AuditCheck::failed(
+            &identity_name,
+            &command,
+            format!(
+                "missing repository metadata in cargo info output\n{}",
+                captured.output
+            ),
+        )]);
+    };
+    if repository != tool.repository.as_str() {
+        return Ok(vec![AuditCheck::failed(
+            &identity_name,
+            &command,
+            format!(
+                "expected repository {}, found {repository}",
+                tool.repository.as_str()
+            ),
+        )]);
+    }
+
+    let identity = AuditCheck::clean(&identity_name, &command);
+    let lockfile = packaged_lockfile(cargo_home.path(), crate_name, &tool.version)?;
+    let lock_name = format!("{crate_name}-lock");
+    let remediation = format!(
+        "Do not install {package} until its published Cargo.lock is free of known advisories."
+    );
+    let lock_invocation = Invocation::with_args(
+        "cargo",
+        [
+            "audit".to_owned(),
+            "--file".to_owned(),
+            lockfile.display().to_string(),
+            "-D".to_owned(),
+            "warnings".to_owned(),
+        ],
+    );
+    let lock = run_audit_command(
+        repo_root,
+        &lock_name,
+        &lock_invocation,
+        FindingsSignal::CargoAudit,
+        Some(&remediation),
+    )?;
+    Ok(vec![identity, lock])
+}
+
+struct TemporaryCargoHome {
+    path: PathBuf,
+}
+
+impl TemporaryCargoHome {
+    fn new() -> Result<Self, DevError> {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|error| DevError::InvalidInput {
+                path: std::env::temp_dir(),
+                message: format!("system clock precedes Unix epoch: {error}"),
+            })?
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "tq-maintenance-audit-{}-{nonce}",
+            std::process::id()
+        ));
+        fs::create_dir(&path).map_err(|source| DevError::Io {
+            path: path.clone(),
+            source,
+        })?;
+        Ok(Self { path })
+    }
+
+    fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Drop for TemporaryCargoHome {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.path);
+    }
+}
+
+fn parse_cargo_info_repository(output: &str) -> Option<&str> {
+    output
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("repository: "))
+}
+
+fn packaged_lockfile(
+    cargo_home: &Path,
+    crate_name: &str,
+    version: &ToolVersion,
+) -> Result<PathBuf, DevError> {
+    let source_root = cargo_home.join("registry/src");
+    let package_directory = format!("{crate_name}-{version}");
+    let mut candidates = Vec::new();
+    for registry in fs::read_dir(&source_root).map_err(|source| DevError::Io {
+        path: source_root.clone(),
+        source,
+    })? {
+        let registry = registry.map_err(|source| DevError::Io {
+            path: source_root.clone(),
+            source,
+        })?;
+        let candidate = registry.path().join(&package_directory).join("Cargo.lock");
+        if candidate.is_file() {
+            candidates.push(candidate);
+        }
+    }
+    candidates.sort();
+    if candidates.len() != 1 {
+        return Err(DevError::InvalidInput {
+            path: source_root,
+            message: format!(
+                "expected exactly one packaged Cargo.lock for {crate_name}@{version}, found {}",
+                candidates.len()
+            ),
+        });
+    }
+    Ok(candidates.remove(0))
 }
 
 fn rust_toolchain_check(repo_root: &Path, pinned: &ToolVersion) -> AuditCheck {
@@ -287,16 +428,53 @@ fn parse_cargo_search_version(crate_name: &str, output: &str) -> Option<String> 
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_cargo_search_version, parse_maturin_version};
+    use std::fs;
+
+    use super::{
+        packaged_lockfile, parse_cargo_info_repository, parse_cargo_search_version,
+        parse_maturin_version,
+    };
+    use crate::manifest::ToolVersion;
 
     #[test]
     fn parses_cargo_search_exact_crate_version() {
         assert_eq!(
             parse_cargo_search_version(
-                "cargo-audit",
-                "cargo-audit = \"0.22.2\"    # Audit Cargo.lock\nother = \"9.9.9\"",
+                "cargo-deny",
+                "cargo-deny = \"0.20.2\"    # Check dependency policy\nother = \"9.9.9\"",
             ),
-            Some("0.22.2".to_owned())
+            Some("0.20.2".to_owned())
+        );
+    }
+
+    #[test]
+    fn parses_cargo_info_repository() {
+        assert_eq!(
+            parse_cargo_info_repository(
+                "cargo-deny #security\nrepository: https://github.com/EmbarkStudios/cargo-deny\n"
+            ),
+            Some("https://github.com/EmbarkStudios/cargo-deny")
+        );
+        assert_eq!(
+            parse_cargo_info_repository("repository metadata missing"),
+            None
+        );
+    }
+
+    #[test]
+    fn finds_one_exact_packaged_lockfile() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let lockfile = temp
+            .path()
+            .join("registry/src/index.crates.io-example/cargo-deny-0.20.2/Cargo.lock");
+        fs::create_dir_all(lockfile.parent().expect("lockfile parent"))
+            .expect("create package source");
+        fs::write(&lockfile, "version = 4\n").expect("write lockfile");
+        let version = ToolVersion::parse("0.20.2").expect("valid version");
+
+        assert_eq!(
+            packaged_lockfile(temp.path(), "cargo-deny", &version).expect("one exact lockfile"),
+            lockfile
         );
     }
 

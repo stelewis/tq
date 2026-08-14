@@ -57,7 +57,7 @@ Use the Rust workspace for product code and `uv` for packaging and repository au
 - MUST ensure that test modules are properly refactored when source code changes (split, merge, replace, delete).
 - MUST develop clean, maintainable, well factored, and elegant code.
 - MUST NOT blindly comply with lint rules or contort otherwise clear code to satisfy linting heuristics.
-- MUST use the repository's dependency and security tooling when dependency changes are involved, including `cargo audit`, `cargo deny check`, and relevant lockfile review.
+- MUST use the repository's dependency and security tooling when dependency changes are involved, including `cargo audit -D warnings`, `cargo deny check`, and relevant lockfile review.
 - MUST improve `cargo dev` when recurring local friction, security maintenance, dependency drift, release validation, or setup cleanup can be made deterministic instead of documented as manual process.
 
 ## Security

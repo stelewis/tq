@@ -18,13 +18,15 @@ The repository uses four separate controls so frozen refs stay both strict and m
 - [Pinned Actions Policy](https://github.com/stelewis/tq/blob/main/.github/workflows/pinned-actions-policy.yml) requires external actions to use full commit SHAs and Docker-backed actions to use SHA-256 image digests.
 - [Frozen Pre-commit Policy](https://github.com/stelewis/tq/blob/main/.github/workflows/frozen-pre-commit-policy.yml) fails if an external pre-commit hook rev is not a full commit SHA.
 - [Pinned External Dependency Drift](https://github.com/stelewis/tq/blob/main/.github/workflows/pinned-external-dependency-drift.yml) makes stale frozen refs visible when they lag the latest upstream SemVer release tag.
-- [Rust Maintenance Tool Pins](https://github.com/stelewis/tq/blob/main/.github/workflows/rust-maintenance-tool-pins.yml) makes stale `cargo-outdated`, `cargo-audit`, and `cargo-deny` pins visible when crates.io has newer releases.
+- [Rust Maintenance Tool Pins](https://github.com/stelewis/tq/blob/main/.github/workflows/rust-maintenance-tool-pins.yml) verifies pinned `cargo-audit` and `cargo-deny` release metadata and audits their published Cargo locks. Cargo validates each downloaded crates.io archive against the registry checksum; repository metadata is an admission signal, not proof that an archive matches upstream source.
 
 Dependabot remains the default update path for supported GitHub Action and pre-commit dependencies. Use manual rotation for Docker image digests, urgent updates, drift responses, and any dependency that Dependabot cannot update completely.
 
 Run `cargo update` for the Rust lockfile, then use `cargo dev deps update --dry-run --repo-root .` before applying the remaining repository-owned dependency and toolchain updates. Cargo launches the harness, so the harness does not nest a Cargo lockfile mutation that its parent process would overwrite.
 
 Use `cargo dev deps audit-maintenance-tools --repo-root .` to run the scheduled Rust maintenance-tool subset locally. `cargo dev deps audit-latest --repo-root .` is the comprehensive freshness command for every pinned tool and project dependency ecosystem. Python is compared within its pinned minor series, Node within its pinned major series, and other tool pins against the latest stable SemVer release. The exact npm version in `packageManager` follows the npm release bundled with the pinned Node version.
+
+Treat the currently pinned scanner releases as bootstrap trust. Before changing either scanner pin, use the existing trusted cargo-audit installation to audit the candidate release's published Cargo.lock, review its current crates.io owners and repository metadata, and only then update `.github/dev-tools.toml` and the setup-action default. CI repeats the metadata and lock checks after installation; it is verification of reviewed admission evidence, not a substitute for pre-rotation review.
 
 Node and npm versions are owned by `package.json`. Actionlint and ShellCheck versions are owned by `.github/dev-tools.toml`; developers install those versions with their environment manager. When actionlint changes, resolve the official image tag to its registry digest and update `automation.actionlint-image.digest` in the same change. Pin policy derives the required versioned image reference and rejects a stale workflow consumer.
 
@@ -97,6 +99,7 @@ If the workflow cannot resolve an upstream SemVer release tag, or cannot derive 
 ## Review checklist
 
 - Was the source repository reviewed as a dependency admission decision, not just as a version bump?
+- Do the current crates.io owners still match the reviewed project or organization?
 - Is the new ref pinned to a full 40-character commit SHA?
 - Does the human-readable version comment match the intended upstream release?
 - If `.github/dependabot.yml` changed, does `cargo dev policy verify-dependabot --repo-root .` still pass?

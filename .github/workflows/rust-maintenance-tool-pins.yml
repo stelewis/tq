@@ -31,6 +31,13 @@ jobs:
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
 
+      - name: Setup Rust maintenance tools
+        uses: ./.github/actions/setup-rust-maintenance-tools
+        with:
+          install-stable-toolchain: "true"
+          install-cargo-audit: "true"
+          install-cargo-deny: "true"
+
       - name: Check upstream drift for pinned maintenance tools
         id: drift
         shell: bash

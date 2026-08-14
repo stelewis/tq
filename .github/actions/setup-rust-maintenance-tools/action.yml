@@ -6,14 +6,6 @@ inputs:
     description: Install the stable Rust toolchain for tools that are bootstrapped outside the product MSRV
     required: false
     default: "false"
-  install-cargo-outdated:
-    description: Install cargo-outdated
-    required: false
-    default: "true"
-  cargo-outdated-version:
-    description: cargo-outdated release to install with the active Rust toolchain
-    required: false
-    default: "0.19.0"
   install-cargo-audit:
     description: Install cargo-audit from the pinned crates.io release
     required: false
@@ -43,7 +35,7 @@ runs:
         rustup toolchain install stable --profile minimal
 
     - name: Determine maintenance tool cache key
-      if: ${{ inputs.install-cargo-outdated == 'true' || inputs.install-cargo-audit == 'true' || inputs.install-cargo-deny == 'true' }}
+      if: ${{ inputs.install-cargo-audit == 'true' || inputs.install-cargo-deny == 'true' }}
       id: toolchain
       shell: bash
       run: |
@@ -69,52 +61,31 @@ runs:
         echo "cache-suffix=active-${release}" >> "$GITHUB_OUTPUT"
 
     - name: Compose maintenance tool cache keys
-      if: ${{ inputs.install-cargo-outdated == 'true' || inputs.install-cargo-audit == 'true' || inputs.install-cargo-deny == 'true' }}
+      if: ${{ inputs.install-cargo-audit == 'true' || inputs.install-cargo-deny == 'true' }}
       id: cache-key
       shell: bash
       run: |
         set -euo pipefail
 
-        cache_key_prefix="rust-maintenance-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.cache-suffix }}-outdated-${{ inputs.install-cargo-outdated }}-${{ inputs.cargo-outdated-version }}-audit-${{ inputs.install-cargo-audit }}-${{ inputs.cargo-audit-version }}-deny-${{ inputs.install-cargo-deny }}-${{ inputs.cargo-deny-version }}"
+        cache_key_prefix="rust-maintenance-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.cache-suffix }}-audit-${{ inputs.install-cargo-audit }}-${{ inputs.cargo-audit-version }}-deny-${{ inputs.install-cargo-deny }}-${{ inputs.cargo-deny-version }}"
 
         echo "exact=${cache_key_prefix}-${{ hashFiles('.github/actions/setup-rust-maintenance-tools/action.yml') }}" >> "$GITHUB_OUTPUT"
-        echo "prefix=${cache_key_prefix}-" >> "$GITHUB_OUTPUT"
 
     - name: Restore cached maintenance tool binaries
-      if: ${{ inputs.install-cargo-outdated == 'true' || inputs.install-cargo-audit == 'true' || inputs.install-cargo-deny == 'true' }}
+      if: ${{ inputs.install-cargo-audit == 'true' || inputs.install-cargo-deny == 'true' }}
       id: maintenance-cache
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/.cargo-maintenance-tools
         key: ${{ steps.cache-key.outputs.exact }}
-        restore-keys: |
-          ${{ steps.cache-key.outputs.prefix }}
 
     - name: Add maintenance tools to PATH
-      if: ${{ inputs.install-cargo-outdated == 'true' || inputs.install-cargo-audit == 'true' || inputs.install-cargo-deny == 'true' }}
+      if: ${{ inputs.install-cargo-audit == 'true' || inputs.install-cargo-deny == 'true' }}
       shell: bash
       run: |
         set -euo pipefail
 
         echo "$HOME/.cargo-maintenance-tools/bin" >> "$GITHUB_PATH"
-
-    - name: Install cargo-outdated
-      if: ${{ inputs.install-cargo-outdated == 'true' }}
-      shell: bash
-      run: |
-        set -euo pipefail
-
-        tool_root="$HOME/.cargo-maintenance-tools"
-        if [[ -x "$tool_root/bin/cargo-outdated" ]]; then
-          exit 0
-        fi
-
-        if [[ "${{ inputs.install-stable-toolchain }}" == "true" ]]; then
-          cargo +stable install --root "$tool_root" --locked "cargo-outdated@${{ inputs.cargo-outdated-version }}"
-          exit 0
-        fi
-
-        cargo install --root "$tool_root" --locked "cargo-outdated@${{ inputs.cargo-outdated-version }}"
 
     - name: Install cargo-audit
       if: ${{ inputs.install-cargo-audit == 'true' }}
@@ -124,13 +95,14 @@ runs:
 
         tool_root="$HOME/.cargo-maintenance-tools"
         if [[ -x "$tool_root/bin/cargo-audit" ]]; then
-          exit 0
+          actual_version="$("$tool_root/bin/cargo-audit" audit --version | awk '{print $NF}')"
+          if [[ "$actual_version" == "${{ inputs.cargo-audit-version }}" ]]; then
+            exit 0
+          fi
+          rm "$tool_root/bin/cargo-audit"
         fi
 
-        cargo +stable install \
-          --root "$tool_root" \
-          --locked \
-          "cargo-audit@${{ inputs.cargo-audit-version }}"
+        cargo +stable install --root "$tool_root" --locked "cargo-audit@${{ inputs.cargo-audit-version }}"
 
     - name: Install cargo-deny
       if: ${{ inputs.install-cargo-deny == 'true' }}
@@ -140,13 +112,17 @@ runs:
 
         tool_root="$HOME/.cargo-maintenance-tools"
         if [[ -x "$tool_root/bin/cargo-deny" ]]; then
-          exit 0
+          actual_version="$("$tool_root/bin/cargo-deny" deny --version | awk '{print $NF}')"
+          if [[ "$actual_version" == "${{ inputs.cargo-deny-version }}" ]]; then
+            exit 0
+          fi
+          rm "$tool_root/bin/cargo-deny"
         fi
 
         cargo +stable install --root "$tool_root" --locked "cargo-deny@${{ inputs.cargo-deny-version }}"
 
     - name: Save maintenance tool cache
-      if: ${{ (inputs.install-cargo-outdated == 'true' || inputs.install-cargo-audit == 'true' || inputs.install-cargo-deny == 'true') && steps.maintenance-cache.outputs.cache-hit != 'true' }}
+      if: ${{ (inputs.install-cargo-audit == 'true' || inputs.install-cargo-deny == 'true') && steps.maintenance-cache.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/.cargo-maintenance-tools

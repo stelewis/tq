@@ -125,9 +125,45 @@ pub struct DevToolsManifest {
     pub actionlint: ToolVersion,
     pub shellcheck: ToolVersion,
     pub(crate) actionlint_image: ContainerImage,
-    pub cargo_outdated: ToolVersion,
-    pub cargo_audit: ToolVersion,
-    pub cargo_deny: ToolVersion,
+    pub cargo_audit: CratesIoTool,
+    pub cargo_deny: CratesIoTool,
+}
+
+#[derive(Debug)]
+pub struct CratesIoTool {
+    pub version: ToolVersion,
+    pub repository: CanonicalRepository,
+}
+
+#[derive(Debug)]
+pub struct CanonicalRepository(String);
+
+impl CanonicalRepository {
+    fn parse(value: &str) -> Result<Self, String> {
+        let path = value
+            .strip_prefix("https://github.com/")
+            .ok_or_else(|| "repository must use an https://github.com URL".to_owned())?;
+        let mut segments = path.split('/');
+        let owner = segments.next().unwrap_or_default();
+        let repository = segments.next().unwrap_or_default();
+        if owner.is_empty()
+            || repository.is_empty()
+            || repository
+                .get(repository.len().saturating_sub(4)..)
+                .is_some_and(|suffix| suffix.eq_ignore_ascii_case(".git"))
+            || segments.next().is_some()
+        {
+            return Err(
+                "repository must identify one canonical GitHub owner/repository".to_owned(),
+            );
+        }
+        Ok(Self(value.to_owned()))
+    }
+
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 #[derive(Debug)]
@@ -168,6 +204,24 @@ impl DevToolsManifest {
                 message,
             })
         };
+        let maintenance_tool = |name: &str| -> Result<CratesIoTool, DevError> {
+            let version = version(&["rust-maintenance", name, "version"])?;
+            let repository = parse::required_string(
+                &document,
+                &["rust-maintenance", name, "repository"],
+                &path,
+            )?;
+            let repository = CanonicalRepository::parse(&repository).map_err(|message| {
+                DevError::InvalidInput {
+                    path: path.clone(),
+                    message: format!("rust-maintenance.{name}.repository {message}"),
+                }
+            })?;
+            Ok(CratesIoTool {
+                version,
+                repository,
+            })
+        };
 
         Ok(Self {
             rust: version(&["tools", "rust"])?,
@@ -178,9 +232,8 @@ impl DevToolsManifest {
             actionlint: version(&["tools", "actionlint"])?,
             shellcheck: version(&["tools", "shellcheck"])?,
             actionlint_image: container_image(&document, &path)?,
-            cargo_outdated: version(&["rust-maintenance", "cargo-outdated"])?,
-            cargo_audit: version(&["rust-maintenance", "cargo-audit"])?,
-            cargo_deny: version(&["rust-maintenance", "cargo-deny"])?,
+            cargo_audit: maintenance_tool("cargo-audit")?,
+            cargo_deny: maintenance_tool("cargo-deny")?,
         })
     }
 
@@ -234,7 +287,7 @@ fn container_image(document: &toml::Value, path: &Path) -> Result<ContainerImage
 mod tests {
     use std::fs;
 
-    use super::{NodeToolchain, ToolVersion};
+    use super::{CanonicalRepository, NodeToolchain, ToolVersion};
 
     #[test]
     fn parses_three_part_versions_only() {
@@ -245,6 +298,14 @@ mod tests {
         assert!(ToolVersion::parse("1.96").is_err());
         assert!(ToolVersion::parse("1.96.1.0").is_err());
         assert!(ToolVersion::parse("1.96.x").is_err());
+    }
+
+    #[test]
+    fn canonical_repository_requires_one_github_owner_and_repository() {
+        assert!(CanonicalRepository::parse("https://github.com/rustsec/rustsec").is_ok());
+        assert!(CanonicalRepository::parse("http://github.com/rustsec/rustsec").is_err());
+        assert!(CanonicalRepository::parse("https://github.com/rustsec/rustsec.git").is_err());
+        assert!(CanonicalRepository::parse("https://github.com/rustsec/rustsec/path").is_err());
     }
 
     #[test]

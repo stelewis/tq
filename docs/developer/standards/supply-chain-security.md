@@ -78,7 +78,7 @@ When evaluating a dependency, review the package and its repository using these 
 
 ## Required ecosystem-specific checks
 
-- **Rust**: inspect `cargo tree`, run `cargo audit`, run `cargo deny check`, and review `cargo outdated --workspace --root-deps-only` when version drift matters.
+- **Rust**: inspect `cargo tree`, run `cargo audit -D warnings`, run `cargo deny check`, and review `cargo update --dry-run` when compatible version drift matters.
 - **Python**: review `uv.lock` and `uv tree` when available, inspect PyPI metadata and release history, and review known advisories.
 - **Node**: inspect `package-lock.json`, review install scripts and binary delivery, and run `npm audit --package-lock-only` when npm is available.
 
@@ -98,9 +98,9 @@ If the package is not an obvious ecosystem staple, the pull request should inclu
 
 Automation supports this policy but does not replace it:
 
-- `cargo audit`
+- `cargo audit -D warnings`
 - `cargo deny check`
-- `cargo outdated --workspace --root-deps-only`
+- `cargo update --dry-run`
 - Dependabot coverage policy for GitHub Actions
 - `gitleaks` and GitHub secret scanning
 - Rust, Python, and Node lockfiles

@@ -23,9 +23,9 @@ Use `cargo check` as the fast compile, type, trait, and borrow-check loop before
 
 ## Security and dependency audit
 
-- `cargo audit`
+- `cargo audit -D warnings`
 - `cargo deny check`
-- `cargo outdated --workspace --root-deps-only`
+- `cargo update --dry-run`
 
 Secret scanning and commit policy remain part of the standard workflow through `gitleaks` and `commitizen`, with GitHub secret scanning enabled on the repository.
 

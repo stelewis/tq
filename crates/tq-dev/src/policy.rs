@@ -151,18 +151,18 @@ fn verify_rust_maintenance_action(
     let path = repo_root.join(".github/actions/setup-rust-maintenance-tools/action.yml");
     let contents = parse::read_to_string(&path)?;
     let inputs = parse::action_inputs(&contents, &path)?;
-    for (input, pinned) in [
-        ("cargo-outdated-version", &manifest.cargo_outdated),
-        ("cargo-audit-version", &manifest.cargo_audit),
-        ("cargo-deny-version", &manifest.cargo_deny),
-    ] {
-        require_equal(
-            violations,
-            &format!(".github/actions/setup-rust-maintenance-tools/action.yml {input}"),
-            pinned.as_str(),
-            &parse::required_action_input_default(&inputs, input, &path)?,
-        );
-    }
+    require_equal(
+        violations,
+        ".github/actions/setup-rust-maintenance-tools/action.yml cargo-audit-version",
+        manifest.cargo_audit.version.as_str(),
+        &parse::required_action_input_default(&inputs, "cargo-audit-version", &path)?,
+    );
+    require_equal(
+        violations,
+        ".github/actions/setup-rust-maintenance-tools/action.yml cargo-deny-version",
+        manifest.cargo_deny.version.as_str(),
+        &parse::required_action_input_default(&inputs, "cargo-deny-version", &path)?,
+    );
     Ok(())
 }
 

@@ -29,10 +29,13 @@ fn write_dev_tools_manifest(repo_root: &Path) {
             "repository = \"rhysd/actionlint\"\n",
             "digest = \"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\n",
             "\n",
-            "[rust-maintenance]\n",
-            "cargo-outdated = \"0.17.0\"\n",
-            "cargo-audit = \"0.22.1\"\n",
-            "cargo-deny = \"0.19.0\"\n",
+            "[rust-maintenance.cargo-audit]\n",
+            "version = \"0.22.1\"\n",
+            "repository = \"https://github.com/rustsec/rustsec\"\n",
+            "\n",
+            "[rust-maintenance.cargo-deny]\n",
+            "version = \"0.19.0\"\n",
+            "repository = \"https://github.com/EmbarkStudios/cargo-deny\"\n",
         ),
     );
 }

@@ -403,7 +403,6 @@ fn is_known_workflow_or_action(path: &str) -> bool {
         "publish.yml",
         "rust-maintenance-tool-pins.yml",
         "rust-security-advisories.yml",
-        "stale-dependencies.yml",
     ];
     const ACTIONS: &[&str] = &[
         "setup-docs/action.yml",

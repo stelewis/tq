@@ -26,9 +26,9 @@ The product MSRV is Rust 1.96. Local and CI commands should use the pinned works
 - `cargo dev check routine --repo-root .`
 - `cargo dev check all --repo-root .`
 - `cargo dev check --profile full all --repo-root .`
-- `cargo audit`
+- `cargo audit -D warnings`
 - `cargo deny check`
-- `cargo outdated --workspace --root-deps-only`
+- `cargo update --dry-run`
 - `cargo dev release verify-artifacts --dist-dir dist --profile <expected-profile>`
 
 ## Governance

@@ -26,6 +26,15 @@ pub enum FindingsSignal {
     /// The command exits 0 even with findings; findings are detected by a
     /// marker in the output.
     OutputContains(&'static str),
+    /// Cargo update dry-run output reports `Locking N package(s)` and exits 0
+    /// for both clean and stale locks.
+    CargoUpdateDryRun,
+    /// Cargo deny exits 1 for both policy findings and execution failures;
+    /// findings use its stable `error[category]:` diagnostic form.
+    CargoDeny,
+    /// Cargo audit exits 1 for both advisory findings and execution failures;
+    /// findings end with its stable vulnerability or denied-warning summary.
+    CargoAudit,
     /// The command returns a JSON array of outdated packages with `name`,
     /// `version`, and `latest_version` fields; an empty array is clean and
     /// any other output shape is a failed check.
@@ -59,6 +68,43 @@ impl FindingsSignal {
                     AuditStatus::Clean
                 }
             }
+            Self::CargoUpdateDryRun => {
+                if success {
+                    match parse_cargo_update_count(&output) {
+                        Some(0) => AuditStatus::Clean,
+                        Some(_) => AuditStatus::Findings,
+                        None => AuditStatus::Failed,
+                    }
+                } else {
+                    AuditStatus::Failed
+                }
+            }
+            Self::CargoDeny => {
+                if success {
+                    AuditStatus::Clean
+                } else if code == Some(1) && output.lines().any(|line| line.starts_with("error[")) {
+                    AuditStatus::Findings
+                } else {
+                    AuditStatus::Failed
+                }
+            }
+            Self::CargoAudit => {
+                if success {
+                    AuditStatus::Clean
+                } else if code == Some(1)
+                    && output.lines().any(|line| {
+                        line.starts_with("error: ")
+                            && (line.ends_with(" vulnerabilities found!")
+                                || line.ends_with(" vulnerability found!")
+                                || line.ends_with(" denied warnings found!")
+                                || line.ends_with(" denied warning found!"))
+                    })
+                {
+                    AuditStatus::Findings
+                } else {
+                    AuditStatus::Failed
+                }
+            }
             Self::OutdatedPackagesJson => {
                 if success {
                     match parse_outdated_packages(&output) {
@@ -83,6 +129,17 @@ impl FindingsSignal {
         };
         Classified { status, output }
     }
+}
+
+fn parse_cargo_update_count(output: &str) -> Option<usize> {
+    output.lines().find_map(|line| {
+        line.trim()
+            .strip_prefix("Locking ")?
+            .split_whitespace()
+            .next()?
+            .parse()
+            .ok()
+    })
 }
 
 /// Parses an outdated-packages JSON array into `name version -> latest`
@@ -135,6 +192,19 @@ pub struct AuditCheck {
 }
 
 impl AuditCheck {
+    #[must_use]
+    pub fn clean(name: &str, command: &str) -> Self {
+        Self {
+            name: name.to_owned(),
+            command: command.to_owned(),
+            status: AuditStatus::Clean,
+            pinned: None,
+            latest: None,
+            output: String::new(),
+            remediation: None,
+        }
+    }
+
     #[must_use]
     pub fn failed(name: &str, command: &str, output: String) -> Self {
         Self {
@@ -241,25 +311,39 @@ pub fn run_audit_commands(
     let mut checks = Vec::new();
 
     for command in commands {
-        let captured = command.invocation.capture(repo_root)?;
-        let classified = command
-            .signal
-            .classify(captured.code, captured.success, captured.output);
-
-        checks.push(AuditCheck {
-            name: command.name.to_owned(),
-            command: command.invocation.display(),
-            status: classified.status,
-            pinned: None,
-            latest: None,
-            output: classified.output,
-            remediation: (classified.status == AuditStatus::Findings)
-                .then(|| command.remediation.map(ToOwned::to_owned))
-                .flatten(),
-        });
+        checks.push(run_audit_command(
+            repo_root,
+            command.name,
+            &command.invocation,
+            command.signal,
+            command.remediation,
+        )?);
     }
 
     Ok(checks)
+}
+
+pub fn run_audit_command(
+    repo_root: &Path,
+    name: &str,
+    invocation: &Invocation,
+    signal: FindingsSignal,
+    remediation: Option<&str>,
+) -> Result<AuditCheck, DevError> {
+    let captured = invocation.capture(repo_root)?;
+    let classified = signal.classify(captured.code, captured.success, captured.output);
+
+    Ok(AuditCheck {
+        name: name.to_owned(),
+        command: invocation.display(),
+        status: classified.status,
+        pinned: None,
+        latest: None,
+        output: classified.output,
+        remediation: (classified.status == AuditStatus::Findings)
+            .then(|| remediation.map(ToOwned::to_owned))
+            .flatten(),
+    })
 }
 
 #[cfg(test)]
@@ -293,6 +377,86 @@ mod tests {
             AuditStatus::Findings
         );
         assert_eq!(status(signal, Some(2), false, ""), AuditStatus::Failed);
+    }
+
+    #[test]
+    fn cargo_update_signal_distinguishes_zero_from_planned_updates() {
+        let signal = FindingsSignal::CargoUpdateDryRun;
+        assert_eq!(
+            status(
+                signal,
+                Some(0),
+                true,
+                "Locking 0 packages to latest versions"
+            ),
+            AuditStatus::Clean
+        );
+        assert_eq!(
+            status(
+                signal,
+                Some(0),
+                true,
+                "Locking 3 packages to latest versions"
+            ),
+            AuditStatus::Findings
+        );
+        assert_eq!(
+            status(signal, Some(0), true, "format changed"),
+            AuditStatus::Failed
+        );
+        assert_eq!(
+            status(signal, Some(1), false, "Locking 3 packages"),
+            AuditStatus::Failed
+        );
+    }
+
+    #[test]
+    fn cargo_deny_signal_separates_findings_from_execution_errors() {
+        let signal = FindingsSignal::CargoDeny;
+        assert_eq!(
+            status(signal, Some(0), true, "advisories ok"),
+            AuditStatus::Clean
+        );
+        assert_eq!(
+            status(
+                signal,
+                Some(1),
+                false,
+                "error[vulnerability]: affected crate"
+            ),
+            AuditStatus::Findings
+        );
+        assert_eq!(
+            status(signal, Some(1), false, "[ERROR] cargo metadata failed"),
+            AuditStatus::Failed
+        );
+        assert_eq!(
+            status(signal, Some(2), false, "error[policy]: bad"),
+            AuditStatus::Failed
+        );
+    }
+
+    #[test]
+    fn cargo_audit_signal_separates_findings_from_execution_errors() {
+        let signal = FindingsSignal::CargoAudit;
+        assert_eq!(status(signal, Some(0), true, ""), AuditStatus::Clean);
+        assert_eq!(
+            status(signal, Some(1), false, "error: 2 vulnerabilities found!"),
+            AuditStatus::Findings
+        );
+        assert_eq!(
+            status(signal, Some(1), false, "error: 1 denied warning found!"),
+            AuditStatus::Findings
+        );
+        assert_eq!(
+            status(
+                signal,
+                Some(1),
+                false,
+                "error: advisory database unavailable"
+            ),
+            AuditStatus::Failed
+        );
     }
 
     #[test]

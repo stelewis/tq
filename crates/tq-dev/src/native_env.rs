@@ -1,6 +1,6 @@
 //! Native build environment discovery for pinned Cargo maintenance tools.
 //!
-//! `cargo-audit` and friends link against OpenSSL; on macOS the Homebrew
+//! Rust maintenance tools link against OpenSSL; on macOS the Homebrew
 //! locations must be surfaced explicitly.
 
 use std::path::Path;

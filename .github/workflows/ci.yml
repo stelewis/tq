@@ -545,7 +545,7 @@ jobs:
 
       - name: Cargo audit
         if: ${{ needs.change-scope.outputs.rust_security == 'true' }}
-        run: cargo audit
+        run: cargo audit -D warnings
 
       - name: Cargo deny
         if: ${{ needs.change-scope.outputs.rust_security == 'true' }}

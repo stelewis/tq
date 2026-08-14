@@ -8,6 +8,5 @@ runs:
       uses: ./.github/actions/setup-rust-maintenance-tools
       with:
         install-stable-toolchain: "true"
-        install-cargo-outdated: "false"
         install-cargo-audit: "true"
         install-cargo-deny: "true"

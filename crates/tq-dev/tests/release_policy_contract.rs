@@ -95,10 +95,13 @@ fn verify_release_policy_passes_when_workspace_and_dependabot_policies_pass() {
             "repository = \"rhysd/actionlint\"\n",
             "digest = \"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\n",
             "\n",
-            "[rust-maintenance]\n",
-            "cargo-outdated = \"0.17.0\"\n",
-            "cargo-audit = \"0.22.1\"\n",
-            "cargo-deny = \"0.19.0\"\n",
+            "[rust-maintenance.cargo-audit]\n",
+            "version = \"0.22.1\"\n",
+            "repository = \"https://github.com/rustsec/rustsec\"\n",
+            "\n",
+            "[rust-maintenance.cargo-deny]\n",
+            "version = \"0.19.0\"\n",
+            "repository = \"https://github.com/EmbarkStudios/cargo-deny\"\n",
         ),
     );
     write(
@@ -144,8 +147,6 @@ fn verify_release_policy_passes_when_workspace_and_dependabot_policies_pass() {
             .join(".github/actions/setup-rust-maintenance-tools/action.yml"),
         concat!(
             "inputs:\n",
-            "  cargo-outdated-version:\n",
-            "    default: \"0.17.0\"\n",
             "  cargo-audit-version:\n",
             "    default: \"0.22.1\"\n",
             "  cargo-deny-version:\n",
