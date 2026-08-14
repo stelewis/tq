@@ -190,7 +190,7 @@ fn verify_artifacts_accepts_exact_full_release_platform_set() {
 }
 
 #[test]
-fn release_workflows_delegate_set_and_content_policy_to_tq_dev() {
+fn unprivileged_ci_owns_release_set_and_content_policy() {
     let ci = include_str!("../../../.github/workflows/ci.yml");
     let publish = include_str!("../../../.github/workflows/publish.yml");
 
@@ -202,7 +202,8 @@ fn release_workflows_delegate_set_and_content_policy_to_tq_dev() {
     ] {
         assert!(ci.contains(profile), "CI must use {profile}");
     }
-    assert!(publish.contains("--profile full-release"));
+    assert!(!publish.contains("cargo dev release verify-artifacts"));
+    assert!(!publish.contains("--profile full-release"));
     assert!(!ci.contains("wheel_count="));
     assert!(!ci.contains("sdist_count="));
     assert!(!ci.contains("verify-release-artifact-set.sh"));

@@ -55,7 +55,7 @@ The artifact verifier checks the profile-specific wheel and sdist set, rejects u
 
 `cargo dev check --profile full all` includes the local release build, which builds the source distribution plus a wheel for the current host platform. Use `cargo dev release build --dry-run --repo-root .` to inspect the artifact build commands without changing `dist/`.
 
-The CI release wheel matrix builds the source distribution on Linux, then builds publishable wheels for Linux x86_64, macOS x86_64, macOS arm64, and Windows x86_64. The Linux wheel is built explicitly through `maturin build --release --locked --compatibility pypi --zig` so the platform tag is PyPI-compatible instead of a native `linux_*` tag. On SemVer tags, a separate CI attestation job promotes those validated build artifacts into the final `validated-dist` artifact that the publish workflow consumes without rebuilding.
+The CI release wheel matrix builds the source distribution on Linux, then builds publishable wheels for Linux x86_64, macOS x86_64, macOS arm64, and Windows x86_64. The Linux wheel is built explicitly through `maturin build --release --locked --compatibility pypi --zig` so the platform tag is PyPI-compatible instead of a native `linux_*` tag. On SemVer tags, a read-only CI job validates the complete artifact set before a checkout-free OIDC job attests the same bytes and uploads `validated-dist`. The checkout-free publish workflow consumes that artifact without rebuilding or executing repository code in its credentialed job.
 
 Current artifacts are:
 
