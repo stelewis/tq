@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.12.0] - 2026-08-14
+
+### Added
+
+- Added the `cargo dev` developer harness, which replaces the `tq-release` crate with typed, tested commands for quality gates, dependency freshness and security audits, repository and release policy verification, environment doctoring, release builds, and artifact verification. Change scoping and supply-chain policy enforcement now run from the same local tooling as CI.
+
+### Changed
+
+- Updated shipped runtime dependencies.
+- Bumped the pinned Rust toolchain to 1.97.1 and refreshed the pinned Python, uv, Node, and npm toolchains alongside GitHub Actions, pre-commit hooks, and Python development dependencies.
+
+### Security
+
+- Isolated privileged release workflow jobs: release candidates are validated in read-only jobs before checkout-free attestation, provenance and immutable tag binding are reverified at every irreversible boundary, and post-publish smoke checks run without write or OIDC permissions.
+- Hardened maintenance tool provisioning by verifying scanner metadata and published lockfiles, requiring exact executable cache keys with no fallback, and removing `cargo-outdated` in favor of Cargo-native drift checks while Dependabot owns scheduled updates.
+
 ## [0.11.5] - 2026-07-01
 
 ### Changed

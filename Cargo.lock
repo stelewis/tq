@@ -520,7 +520,7 @@ checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
 
 [[package]]
 name = "tq-cli"
-version = "0.11.5"
+version = "0.12.0"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -538,7 +538,7 @@ dependencies = [
 
 [[package]]
 name = "tq-config"
-version = "0.11.5"
+version = "0.12.0"
 dependencies = [
  "serde",
  "tempfile",
@@ -549,14 +549,14 @@ dependencies = [
 
 [[package]]
 name = "tq-core"
-version = "0.11.5"
+version = "0.12.0"
 dependencies = [
  "thiserror",
 ]
 
 [[package]]
 name = "tq-dev"
-version = "0.11.5"
+version = "0.12.0"
 dependencies = [
  "clap",
  "flate2",
@@ -571,7 +571,7 @@ dependencies = [
 
 [[package]]
 name = "tq-discovery"
-version = "0.11.5"
+version = "0.12.0"
 dependencies = [
  "tempfile",
  "thiserror",
@@ -580,7 +580,7 @@ dependencies = [
 
 [[package]]
 name = "tq-docsgen"
-version = "0.11.5"
+version = "0.12.0"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -594,7 +594,7 @@ dependencies = [
 
 [[package]]
 name = "tq-engine"
-version = "0.11.5"
+version = "0.12.0"
 dependencies = [
  "tempfile",
  "thiserror",
@@ -604,7 +604,7 @@ dependencies = [
 
 [[package]]
 name = "tq-reporting"
-version = "0.11.5"
+version = "0.12.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -615,7 +615,7 @@ dependencies = [
 
 [[package]]
 name = "tq-rules"
-version = "0.11.5"
+version = "0.12.0"
 dependencies = [
  "tempfile",
  "thiserror",
