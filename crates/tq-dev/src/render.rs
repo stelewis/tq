@@ -6,7 +6,7 @@ use serde::Serialize;
 use crate::action::ActionPlan;
 use crate::audit::{AuditReport, AuditStatus};
 use crate::check::{CheckPlan, CheckReport, CheckStatus};
-use crate::doctor::{DoctorCheck, DoctorReport, ToolRequirement, ToolState};
+use crate::doctor::{DoctorCheck, DoctorReport, PresenceState, ToolAssessment, VersionState};
 use crate::error::DevError;
 use crate::external_pins::{ExternalPin, ExternalPinReport, ExternalPinStatus};
 
@@ -255,9 +255,9 @@ pub fn doctor_document(report: &DoctorReport) -> Document {
                 .iter()
                 .map(|check| {
                     vec![
-                        check.state.label().to_owned(),
+                        assessment_status(&check.assessment).to_owned(),
                         check.tool.clone(),
-                        required_cell(&check.required),
+                        required_cell(&check.assessment),
                         installed_cell(check),
                     ]
                 })
@@ -272,21 +272,34 @@ pub fn doctor_document(report: &DoctorReport) -> Document {
     }
 }
 
-fn required_cell(required: &ToolRequirement) -> String {
-    match required {
-        ToolRequirement::Version { version } => version.to_string(),
-        ToolRequirement::Presence => "installed".to_owned(),
+const fn assessment_status(assessment: &ToolAssessment) -> &'static str {
+    match assessment {
+        ToolAssessment::Version { state, .. } => state.status(),
+        ToolAssessment::Presence { state } => state.status(),
+    }
+}
+
+fn required_cell(assessment: &ToolAssessment) -> String {
+    match assessment {
+        ToolAssessment::Version { required, .. } => required.to_string(),
+        ToolAssessment::Presence { .. } => "installed".to_owned(),
     }
 }
 
 /// A met requirement reports itself back, so an `ok` row shows the version or
 /// presence the check confirmed rather than an empty cell.
 fn installed_cell(check: &DoctorCheck) -> String {
-    match &check.state {
-        ToolState::Ok => required_cell(&check.required),
-        ToolState::Mismatched { installed } => installed.to_string(),
-        ToolState::Unreadable => "unknown".to_owned(),
-        ToolState::Missing => "not found".to_owned(),
+    match &check.assessment {
+        ToolAssessment::Version { required, state } => match state {
+            VersionState::Satisfied => required.to_string(),
+            VersionState::Mismatched { installed } => installed.to_string(),
+            VersionState::Unreadable | VersionState::Failed => "unknown".to_owned(),
+            VersionState::Missing => "not found".to_owned(),
+        },
+        ToolAssessment::Presence { state } => match state {
+            PresenceState::Satisfied => "installed".to_owned(),
+            PresenceState::Missing => "not found".to_owned(),
+        },
     }
 }
 
@@ -508,7 +521,7 @@ fn short_revision(revision: &str) -> String {
 #[cfg(test)]
 mod tests {
     use crate::action::{ActionPlan, PlannedAction};
-    use crate::doctor::{DoctorCheck, DoctorReport, ToolRequirement, ToolState};
+    use crate::doctor::{DoctorCheck, DoctorReport, PresenceState, ToolAssessment, VersionState};
     use crate::invocation::Invocation;
     use crate::manifest::ToolVersion;
 
@@ -518,34 +531,39 @@ mod tests {
         ToolVersion::parse(text).expect("valid version")
     }
 
-    fn check(tool: &str, required: ToolRequirement, state: ToolState) -> DoctorCheck {
-        DoctorCheck::new(tool, required, state, "Update the Rust toolchain.")
+    fn pinned(tool: &str, pin: &str, state: VersionState) -> DoctorCheck {
+        DoctorCheck::new(
+            tool,
+            ToolAssessment::Version {
+                required: version(pin),
+                state,
+            },
+            "Update the Rust toolchain.",
+        )
     }
 
-    fn pinned(tool: &str, pin: &str, state: ToolState) -> DoctorCheck {
-        check(
+    fn presence(tool: &str, state: PresenceState) -> DoctorCheck {
+        DoctorCheck::new(
             tool,
-            ToolRequirement::Version {
-                version: version(pin),
-            },
-            state,
+            ToolAssessment::Presence { state },
+            "Install the required tool.",
         )
     }
 
     fn unhealthy_report() -> DoctorReport {
         DoctorReport::new(vec![
-            pinned("rustc", "1.96.1", ToolState::Ok),
+            pinned("rustc", "1.96.1", VersionState::Satisfied),
             pinned(
                 "cargo",
                 "1.96.1",
-                ToolState::Mismatched {
+                VersionState::Mismatched {
                     installed: version("1.95.0"),
                 },
             ),
             pinned(
                 "cargo|deny",
                 "0.19.0",
-                ToolState::Mismatched {
+                VersionState::Mismatched {
                     installed: version("0.18.0"),
                 },
             ),
@@ -583,11 +601,11 @@ mod tests {
     #[test]
     fn every_tool_state_renders_an_installed_cell() {
         let report = DoctorReport::new(vec![
-            pinned("rustc", "1.96.1", ToolState::Ok),
-            pinned("actionlint", "1.7.12", ToolState::Unreadable),
-            pinned("uv", "0.9.7", ToolState::Missing),
-            check("pkg-config", ToolRequirement::Presence, ToolState::Ok),
-            check("openssl@3", ToolRequirement::Presence, ToolState::Missing),
+            pinned("rustc", "1.96.1", VersionState::Satisfied),
+            pinned("actionlint", "1.7.12", VersionState::Unreadable),
+            pinned("uv", "0.9.7", VersionState::Missing),
+            presence("pkg-config", PresenceState::Satisfied),
+            presence("openssl@3", PresenceState::Missing),
         ]);
 
         let output = doctor_document(&report).to_markdown();
@@ -603,7 +621,7 @@ mod tests {
     fn serialized_reports_describe_requirements_and_states_by_tag() {
         let json = to_json(&unhealthy_report()).expect("doctor report should serialize");
 
-        assert!(json.contains("\"kind\": \"version\""));
+        assert!(json.contains("\"requirement\": \"version\""));
         assert!(json.contains("\"status\": \"mismatched\""));
         assert!(json.contains("\"installed\": \"1.95.0\""));
     }

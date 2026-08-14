@@ -66,19 +66,6 @@ impl ToolVersion {
     pub fn minor_pin(&self) -> String {
         format!("{}.{}", self.major, self.minor)
     }
-
-    /// The version a tool reports in `--version` output: the first
-    /// `major.minor.patch` token, ignoring surrounding text such as the
-    /// program name, build metadata, or a bundled compiler version.
-    ///
-    /// Returns `None` when the output carries no version token. Callers must
-    /// not fall back to the raw output, which can contain filesystem paths.
-    #[must_use]
-    pub fn from_version_output(output: &str) -> Option<Self> {
-        output
-            .split(|character: char| !(character.is_ascii_digit() || character == '.'))
-            .find_map(|token| Self::parse(token).ok())
-    }
 }
 
 impl std::fmt::Display for ToolVersion {
@@ -258,51 +245,6 @@ mod tests {
         assert!(ToolVersion::parse("1.96").is_err());
         assert!(ToolVersion::parse("1.96.1.0").is_err());
         assert!(ToolVersion::parse("1.96.x").is_err());
-    }
-
-    #[test]
-    fn reads_the_leading_version_token_from_verbose_banners() {
-        let extract = |output| {
-            ToolVersion::from_version_output(output).map(|version| version.as_str().to_owned())
-        };
-
-        assert_eq!(
-            extract("rustc 1.96.1 (31fca3adb 2026-06-26)").as_deref(),
-            Some("1.96.1")
-        );
-        assert_eq!(extract("v26.4.0").as_deref(), Some("26.4.0"));
-        assert_eq!(
-            extract("ShellCheck - shell script analysis tool\nversion: 0.11.0\nlicense: GPLv3")
-                .as_deref(),
-            Some("0.11.0")
-        );
-        assert_eq!(
-            extract("1.7.12\ninstalled from Homebrew\nbuilt with go1.26.3 compiler").as_deref(),
-            Some("1.7.12")
-        );
-    }
-
-    #[test]
-    fn reads_no_version_from_output_without_a_version_token() {
-        assert_eq!(
-            ToolVersion::from_version_output("/Users/example/.local/bin/tool"),
-            None
-        );
-        assert_eq!(
-            ToolVersion::from_version_output("command not found\ndetails"),
-            None
-        );
-        assert_eq!(ToolVersion::from_version_output(""), None);
-    }
-
-    #[test]
-    fn near_miss_version_output_does_not_satisfy_the_pin() {
-        let pin = ToolVersion::parse("0.19.0").expect("valid version");
-        let installed = |output| ToolVersion::from_version_output(output).expect("version token");
-
-        assert_eq!(installed("cargo-deny 0.19.0"), pin);
-        assert_ne!(installed("cargo-deny 0.19.01"), pin);
-        assert_ne!(installed("cargo-deny 10.19.0"), pin);
     }
 
     #[test]
