@@ -223,7 +223,7 @@ fn engine_no_rules_returns_empty_result() {
 
     let result = engine.run(&context).expect("empty engine should run");
 
-    assert!(result.findings().is_empty());
+    assert_eq!(result.findings(), []);
     assert_eq!(result.summary().errors(), 0);
     assert_eq!(result.summary().warnings(), 0);
     assert_eq!(result.summary().infos(), 0);
@@ -237,7 +237,7 @@ fn analysis_context_exposes_effective_paths_without_target() {
 
     assert_eq!(context.package_path(), Path::new("tq"));
     assert_eq!(context.test_root_display(), Path::new("tests"));
-    assert!(context.known_target_package_paths().is_empty());
+    assert_eq!(context.known_target_package_paths(), []);
 }
 
 #[test]

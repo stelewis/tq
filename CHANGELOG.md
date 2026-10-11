@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.12.1] - 2026-10-12
+
+### Changed
+
+- Refreshed shipped runtime dependencies and repository development dependencies.
+- Updated the pinned Rust toolchain to 1.99.0 and refreshed the Python, uv, maturin, Node, npm, and pre-commit toolchain pins.
+- Added Python 3.15 package compatibility checks while retaining Python 3.11 as the minimum supported version.
+
+### Fixed
+
+- Aligned Clippy with the workspace Rust version and updated the developer harness for Rust 1.99 lint checks.
+- Made dependency update plans synchronize toolchain pins and CI defaults, select Node's bundled npm version, and refresh frozen GitHub Actions with policy validation.
+- Removed toolchain release-series caps so dependency updates select the latest stable releases.
+- Fixed dependency update application for compact package metadata, repeated Action references, and shared workflow files.
+
 ## [0.12.0] - 2026-08-14
 
 ### Added

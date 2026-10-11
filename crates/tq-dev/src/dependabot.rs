@@ -622,11 +622,11 @@ fn uncovered_directories(directories: &[String], configured_patterns: &[String])
     uncovered
 }
 
-fn pattern_matches(value: &str, pattern: &str) -> bool {
+const fn pattern_matches(value: &str, pattern: &str) -> bool {
     wildcard_match(value.as_bytes(), pattern.as_bytes())
 }
 
-fn wildcard_match(value: &[u8], pattern: &[u8]) -> bool {
+const fn wildcard_match(value: &[u8], pattern: &[u8]) -> bool {
     let (mut value_index, mut pattern_index) = (0usize, 0usize);
     let (mut star_pattern_index, mut star_value_index) = (None, 0usize);
 

@@ -8,7 +8,7 @@ use crate::audit::{
     AuditCheck, AuditCommand, AuditReport, FindingsSignal, run_audit_command, run_audit_commands,
 };
 use crate::error::DevError;
-use crate::external_pins::{self, ReleaseSeries};
+use crate::external_pins;
 use crate::invocation::Invocation;
 use crate::manifest::{CratesIoTool, DevToolsManifest, NodeToolchain, ToolVersion};
 use crate::update;
@@ -23,7 +23,6 @@ pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
             repo_root,
             "python",
             "https://github.com/python/cpython.git",
-            ReleaseSeries::Minor(manifest.python.major(), manifest.python.minor()),
             &manifest.python,
             "Update the python pin in .github/dev-tools.toml.",
         ),
@@ -31,7 +30,6 @@ pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
             repo_root,
             "uv",
             "https://github.com/astral-sh/uv.git",
-            ReleaseSeries::Any,
             &manifest.uv,
             "Update the uv pin in .github/dev-tools.toml.",
         ),
@@ -39,7 +37,6 @@ pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
             repo_root,
             "node",
             "https://github.com/nodejs/node.git",
-            ReleaseSeries::Major(node.node.major()),
             &node.node,
             "Update engines.node in package.json.",
         ),
@@ -50,7 +47,6 @@ pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
             repo_root,
             "actionlint",
             "https://github.com/rhysd/actionlint.git",
-            ReleaseSeries::Any,
             &manifest.actionlint,
             "Update the actionlint pin and image digest in .github/dev-tools.toml.",
         ),
@@ -58,7 +54,6 @@ pub fn audit_latest(repo_root: &Path) -> Result<AuditReport, DevError> {
             repo_root,
             "shellcheck",
             "https://github.com/koalaman/shellcheck.git",
-            ReleaseSeries::Any,
             &manifest.shellcheck,
             "Update the shellcheck pin in .github/dev-tools.toml.",
         ),
@@ -207,7 +202,7 @@ fn packaged_tool_checks(
     let lockfile = packaged_lockfile(cargo_home.path(), crate_name, &tool.version)?;
     let lock_name = format!("{crate_name}-lock");
     let remediation = format!(
-        "Do not install {package} until its published Cargo.lock is free of known advisories."
+        "Review {package} advisories before installation or release; prefer a clean upstream release, or record explicit scoped maintainer risk acceptance."
     );
     let lock_invocation = Invocation::with_args(
         "cargo",
@@ -318,12 +313,11 @@ fn github_release_pin_check(
     repo_root: &Path,
     tool: &str,
     remote: &str,
-    series: ReleaseSeries,
     pinned: &ToolVersion,
     remediation: &str,
 ) -> AuditCheck {
     let command = format!("git ls-remote --tags {remote}");
-    let release = match external_pins::latest_release_in_series(repo_root, remote, series) {
+    let release = match external_pins::latest_release(repo_root, remote) {
         Ok(Some(release)) => release,
         Ok(None) => {
             return AuditCheck::failed(
@@ -357,7 +351,7 @@ fn pypi_maturin_pin_check(repo_root: &Path, pinned: &ToolVersion) -> AuditCheck 
             "--isolated",
             "--no-project",
             "--with",
-            "maturin>=1,<2",
+            "maturin",
             "--",
             "maturin",
             "--version",

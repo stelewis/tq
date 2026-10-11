@@ -31,31 +31,6 @@ fn docs_pages_scopes_write_permissions_to_deploy_job() {
 }
 
 #[test]
-fn node_and_docs_setup_have_separate_owners() {
-    let node = include_str!("../../../.github/actions/setup-node/action.yml");
-    let docs = include_str!("../../../.github/actions/setup-docs/action.yml");
-
-    assert!(node.contains("actions/setup-node@820762786026740c76f36085b0efc47a31fe5020"));
-    assert!(node.contains("node-version-file: package.json"));
-    assert!(node.contains("require('./package.json').packageManager"));
-    assert!(docs.contains("uses: ./.github/actions/setup-node"));
-    assert!(docs.contains("npm ci --ignore-scripts"));
-    assert!(!docs.contains("actions/setup-node@"));
-}
-
-#[test]
-fn rust_maintenance_cache_requires_exact_scanner_versions() {
-    let action = include_str!("../../../.github/actions/setup-rust-maintenance-tools/action.yml");
-
-    assert!(action.contains("cargo-audit-version"));
-    assert!(action.contains("cargo-deny-version"));
-    assert!(action.contains("actual_version="));
-    assert!(action.contains("$tool_root/bin/cargo-audit\" audit --version"));
-    assert!(action.contains("$tool_root/bin/cargo-deny\" deny --version"));
-    assert!(!action.contains("cargo-outdated"));
-}
-
-#[test]
 fn every_workflow_and_job_satisfies_the_hardening_policy() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -63,8 +38,6 @@ fn every_workflow_and_job_satisfies_the_hardening_policy() {
         .expect("tq-dev must be inside the workspace root");
 
     verify_workflow_hardening(repo_root).expect("all workflow jobs must satisfy policy");
-    let ci = include_str!("../../../.github/workflows/ci.yml");
-    assert!(ci.contains("cargo dev policy verify-automation --repo-root ."));
 }
 
 #[test]

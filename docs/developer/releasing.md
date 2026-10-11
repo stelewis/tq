@@ -39,14 +39,14 @@ Repository rules must also keep the active `Immutable tags` ruleset enabled for 
 
 ## Maintainer checklist
 
-1. Ensure `CHANGELOG.md` and version are ready.
-2. Run the local validation commands:
-   - `cargo dev check --profile full all --repo-root .`
-3. Create and push a signed release tag.
-4. Confirm the tag-triggered CI run completes, including the read-only full-set validation and checkout-free attestation jobs.
-5. Approve the pending `pypi` environment deployment in GitHub Actions.
-6. Confirm publish workflow success.
-7. Verify install paths in a clean environment:
+1. Merge reviewed changes with the commit types required by [Versioning](./versioning.md), then update local `main` from origin.
+2. Run `uv run cz bump --dry-run` to confirm the next version. Prepare its dated `CHANGELOG.md` section; automatic changelog generation on bump is disabled.
+3. Run `uv run cz bump --version-files-only` to update version files without creating a commit or tag. Run `cargo dev check --profile full all --repo-root .` and review the release diff.
+4. Commit the release files on a branch and merge the reviewed version pull request through the protected `main` branch. Update local `main` from origin, then create and verify a signed release tag on the resulting commit. Do not tag a commit that will be replaced by a squash or rebase merge.
+5. Push the signed tag and confirm the tag-triggered CI run completes, including the read-only full-set validation and checkout-free attestation jobs.
+6. Approve the pending `pypi` environment deployment in GitHub Actions.
+7. Confirm publish workflow success.
+8. Verify install paths in a clean environment:
    - `uvx --from tqlint tq --help`
    - `uvx --from tqlint tq check --help`
    - `uv tool install tqlint && tq --help`
@@ -59,8 +59,4 @@ Repository rules must also keep the active `Immutable tags` ruleset enabled for 
 - If a bad version is published, publish a corrected patch release.
 - Release tags and published artifacts are immutable; recover with a forward fix release.
 
-## Versioning when tag-triggered publish fails
-
-- Prefer cutting a new patch version tag after fixing workflow issues (for example, `0.4.0` failed before upload → release `0.4.1`).
-- Update `CHANGELOG.md` for the new version before tagging.
-- Avoid reusing or force-moving existing release tags unless you are intentionally rewriting release history.
+If a tag-triggered publish needs source or workflow changes, prepare a new patch release with an updated changelog. Never reuse, force-move, or delete an existing release tag, even when publication failed before upload.

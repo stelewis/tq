@@ -57,7 +57,7 @@ fn structure_rule_allows_correctly_placed_test() {
         .evaluate(&context)
         .expect("rule evaluation should succeed");
 
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [tq_engine::Finding; 0]);
 }
 
 #[test]
@@ -82,7 +82,7 @@ fn structure_rule_skips_non_unit_scopes() {
         .evaluate(&context)
         .expect("rule evaluation should succeed");
 
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [tq_engine::Finding; 0]);
 }
 
 #[test]
@@ -107,7 +107,7 @@ fn structure_rule_ignores_sibling_target_tests() {
         .evaluate(&context)
         .expect("rule evaluation should succeed");
 
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [tq_engine::Finding; 0]);
 }
 
 #[test]

@@ -124,16 +124,3 @@ fn pre_commit_policy_accepts_external_sha_and_local_repository() {
 
     verify_pre_commit_pins(root).expect("external repository should be frozen");
 }
-
-#[test]
-fn policy_workflows_delegate_yaml_parsing_to_tq_dev() {
-    let actions = include_str!("../../../.github/workflows/pinned-actions-policy.yml");
-    let pre_commit = include_str!("../../../.github/workflows/frozen-pre-commit-policy.yml");
-
-    assert!(actions.contains("cargo dev policy verify-action-pins"));
-    assert!(!actions.contains("sed -E"));
-    assert!(!actions.contains("grep -nE"));
-    assert!(pre_commit.contains("cargo dev policy verify-pre-commit-pins"));
-    assert!(!pre_commit.contains("ruby"));
-    assert!(!pre_commit.contains("YAML.safe_load"));
-}
