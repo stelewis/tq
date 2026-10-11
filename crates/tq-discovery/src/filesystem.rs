@@ -189,7 +189,7 @@ mod tests {
 
         let index = build_analysis_index(&source_root, &test_root).expect("index should build");
 
-        assert!(index.test_files().is_empty());
+        assert_eq!(index.test_files(), []);
     }
 
     #[test]

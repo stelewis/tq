@@ -56,5 +56,5 @@ fn orphaned_rule_allowlist_accepts_qualified_test() {
         .evaluate(&context)
         .expect("rule evaluation should succeed");
 
-    assert!(findings.is_empty());
+    assert_eq!(findings, [] as [tq_engine::Finding; 0]);
 }

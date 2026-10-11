@@ -43,34 +43,34 @@ fn builtin_rule_docs_define_complete_non_empty_contract_text() {
             related_controls,
         } = entry;
 
-        assert!(!id.trim().is_empty());
-        assert!(!title.trim().is_empty());
+        assert_ne!(id.trim(), "");
+        assert_ne!(title.trim(), "");
         assert!(allowed_severities.contains(default_severity.as_str()));
-        assert!(!added_in.trim().is_empty());
-        assert!(!behavior_changes.trim().is_empty());
-        assert!(!what_it_does.trim().is_empty());
-        assert!(!why_this_matters.trim().is_empty());
-        assert!(!trigger_conditions.is_empty());
-        assert!(!examples.is_empty());
-        assert!(!how_to_address.is_empty());
-        assert!(!related_controls.is_empty());
+        assert_ne!(added_in.trim(), "");
+        assert_ne!(behavior_changes.trim(), "");
+        assert_ne!(what_it_does.trim(), "");
+        assert_ne!(why_this_matters.trim(), "");
+        assert_ne!(trigger_conditions.len(), 0);
+        assert_ne!(examples.len(), 0);
+        assert_ne!(how_to_address.len(), 0);
+        assert_ne!(related_controls.len(), 0);
 
         for example in *examples {
             let tq_rules::RuleDocExample { source, test } = example;
-            assert!(!source.trim().is_empty());
-            assert!(!test.trim().is_empty());
+            assert_ne!(source.trim(), "");
+            assert_ne!(test.trim(), "");
         }
 
         for condition in *trigger_conditions {
-            assert!(!condition.trim().is_empty());
+            assert_ne!(condition.trim(), "");
         }
 
         for item in *how_to_address {
-            assert!(!item.trim().is_empty());
+            assert_ne!(item.trim(), "");
         }
 
         for control in *related_controls {
-            assert!(!control.trim().is_empty());
+            assert_ne!(control.trim(), "");
         }
     }
 }

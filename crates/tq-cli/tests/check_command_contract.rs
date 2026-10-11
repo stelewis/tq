@@ -81,7 +81,7 @@ fn check_command_reports_success_for_clean_project() {
         String::from_utf8(output.stdout.clone()).expect("stdout should be utf8"),
         "All checks passed!\n"
     );
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
 }
 
 #[test]
@@ -113,7 +113,7 @@ fn check_command_emits_json_and_exit_code_one_for_findings() {
             "\"summary\":{\"errors\":1,\"warnings\":0,\"infos\":0,\"total\":1}}\n",
         )
     );
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
 }
 
 #[test]
@@ -157,7 +157,7 @@ test_root = "tests"
             "\"summary\":{\"errors\":0,\"warnings\":0,\"infos\":1,\"total\":1}}\n",
         )
     );
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
 }
 
 #[test]
@@ -195,7 +195,7 @@ fn check_command_respects_target_filtering() {
             "\"summary\":{\"errors\":1,\"warnings\":0,\"infos\":0,\"total\":1}}\n",
         )
     );
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr, [] as [u8; 0]);
 }
 
 #[test]
