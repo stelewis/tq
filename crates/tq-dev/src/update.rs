@@ -1,10 +1,11 @@
 //! Deterministic dependency and toolchain updates.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::action::{ActionPlan, PlannedAction};
 use crate::error::DevError;
-use crate::external_pins::{self, ExternalPinStatus, ExternalPinSurface, ReleaseSeries};
+use crate::external_pins::{self, ExternalPinStatus, ExternalPinSurface};
 use crate::invocation::Invocation;
 use crate::manifest::{DevToolsManifest, NodeToolchain, ToolVersion};
 
@@ -18,13 +19,7 @@ pub struct ToolchainUpdates {
 }
 
 pub fn discover(repo_root: &Path) -> Result<ToolchainUpdates, DevError> {
-    let manifest = DevToolsManifest::load(repo_root)?;
-    let node = NodeToolchain::load(repo_root)?;
-    let latest_node = release_version(
-        repo_root,
-        "https://github.com/nodejs/node.git",
-        ReleaseSeries::Major(node.node.major()),
-    )?;
+    let latest_node = release_version(repo_root, "https://github.com/nodejs/node.git")?;
     let invocation = Invocation::new(
         "curl",
         [
@@ -45,32 +40,16 @@ pub fn discover(repo_root: &Path) -> Result<ToolchainUpdates, DevError> {
     let npm = bundled_npm(&captured.output, &latest_node)?;
     Ok(ToolchainUpdates {
         rust: latest_stable_rust(repo_root)?,
-        python: release_version(
-            repo_root,
-            "https://github.com/python/cpython.git",
-            ReleaseSeries::Minor(manifest.python.major(), manifest.python.minor()),
-        )?,
-        uv: release_version(
-            repo_root,
-            "https://github.com/astral-sh/uv.git",
-            ReleaseSeries::Any,
-        )?,
-        maturin: release_version(
-            repo_root,
-            "https://github.com/PyO3/maturin.git",
-            ReleaseSeries::Major(manifest.maturin.major()),
-        )?,
+        python: release_version(repo_root, "https://github.com/python/cpython.git")?,
+        uv: release_version(repo_root, "https://github.com/astral-sh/uv.git")?,
+        maturin: release_version(repo_root, "https://github.com/PyO3/maturin.git")?,
         node: latest_node,
         npm,
     })
 }
 
-fn release_version(
-    repo_root: &Path,
-    remote: &str,
-    series: ReleaseSeries,
-) -> Result<ToolVersion, DevError> {
-    let release = external_pins::latest_release_in_series(repo_root, remote, series)
+fn release_version(repo_root: &Path, remote: &str) -> Result<ToolVersion, DevError> {
+    let release = external_pins::latest_release(repo_root, remote)
         .map_err(|message| DevError::CommandOutputParse {
             program: "git ls-remote".to_owned(),
             message,
@@ -114,10 +93,15 @@ fn bundled_npm(output: &str, node: &ToolVersion) -> Result<ToolVersion, DevError
 
 /// The dependency update plan: the single source of truth for what an update
 /// applies.
-pub fn plan(repo_root: &Path, latest: &ToolchainUpdates) -> Result<ActionPlan, DevError> {
+pub fn plan(
+    repo_root: &Path,
+    latest: &ToolchainUpdates,
+    report: external_pins::ExternalPinReport,
+) -> Result<ActionPlan, DevError> {
     let manifest = DevToolsManifest::load(repo_root)?;
     let node = NodeToolchain::load(repo_root)?;
-    let mut actions = rust_updates(repo_root, &manifest.rust, &latest.rust);
+    let mut actions = plan_action_updates(repo_root, report)?;
+    actions.extend(rust_updates(repo_root, &manifest.rust, &latest.rust));
     for (name, current, version) in [
         ("python", &manifest.python, &latest.python),
         ("uv", &manifest.uv, &latest.uv),
@@ -153,30 +137,23 @@ pub fn plan(repo_root: &Path, latest: &ToolchainUpdates) -> Result<ActionPlan, D
             ));
         }
     }
-    for (label, current, version, from, to) in [
-        (
-            "Node",
-            &node.node,
-            &latest.node,
-            format!("\"node\": \"{}\"", node.node),
-            format!("\"node\": \"{}\"", latest.node),
-        ),
-        (
-            "bundled npm",
-            &node.npm,
-            &latest.npm,
-            format!("\"packageManager\": \"npm@{}\"", node.npm),
-            format!("\"packageManager\": \"npm@{}\"", latest.npm),
-        ),
-    ] {
-        if current != version {
-            actions.push(PlannedAction::replace_text(
-                &format!("Update {label} pin"),
-                repo_root.join("package.json"),
-                from,
-                to,
-            ));
-        }
+    if node.node != latest.node || node.npm != latest.npm {
+        let path = repo_root.join("package.json");
+        let original = crate::parse::read_to_string(&path)?;
+        let mut document = crate::parse::read_json(&path)?;
+        document["engines"]["node"] = serde_json::Value::String(latest.node.to_string());
+        document["packageManager"] = serde_json::Value::String(format!("npm@{}", latest.npm));
+        let updated =
+            serde_json::to_string_pretty(&document).map_err(|error| DevError::InvalidInput {
+                path: path.clone(),
+                message: error.to_string(),
+            })?;
+        actions.push(PlannedAction::replace_text(
+            "Update Node and bundled npm pins",
+            path,
+            original,
+            format!("{updated}\n"),
+        ));
     }
     actions.extend([
         PlannedAction::command(
@@ -232,16 +209,11 @@ fn rust_updates(
     ]
 }
 
-pub fn action_updates(repo_root: &Path) -> Result<Vec<PlannedAction>, DevError> {
-    let report = external_pins::audit_external_pin_drift(repo_root)?;
-    plan_action_updates(repo_root, report)
-}
-
 fn plan_action_updates(
     repo_root: &Path,
     report: external_pins::ExternalPinReport,
 ) -> Result<Vec<PlannedAction>, DevError> {
-    let mut actions = Vec::new();
+    let mut edits: BTreeMap<String, BTreeMap<usize, String>> = BTreeMap::new();
     for pin in report.pins {
         if pin.surface != ExternalPinSurface::GitHubAction {
             continue;
@@ -303,18 +275,38 @@ fn plan_action_updates(
                 .map_or(line, |(reference, _)| reference)
                 .trim_end()
                 .replace(&reference, &format!("{}@{sha}", pin.name));
-            let action = PlannedAction::replace_text(
-                &format!("Update {} to {tag}", pin.name),
-                repo_root.join(file),
-                line.to_owned(),
-                format!("{updated} # {tag}"),
-            );
-            if !actions.contains(&action) {
-                actions.push(action);
-            }
+            edits
+                .entry(file.to_owned())
+                .or_default()
+                .insert(line_number, format!("{updated} # {tag}"));
         }
     }
-    Ok(actions)
+    edits
+        .into_iter()
+        .map(|(file, replacements)| {
+            let path = repo_root.join(&file);
+            let original = crate::parse::read_to_string(&path)?;
+            let updated: String = original
+                .split_inclusive('\n')
+                .enumerate()
+                .map(|(index, line)| {
+                    replacements.get(&(index + 1)).map_or_else(
+                        || line.to_owned(),
+                        |replacement| {
+                            let body = line.trim_end_matches(['\r', '\n']);
+                            format!("{replacement}{}", &line[body.len()..])
+                        },
+                    )
+                })
+                .collect();
+            Ok(PlannedAction::replace_text(
+                &format!("Update frozen Actions in {file}"),
+                path,
+                original,
+                updated,
+            ))
+        })
+        .collect()
 }
 
 pub fn latest_stable_rust(repo_root: &Path) -> Result<ToolVersion, DevError> {
@@ -359,7 +351,7 @@ fn parse_stable_rustup_check_line(line: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{bundled_npm, parse_stable_rustup_check_line, plan_action_updates};
-    use crate::action::Action;
+    use crate::action::ActionPlan;
     use crate::external_pins::{
         ExternalPin, ExternalPinReport, ExternalPinStatus, ExternalPinSurface,
     };
@@ -385,7 +377,11 @@ mod tests {
         let old = "a".repeat(40);
         let new = "b".repeat(40);
         let line = format!("    uses: actions/checkout@{old} # v7.0.0");
-        std::fs::write(temp.path().join("ci.yml"), format!("steps:\n{line}\n")).expect("workflow");
+        std::fs::write(
+            temp.path().join("ci.yml"),
+            format!("steps:\n{line}\n{line}\n"),
+        )
+        .expect("workflow with repeated references");
         let report = ExternalPinReport {
             drift_detected: true,
             pins: vec![ExternalPin {
@@ -396,14 +392,22 @@ mod tests {
                 latest_sha: Some(new.clone()),
                 status: ExternalPinStatus::UpdateRequired,
                 message: None,
-                sources: vec!["ci.yml:2".to_owned(), "ci.yml:2".to_owned()],
+                sources: vec![
+                    "ci.yml:2".to_owned(),
+                    "ci.yml:2".to_owned(),
+                    "ci.yml:3".to_owned(),
+                ],
             }],
         };
         let actions = plan_action_updates(temp.path(), report).expect("action plan");
-        assert_eq!(actions.len(), 1);
-        assert!(
-            matches!(&actions[0].action, Action::ReplaceText { from, to, .. }
-            if from == &line && to == &format!("    uses: actions/checkout@{new} # v7.0.1"))
+        ActionPlan::new("Action updates", actions)
+            .apply(temp.path())
+            .expect("apply deduplicated references");
+        assert_eq!(
+            std::fs::read_to_string(temp.path().join("ci.yml")).expect("updated workflow"),
+            format!(
+                "steps:\n    uses: actions/checkout@{new} # v7.0.1\n    uses: actions/checkout@{new} # v7.0.1\n"
+            )
         );
     }
 

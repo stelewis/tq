@@ -370,9 +370,8 @@ fn run_deps(command: &DepsCommand) -> Result<Outcome, DevError> {
         ),
         DepsCommand::Update(args) => {
             let latest = update::discover(&args.common.repo_root)?;
-            let mut plan = update::plan(&args.common.repo_root, &latest)?;
-            plan.actions
-                .extend(update::action_updates(&args.common.repo_root)?);
+            let report = external_pins::audit_external_pin_drift(&args.common.repo_root)?;
+            let mut plan = update::plan(&args.common.repo_root, &latest, report)?;
             plan.actions.push(tq_dev::action::PlannedAction::command(
                 "Verify updated tool pins",
                 tq_dev::invocation::Invocation::new(

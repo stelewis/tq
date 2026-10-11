@@ -297,6 +297,23 @@ mod tests {
     use crate::error::DevError;
     use crate::invocation::Captured;
 
+    #[test]
+    fn release_build_requires_full_all_checks() {
+        for (target, profile, builds_release) in [
+            (CheckTarget::Routine, CheckProfile::Fast, false),
+            (CheckTarget::Routine, CheckProfile::Full, false),
+            (CheckTarget::All, CheckProfile::Fast, false),
+            (CheckTarget::All, CheckProfile::Full, true),
+        ] {
+            assert_eq!(
+                super::plan_checks(target, profile)
+                    .tasks
+                    .contains(&CheckTask::ReleaseBuild),
+                builds_release
+            );
+        }
+    }
+
     fn plan(tasks: Vec<CheckTask>) -> CheckPlan {
         CheckPlan {
             target: CheckTarget::Routine,
