@@ -137,9 +137,23 @@ fn dependency_update_plan_mutates_repository_state_only() {
     write_dev_tools_manifest(temp.path());
     let latest_rust = tq_dev::manifest::ToolVersion::parse("1.96.1")
         .expect("fixture Rust version should be valid");
+    std::fs::write(
+        temp.path().join("package.json"),
+        r#"{"engines":{"node":"26.4.0"},"packageManager":"npm@11.17.0"}"#,
+    )
+    .expect("package metadata");
 
-    let plan = tq_dev::update::plan(temp.path(), &latest_rust)
-        .expect("dependency update plan should build");
+    let manifest = tq_dev::manifest::DevToolsManifest::load(temp.path()).expect("manifest");
+    let latest = tq_dev::update::ToolchainUpdates {
+        rust: latest_rust,
+        python: tq_dev::manifest::ToolVersion::parse("3.14.8").expect("python"),
+        uv: tq_dev::manifest::ToolVersion::parse("0.13.0").expect("uv"),
+        maturin: manifest.maturin,
+        node: tq_dev::manifest::ToolVersion::parse("26.4.0").expect("node"),
+        npm: tq_dev::manifest::ToolVersion::parse("11.17.0").expect("npm"),
+    };
+    let plan =
+        tq_dev::update::plan(temp.path(), &latest).expect("dependency update plan should build");
     let invocations = plan
         .actions
         .iter()
@@ -148,6 +162,19 @@ fn dependency_update_plan_mutates_repository_state_only() {
             Action::ReplaceText { .. } | Action::RemovePath { .. } => None,
         })
         .collect::<Vec<_>>();
+
+    for tool in ["python", "uv"] {
+        assert!(
+            plan.actions
+                .iter()
+                .any(|action| action.label == format!("Update {tool} setup default"))
+        );
+        assert!(
+            plan.actions
+                .iter()
+                .any(|action| action.label == format!("Update {tool} publishing pin"))
+        );
+    }
 
     assert!(
         invocations

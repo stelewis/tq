@@ -369,8 +369,25 @@ fn run_deps(command: &DepsCommand) -> Result<Outcome, DevError> {
             &pins::audit_maintenance_tools(&args.common.repo_root)?,
         ),
         DepsCommand::Update(args) => {
-            let latest_rust = update::latest_stable_rust(&args.common.repo_root)?;
-            run_mutation(args, &update::plan(&args.common.repo_root, &latest_rust)?)
+            let latest = update::discover(&args.common.repo_root)?;
+            let mut plan = update::plan(&args.common.repo_root, &latest)?;
+            plan.actions
+                .extend(update::action_updates(&args.common.repo_root)?);
+            plan.actions.push(tq_dev::action::PlannedAction::command(
+                "Verify updated tool pins",
+                tq_dev::invocation::Invocation::new(
+                    "cargo",
+                    ["dev", "policy", "verify-pins", "--repo-root", "."],
+                ),
+            ));
+            plan.actions.push(tq_dev::action::PlannedAction::command(
+                "Verify updated automation policy",
+                tq_dev::invocation::Invocation::new(
+                    "cargo",
+                    ["dev", "policy", "verify-automation", "--repo-root", "."],
+                ),
+            ));
+            run_mutation(args, &plan)
         }
     }
 }

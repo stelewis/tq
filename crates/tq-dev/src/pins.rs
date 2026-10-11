@@ -207,7 +207,7 @@ fn packaged_tool_checks(
     let lockfile = packaged_lockfile(cargo_home.path(), crate_name, &tool.version)?;
     let lock_name = format!("{crate_name}-lock");
     let remediation = format!(
-        "Do not install {package} until its published Cargo.lock is free of known advisories."
+        "Review {package} advisories before installation or release; prefer a clean upstream release, or record explicit scoped maintainer risk acceptance."
     );
     let lock_invocation = Invocation::with_args(
         "cargo",
