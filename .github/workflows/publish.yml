@@ -30,11 +30,14 @@ jobs:
         id: candidate
         env:
           GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         shell: bash
         run: |
           set -euo pipefail
 
-          run_id='${{ github.event.workflow_run.id }}'
+          run_id="$SOURCE_RUN_ID"
           artifact_count="$(
             gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" \
               --jq '[.artifacts[] | select(.name == "validated-dist" and .expired == false)] | length'
@@ -51,7 +54,7 @@ jobs:
             exit 1
           fi
 
-          release_tag='${{ github.event.workflow_run.head_branch }}'
+          release_tag="$SOURCE_HEAD_BRANCH"
           if [[ ! "$release_tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "CI run $run_id produced a validated release artifact for non-SemVer ref '$release_tag'"
             exit 1
@@ -66,7 +69,7 @@ jobs:
           {
             echo "should_publish=true"
             echo "release_tag=$release_tag"
-            echo "source_head_sha=${{ github.event.workflow_run.head_sha }}"
+            echo "source_head_sha=$SOURCE_HEAD_SHA"
             echo "source_run_id=$run_id"
           } >> "$GITHUB_OUTPUT"
 
