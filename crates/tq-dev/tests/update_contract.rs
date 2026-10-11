@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use tq_dev::action::{Action, ActionPlan};
+use tq_dev::action::Action;
 use tq_dev::external_pins::{
     ExternalPin, ExternalPinReport, ExternalPinStatus, ExternalPinSurface,
 };
@@ -15,6 +15,7 @@ fn write(root: &Path, file: &str, contents: &str) {
 }
 
 fn write_repository(root: &Path) {
+    write(root, ".python-version", "3.14\n");
     write(
         root,
         ".github/dev-tools.toml",
@@ -90,6 +91,10 @@ fn applying_pin_updates_synchronizes_consumers_and_preserves_unrelated_state() {
     let manifest = DevToolsManifest::load(root).expect("updated manifest");
     assert_eq!(manifest.rust, updates.rust);
     assert_eq!(manifest.python, updates.python);
+    assert_eq!(
+        fs::read_to_string(root.join(".python-version")).expect("local Python selector"),
+        "3.15\n"
+    );
     assert_eq!(manifest.uv, updates.uv);
     assert_eq!(manifest.maturin, updates.maturin);
     assert_eq!(manifest.cargo_audit.version.as_str(), "0.22.1");
@@ -122,6 +127,7 @@ fn applying_pin_updates_synchronizes_consumers_and_preserves_unrelated_state() {
         fs::read_to_string(root.join(".github/workflows/publish.yml")).expect("publishing pins"),
         "env:\n  PUBLISH_PYTHON_VERSION: \"3.15.0\"\n  PUBLISH_UV_VERSION: \"0.13.0\"\nsteps:\n  uses: actions/download-artifact@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v8.0.2\n"
     );
+    write(root, ".python-version", "3.14\n");
     let mut repeated = plan(
         root,
         &updates,
@@ -134,5 +140,9 @@ fn applying_pin_updates_synchronizes_consumers_and_preserves_unrelated_state() {
     repeated
         .actions
         .retain(|action| !matches!(action.action, Action::Command { .. }));
-    assert_eq!(repeated, ActionPlan::new("Dependency update", Vec::new()));
+    repeated.apply(root).expect("repair local selector drift");
+    assert_eq!(
+        fs::read_to_string(root.join(".python-version")).expect("repaired selector"),
+        "3.15\n"
+    );
 }

@@ -102,6 +102,7 @@ pub fn plan(
     let node = NodeToolchain::load(repo_root)?;
     let mut actions = plan_action_updates(repo_root, report)?;
     actions.extend(rust_updates(repo_root, &manifest.rust, &latest.rust));
+    actions.extend(python_selector_update(repo_root, &latest.python)?);
     for (name, current, version) in [
         ("python", &manifest.python, &latest.python),
         ("uv", &manifest.uv, &latest.uv),
@@ -177,6 +178,24 @@ pub fn plan(
         ),
     ]);
     Ok(ActionPlan::new("Dependency update", actions))
+}
+
+fn python_selector_update(
+    repo_root: &Path,
+    latest: &ToolVersion,
+) -> Result<Vec<PlannedAction>, DevError> {
+    let path = repo_root.join(".python-version");
+    let original = crate::parse::read_to_string(&path)?;
+    let updated = format!("{}\n", latest.minor_pin());
+    if original == updated {
+        return Ok(Vec::new());
+    }
+    Ok(vec![PlannedAction::replace_text(
+        "Synchronize local Python selector",
+        path,
+        original,
+        updated,
+    )])
 }
 
 fn rust_updates(
