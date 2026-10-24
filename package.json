@@ -4,7 +4,7 @@
   "type": "module",
   "packageManager": "npm@11.20.0",
   "engines": {
-    "node": "26.11.1"
+    "node": "26.12.1"
   },
   "scripts": {
     "docs:dev": "vitepress dev docs",
@@ -19,7 +19,7 @@
     "vitepress": "1.6.4"
   },
   "overrides": {
-    "vite": "6.4.3",
-    "esbuild": "0.28.1"
+    "vite": "6.4.5",
+    "esbuild": "0.28.2"
   }
 }
