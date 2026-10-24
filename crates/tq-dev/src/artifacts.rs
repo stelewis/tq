@@ -278,7 +278,13 @@ fn find_zip_violations(
             path: artifact_path.to_path_buf(),
             source,
         })?;
-        let member_name = member.name().to_owned();
+        let member_name = member
+            .name()
+            .map_err(|source| DevError::Zip {
+                path: artifact_path.to_path_buf(),
+                source,
+            })?
+            .into_owned();
         members.push(member_name.clone());
         if is_forbidden_member(&member_name, forbidden_prefixes) {
             violations.push(ArtifactViolation::ForbiddenMember {
