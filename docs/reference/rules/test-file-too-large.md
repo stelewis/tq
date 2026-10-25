@@ -18,6 +18,7 @@ Oversized test modules tend to become monolithic and less actionable when failur
 
 - A test file is discovered.
 - Non-blank, non-comment line count exceeds configured threshold.
+- An accepted file is reported only when it also exceeds its accepted ceiling.
 
 ## Examples
 
@@ -28,6 +29,7 @@ Oversized test modules tend to become monolithic and less actionable when failur
 
 - Split the suite by concern using stable qualifiers.
 - Move shared setup into nearby `conftest.py` fixtures.
+- Accept a cohesive suite with an exact path, rationale, and finite size ceiling.
 
 ## Related configuration and suppression controls
 
@@ -35,6 +37,7 @@ Oversized test modules tend to become monolithic and less actionable when failur
 - `--ignore test-file-too-large`
 - `[tool.tq].select / [tool.tq].ignore`
 - `[tool.tq].max_test_file_non_blank_lines`
+- `[[tool.tq.targets.accepted_findings]]`
 
 ## Added in
 
@@ -42,4 +45,4 @@ Oversized test modules tend to become monolithic and less actionable when failur
 
 ## Behavior changes
 
-None to date.
+0.13.0: supports bounded per-file acceptances; growth findings include the accepted ceiling.

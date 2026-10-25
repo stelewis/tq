@@ -1,6 +1,7 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
+use tq_core::accepted::{AcceptedFinding, AcceptedFindingKind};
 use tq_core::{
     InitModulesMode, path_to_forward_slashes, python_module_name, python_test_module_name,
     unit_test_path_for_source,
@@ -9,6 +10,7 @@ use tq_discovery::AnalyzedTestFile;
 use tq_engine::{AnalysisContext, Finding, Rule, RuleId};
 
 use crate::QualifierStrategy;
+use crate::accepted::{UnusedAcceptedFindings, unused_findings};
 use crate::builtin::BuiltinRule;
 use crate::candidate_module_names;
 use crate::error::RulesError;
@@ -18,6 +20,8 @@ pub struct MappingMissingTestRule {
     init_modules: InitModulesMode,
     qualifier_strategy: QualifierStrategy,
     allowed_qualifiers: BTreeSet<String>,
+    accepted: Vec<AcceptedFinding>,
+    unused: UnusedAcceptedFindings,
 }
 
 impl MappingMissingTestRule {
@@ -25,6 +29,8 @@ impl MappingMissingTestRule {
         init_modules: InitModulesMode,
         qualifier_strategy: QualifierStrategy,
         allowed_qualifiers: BTreeSet<String>,
+        accepted: &[AcceptedFinding],
+        unused: UnusedAcceptedFindings,
     ) -> Result<Self, RulesError> {
         if qualifier_strategy == QualifierStrategy::Allowlist && allowed_qualifiers.is_empty() {
             return Err(RulesError::allowlist_requires_qualifiers());
@@ -35,6 +41,12 @@ impl MappingMissingTestRule {
             init_modules,
             qualifier_strategy,
             allowed_qualifiers,
+            accepted: accepted
+                .iter()
+                .filter(|entry| entry.kind() == AcceptedFindingKind::MappingMissingTest)
+                .cloned()
+                .collect(),
+            unused,
         })
     }
 
@@ -82,6 +94,11 @@ impl Rule for MappingMissingTestRule {
     fn evaluate(&self, context: &AnalysisContext) -> Result<Vec<Finding>, Self::Error> {
         let package_path = context.package_path();
         let mut findings = Vec::new();
+        let mut pending: BTreeMap<_, _> = self
+            .accepted
+            .iter()
+            .map(|entry| (entry.path(), entry))
+            .collect();
 
         for source_file in context.index().source_files() {
             if matches!(self.init_modules, InitModulesMode::Ignore)
@@ -100,6 +117,9 @@ impl Rule for MappingMissingTestRule {
             else {
                 continue;
             };
+            if pending.remove(source_file.as_path()).is_some() {
+                continue;
+            }
             findings.push(Finding::new(
                 self.rule_id.clone(),
                 BuiltinRule::MappingMissingTest.default_severity(),
@@ -117,6 +137,11 @@ impl Rule for MappingMissingTestRule {
             )?);
         }
 
+        findings.extend(unused_findings(
+            pending.into_values(),
+            context.index().source_root(),
+            self.unused,
+        )?);
         Ok(findings)
     }
 }

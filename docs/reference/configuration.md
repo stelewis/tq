@@ -207,12 +207,46 @@ A target may override any shared top-level optional key:
 - `ignore`
 - `severity_overrides`
 
+### `accepted_findings` (optional, target-only)
+
+Accept a reviewed finding for one exact file without hiding the rule elsewhere. Each entry requires `rule`, `path`, and a non-empty `rationale`. Only `mapping-missing-test` and `test-file-too-large` support acceptance.
+
+```toml
+[[tool.tq.targets]]
+name = "app"
+package = "your_package"
+source_root = "src"
+test_root = "tests"
+
+[[tool.tq.targets.accepted_findings]]
+rule = "mapping-missing-test"
+path = "boundary.py"
+rationale = "Exercised by the shared contract suite."
+
+[[tool.tq.targets.accepted_findings]]
+rule = "test-file-too-large"
+path = "your_package/test_boundary.py"
+max_non_blank_lines = 740
+rationale = "One cohesive boundary contract."
+```
+
+Mapping paths are relative to the target's source package directory (`source_root` joined with `package`); size paths are relative to `test_root`. Paths use `/` separators and must name a Python module or, for size findings, a `test_*.py` file. Absolute paths, platform prefixes, glob syntax, empty path components, `.` and `..` are rejected. Duplicate rule/path pairs and unknown entry keys are errors.
+
+Size entries require a positive integer `max_non_blank_lines`: the largest reviewed size, using the rule's count of non-blank, non-comment lines. The underlying rule still uses the effective `max_test_file_non_blank_lines` threshold. A finding at or below its accepted ceiling is omitted; growth above it is reported normally, even when the file was previously accepted. Mapping entries do not permit a size ceiling.
+
+Accepted findings are absent from text, JSON, summary counts, and exit-code evaluation. Other files, rules, and targets are unaffected. Growth findings show both the accepted ceiling and the effective rule limit.
+
+If the underlying finding disappears, including after deletion or a threshold change, the entry produces an `unused-accepted-finding` warning with a suggestion to remove it. Both `unused-accepted-finding` and the underlying rule must be active: include both when using an explicit `select` list. All rules are selected by default. Use `ignore = ["unused-accepted-finding"]` to disable cleanup warnings without disabling acceptance or growth detection. Severity overrides for the underlying rule do not affect cleanup warnings; set `severity_overrides = { unused-accepted-finding = "info" }` to change their severity independently. `fail_on` applies normally.
+
+Acceptances belong only to their target; there is no shared default or CLI suppression flag. Configuration precedence replaces the complete target list, including its acceptances, rather than merging individual entries.
+
 ## Built-in rule IDs
 
 - `mapping-missing-test`
 - `structure-mismatch`
 - `test-file-too-large`
 - `orphaned-test`
+- `unused-accepted-finding`
 
 ## Rule and severity model
 

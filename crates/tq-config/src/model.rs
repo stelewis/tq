@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::num::NonZeroU64;
 use std::path::{Path, PathBuf};
 
+use tq_core::accepted::AcceptedFinding;
 use tq_core::{
     InitModulesMode, PackageName, QualifierStrategy, RelativePathBuf, RuleId, Severity, TargetName,
 };
@@ -34,6 +35,7 @@ pub struct PartialTargetConfig {
     pub select: Option<Vec<RuleId>>,
     pub ignore: Option<Vec<RuleId>>,
     pub severity_overrides: Option<BTreeMap<RuleId, Severity>>,
+    pub accepted_findings: Vec<AcceptedFinding>,
 }
 
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
@@ -163,9 +165,15 @@ pub struct TqTargetConfig {
     pub(crate) select: Vec<RuleId>,
     pub(crate) ignore: Vec<RuleId>,
     pub(crate) severity_overrides: BTreeMap<RuleId, Severity>,
+    pub(crate) accepted_findings: Vec<AcceptedFinding>,
 }
 
 impl TqTargetConfig {
+    #[must_use]
+    pub fn accepted_findings(&self) -> &[AcceptedFinding] {
+        &self.accepted_findings
+    }
+
     #[must_use]
     pub const fn name(&self) -> &TargetName {
         &self.name

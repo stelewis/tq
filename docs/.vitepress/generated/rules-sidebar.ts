@@ -15,4 +15,8 @@ export const rulesSidebarItems = [
     text: "Orphaned Test",
     link: "/reference/rules/orphaned-test"
   },
+  {
+    text: "Unused Accepted Finding",
+    link: "/reference/rules/unused-accepted-finding"
+  },
 ] as const;

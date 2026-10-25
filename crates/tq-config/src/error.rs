@@ -1,10 +1,19 @@
 use std::path::PathBuf;
 
 use thiserror::Error;
+use tq_core::accepted::AcceptedFindingError;
 use tq_core::{PackageNameError, RuleIdError, TargetNameError};
 
 #[derive(Debug, Error)]
 pub enum ConfigError {
+    #[error("{location}: {source}")]
+    InvalidAcceptedFinding {
+        location: String,
+        #[source]
+        source: AcceptedFindingError,
+    },
+    #[error("Missing required accepted finding key: {location}")]
+    MissingAcceptedFindingKey { location: String },
     #[error("Missing required configuration key: tool.tq.targets")]
     MissingTargets,
     #[error("Config file not found: {path}")]

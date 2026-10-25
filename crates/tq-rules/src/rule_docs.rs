@@ -47,19 +47,23 @@ pub const fn orphaned_test_doc() -> &'static BuiltinRuleDoc {
     &BUILTIN_RULE_DOCS[3]
 }
 
+pub const fn unused_accepted_finding_doc() -> &'static BuiltinRuleDoc {
+    &BUILTIN_RULE_DOCS[4]
+}
+
 const SEVERITY_VOCABULARY: [&str; 3] = [
     Severity::Error.as_str(),
     Severity::Warning.as_str(),
     Severity::Info.as_str(),
 ];
 
-const BUILTIN_RULE_DOCS: [BuiltinRuleDoc; 4] = [
+const BUILTIN_RULE_DOCS: [BuiltinRuleDoc; 5] = [
     BuiltinRuleDoc {
         id: "mapping-missing-test",
         title: "Mapping Missing Test",
         default_severity: Severity::Error,
         added_in: "pre-1.0",
-        behavior_changes: "None to date.",
+        behavior_changes: "0.13.0: supports exact-path acceptances with a rationale; unused entries are reported as `unused-accepted-finding`.",
         what_it_does: "Ensure each discovered source module has at least one matching unit test module in the mirrored tests path.",
         why_this_matters: "Missing unit tests reduce discoverability and leave source modules without direct contract coverage.",
         trigger_conditions: &[
@@ -74,6 +78,7 @@ const BUILTIN_RULE_DOCS: [BuiltinRuleDoc; 4] = [
         how_to_address: &[
             "Add a mirrored unit test module under `tests/{package}/...`.",
             "Use `test_<module>.py` or an allowed qualified form.",
+            "Accept an intentional shared-suite exception with an exact path and rationale.",
         ],
         related_controls: &[
             "--select mapping-missing-test",
@@ -82,6 +87,7 @@ const BUILTIN_RULE_DOCS: [BuiltinRuleDoc; 4] = [
             "[tool.tq].init_modules",
             "[tool.tq].qualifier_strategy",
             "[tool.tq].allowed_qualifiers",
+            "[[tool.tq.targets.accepted_findings]]",
         ],
     },
     BuiltinRuleDoc {
@@ -119,12 +125,13 @@ const BUILTIN_RULE_DOCS: [BuiltinRuleDoc; 4] = [
         title: "Test File Too Large",
         default_severity: Severity::Warning,
         added_in: "pre-1.0",
-        behavior_changes: "None to date.",
+        behavior_changes: "0.13.0: supports bounded per-file acceptances; growth findings include the accepted ceiling.",
         what_it_does: "Flag test files that exceed the configured non-blank, non-comment-only line budget.",
         why_this_matters: "Oversized test modules tend to become monolithic and less actionable when failures occur.",
         trigger_conditions: &[
             "A test file is discovered.",
             "Non-blank, non-comment line count exceeds configured threshold.",
+            "An accepted file is reported only when it also exceeds its accepted ceiling.",
         ],
         examples: &[RuleDocExample {
             source: "n/a",
@@ -133,12 +140,14 @@ const BUILTIN_RULE_DOCS: [BuiltinRuleDoc; 4] = [
         how_to_address: &[
             "Split the suite by concern using stable qualifiers.",
             "Move shared setup into nearby `conftest.py` fixtures.",
+            "Accept a cohesive suite with an exact path, rationale, and finite size ceiling.",
         ],
         related_controls: &[
             "--select test-file-too-large",
             "--ignore test-file-too-large",
             "[tool.tq].select / [tool.tq].ignore",
             "[tool.tq].max_test_file_non_blank_lines",
+            "[[tool.tq.targets.accepted_findings]]",
         ],
     },
     BuiltinRuleDoc {
@@ -169,6 +178,34 @@ const BUILTIN_RULE_DOCS: [BuiltinRuleDoc; 4] = [
             "[tool.tq].select / [tool.tq].ignore",
             "[tool.tq].qualifier_strategy",
             "[tool.tq].allowed_qualifiers",
+        ],
+    },
+    BuiltinRuleDoc {
+        id: "unused-accepted-finding",
+        title: "Unused Accepted Finding",
+        default_severity: Severity::Warning,
+        added_in: "0.13.0",
+        behavior_changes: "None to date.",
+        what_it_does: "Report accepted findings whose underlying mapping or size finding no longer exists.",
+        why_this_matters: "Unused exceptions obscure which deliberate departures from the rules still need review.",
+        trigger_conditions: &[
+            "An acceptance is configured for the active target.",
+            "Both this rule and the acceptance's underlying rule are selected and not ignored.",
+            "The underlying finding no longer exists, including after deletion, a matching test is added, or a threshold changes.",
+            "Growth above an accepted size ceiling is a size finding, not an unused acceptance.",
+        ],
+        examples: &[RuleDocExample {
+            source: "src/app/engine/runner.py (mapping acceptance configured)",
+            test: "tests/app/engine/test_runner.py (now present)",
+        }],
+        how_to_address: &["Remove the unused entry from `accepted_findings`."],
+        related_controls: &[
+            "--select unused-accepted-finding",
+            "--ignore unused-accepted-finding",
+            "--severity unused-accepted-finding=info",
+            "[tool.tq].select / [tool.tq].ignore",
+            "[tool.tq].severity_overrides",
+            "[[tool.tq.targets.accepted_findings]]",
         ],
     },
 ];

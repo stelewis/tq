@@ -108,7 +108,11 @@ fn run_check(args: &CheckArgs) -> Result<i32> {
             target_config.select().to_vec(),
             target_config.ignore().to_vec(),
         );
-        let rules = BuiltinRuleRegistry::build_rules(&selection, &options)?;
+        let rules = BuiltinRuleRegistry::build_rules(
+            &selection,
+            &options,
+            target_config.accepted_findings(),
+        )?;
         let engine = RuleEngine::new(rules)?;
         let result = engine
             .run(&analysis_context)?
