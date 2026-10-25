@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.12.2] - 2026-10-25
+
+### Changed
+
+- Refreshed shipped Rust dependencies and repository development dependencies.
+- Updated the pinned Rust toolchain to 1.99.1, Python to 3.15.1, uv to 0.13.5, and Node to 26.12.1, with synchronized CI and publishing defaults.
+- Refreshed frozen GitHub Actions and pre-commit hooks.
+
+### Fixed
+
+- Made dependency updates synchronize the local Python version selector.
+- Updated release artifact inspection to handle zip 9's fallible member-name decoding.
+
+### Security
+
+- Prevented workflow-run metadata from being interpolated into release workflow shell scripts.
+- Upgraded zip to 9.0.5 and Vite to 6.4.5 to resolve the Rust and documentation dependency advisories.
+
 ## [0.12.1] - 2026-10-12
 
 ### Changed
