@@ -29,7 +29,7 @@ Missing unit tests reduce discoverability and leave source modules without direc
 
 - Add a mirrored unit test module under `tests/{package}/...`.
 - Use `test_<module>.py` or an allowed qualified form.
-- Accept an intentional shared-suite exception with an exact path and rationale.
+- Accept an intentional shared-suite exception with an exact path and optional rationale.
 
 ## Related configuration and suppression controls
 
@@ -47,4 +47,4 @@ Missing unit tests reduce discoverability and leave source modules without direc
 
 ## Behavior changes
 
-0.13.0: supports exact-path acceptances with a rationale; unused entries are reported as `unused-accepted-finding`.
+0.13.0: supports exact-path acceptances; unused entries are reported as `unused-accepted-finding`.

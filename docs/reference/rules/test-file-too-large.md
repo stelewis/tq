@@ -29,7 +29,7 @@ Oversized test modules tend to become monolithic and less actionable when failur
 
 - Split the suite by concern using stable qualifiers.
 - Move shared setup into nearby `conftest.py` fixtures.
-- Accept a cohesive suite with an exact path, rationale, and finite size ceiling.
+- Accept a cohesive suite with an exact path, finite size ceiling, and optional rationale.
 
 ## Related configuration and suppression controls
 

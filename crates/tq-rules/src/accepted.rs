@@ -22,13 +22,15 @@ pub fn unused_findings<'a>(
     }
     entries
         .map(|entry| {
+            let rationale = entry
+                .rationale()
+                .map_or_else(String::new, |text| format!(" (rationale: {text})"));
             Finding::new(
                 BuiltinRule::UnusedAcceptedFinding.rule_id(),
                 BuiltinRule::UnusedAcceptedFinding.default_severity(),
                 format!(
-                    "Accepted finding is unused: {} no longer applies (rationale: {})",
+                    "Accepted finding is unused: {} no longer applies{rationale}",
                     entry.kind().rule_id(),
-                    entry.rationale()
                 ),
                 root.join(entry.path()),
                 None,

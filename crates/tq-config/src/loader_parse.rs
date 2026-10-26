@@ -456,13 +456,14 @@ fn expect_accepted_findings(
         };
         reject_unknown_keys(entry, keys, &format!("Unknown key(s) in {entry_location}:"))?;
         let path = required_string("path")?;
-        let rationale = required_string("rationale")?;
-        let finding = AcceptedFinding::new(kind, &path, &rationale).map_err(|source| {
-            ConfigError::InvalidAcceptedFinding {
-                location: entry_location,
-                source,
-            }
-        })?;
+        let rationale = expect_optional_str(entry, "rationale", &entry_location)?;
+        let finding =
+            AcceptedFinding::new(kind, &path, rationale.as_deref()).map_err(|source| {
+                ConfigError::InvalidAcceptedFinding {
+                    location: entry_location,
+                    source,
+                }
+            })?;
         if let Some(first_index) = seen.insert((kind.rule_id(), path.clone()), index) {
             return Err(ConfigError::DuplicateValue {
                 location,

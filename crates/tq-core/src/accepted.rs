@@ -25,14 +25,14 @@ impl AcceptedFindingKind {
 pub struct AcceptedFinding {
     kind: AcceptedFindingKind,
     path: RelativePathBuf,
-    rationale: String,
+    rationale: Option<String>,
 }
 
 impl AcceptedFinding {
     pub fn new(
         kind: AcceptedFindingKind,
         path: &str,
-        rationale: &str,
+        rationale: Option<&str>,
     ) -> Result<Self, AcceptedFindingError> {
         if path.contains(['\\', ':', '*', '?', '[', ']', '{', '}'])
             || path
@@ -49,13 +49,14 @@ impl AcceptedFinding {
         if !valid_file {
             return Err(AcceptedFindingError::InvalidFile);
         }
-        if rationale.trim().is_empty() {
+        let rationale = rationale.map(str::trim);
+        if rationale.is_some_and(str::is_empty) {
             return Err(AcceptedFindingError::EmptyRationale);
         }
         Ok(Self {
             kind,
             path,
-            rationale: rationale.trim().to_owned(),
+            rationale: rationale.map(str::to_owned),
         })
     }
 
@@ -70,8 +71,8 @@ impl AcceptedFinding {
     }
 
     #[must_use]
-    pub fn rationale(&self) -> &str {
-        &self.rationale
+    pub fn rationale(&self) -> Option<&str> {
+        self.rationale.as_deref()
     }
 }
 
@@ -87,6 +88,6 @@ pub enum AcceptedFindingError {
         "path must name a Python module for mapping-missing-test or a test_*.py file for test-file-too-large"
     )]
     InvalidFile,
-    #[error("rationale must be non-empty")]
+    #[error("rationale must be non-empty when provided")]
     EmptyRationale,
 }

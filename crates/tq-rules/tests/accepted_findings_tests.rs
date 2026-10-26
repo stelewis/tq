@@ -49,7 +49,7 @@ fn size_acceptance_is_a_ceiling_not_an_exemption() {
             max_non_blank_lines: NonZeroU64::new(5).expect("positive ceiling"),
         },
         "tq/test_boundary.py",
-        "Cohesive contract.",
+        Some("Cohesive contract."),
     )
     .expect("valid acceptance")];
     for (count, expected) in [
@@ -109,7 +109,7 @@ fn mapping_acceptance_is_exact_and_stale_after_resolution_or_deletion() {
     let accepted = [AcceptedFinding::new(
         AcceptedFindingKind::MappingMissingTest,
         "boundary.py",
-        "Shared contract.",
+        Some("Shared contract."),
     )
     .expect("valid acceptance")];
     let cases: &[(&[&str], &[&str], usize)] = &[
@@ -171,7 +171,7 @@ fn inactive_rules_do_not_report_stale_acceptances() {
     let accepted = [AcceptedFinding::new(
         AcceptedFindingKind::MappingMissingTest,
         "removed.py",
-        "Shared contract.",
+        Some("Shared contract."),
     )
     .expect("valid acceptance")];
     for selection in [

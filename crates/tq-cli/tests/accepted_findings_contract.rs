@@ -40,7 +40,6 @@ test_root = "tests"
 [[tool.tq.targets.accepted_findings]]
 rule = "mapping-missing-test"
 path = "boundary.py"
-rationale = "Shared contract."
 
 [[tool.tq.targets.accepted_findings]]
 rule = "test-file-too-large"
@@ -124,6 +123,14 @@ fn stale_acceptances_respect_severity_overrides_and_rule_selection() {
         );
         assert_eq!(finding["target"], "app");
     }
+    assert_eq!(
+        findings[0]["message"],
+        "Accepted finding is unused: mapping-missing-test no longer applies"
+    );
+    assert_eq!(
+        findings[1]["message"],
+        "Accepted finding is unused: test-file-too-large no longer applies (rationale: Cohesive contract.)"
+    );
     let demoted = check(
         root,
         &[

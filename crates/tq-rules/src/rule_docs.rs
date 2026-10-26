@@ -63,7 +63,7 @@ const BUILTIN_RULE_DOCS: [BuiltinRuleDoc; 5] = [
         title: "Mapping Missing Test",
         default_severity: Severity::Error,
         added_in: "pre-1.0",
-        behavior_changes: "0.13.0: supports exact-path acceptances with a rationale; unused entries are reported as `unused-accepted-finding`.",
+        behavior_changes: "0.13.0: supports exact-path acceptances; unused entries are reported as `unused-accepted-finding`.",
         what_it_does: "Ensure each discovered source module has at least one matching unit test module in the mirrored tests path.",
         why_this_matters: "Missing unit tests reduce discoverability and leave source modules without direct contract coverage.",
         trigger_conditions: &[
@@ -78,7 +78,7 @@ const BUILTIN_RULE_DOCS: [BuiltinRuleDoc; 5] = [
         how_to_address: &[
             "Add a mirrored unit test module under `tests/{package}/...`.",
             "Use `test_<module>.py` or an allowed qualified form.",
-            "Accept an intentional shared-suite exception with an exact path and rationale.",
+            "Accept an intentional shared-suite exception with an exact path and optional rationale.",
         ],
         related_controls: &[
             "--select mapping-missing-test",
@@ -140,7 +140,7 @@ const BUILTIN_RULE_DOCS: [BuiltinRuleDoc; 5] = [
         how_to_address: &[
             "Split the suite by concern using stable qualifiers.",
             "Move shared setup into nearby `conftest.py` fixtures.",
-            "Accept a cohesive suite with an exact path, rationale, and finite size ceiling.",
+            "Accept a cohesive suite with an exact path, finite size ceiling, and optional rationale.",
         ],
         related_controls: &[
             "--select test-file-too-large",

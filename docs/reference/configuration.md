@@ -209,7 +209,7 @@ A target may override any shared top-level optional key:
 
 ### `accepted_findings` (optional, target-only)
 
-Accept a reviewed finding for one exact file without hiding the rule elsewhere. Each entry requires `rule`, `path`, and a non-empty `rationale`. Only `mapping-missing-test` and `test-file-too-large` support acceptance.
+Accept a finding for one exact file without hiding the rule elsewhere. Each entry requires `rule` and `path`. An optional `rationale` can explain the exception; when provided, it must be a non-empty string. Only `mapping-missing-test` and `test-file-too-large` support acceptance.
 
 ```toml
 [[tool.tq.targets]]

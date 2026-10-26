@@ -29,7 +29,7 @@ fn acceptances_are_typed_and_target_local() {
 {TARGET}
 accepted_findings = [
   {{ rule = "mapping-missing-test", path = "boundary.py", rationale = " Shared contract. " }},
-  {{ rule = "test-file-too-large", path = "pkg/test_boundary.py", rationale = "Cohesive suite.", max_non_blank_lines = 740 }},
+  {{ rule = "test-file-too-large", path = "pkg/test_boundary.py", max_non_blank_lines = 740 }},
 ]
 [[tool.tq.targets]]
 name = "other"
@@ -43,7 +43,8 @@ test_root = "tests"
     assert_eq!(accepted.len(), 2);
     assert_eq!(accepted[0].kind(), AcceptedFindingKind::MappingMissingTest);
     assert_eq!(accepted[0].path(), std::path::Path::new("boundary.py"));
-    assert_eq!(accepted[0].rationale(), "Shared contract.");
+    assert_eq!(accepted[0].rationale(), Some("Shared contract."));
+    assert_eq!(accepted[1].rationale(), None);
     assert!(matches!(
         accepted[1].kind(),
         AcceptedFindingKind::TestFileTooLarge { max_non_blank_lines }
@@ -68,8 +69,8 @@ fn invalid_acceptances_fail_closed() {
         (format!("[{{ {size}, max_non_blank_lines = -1 }}]"), "must be >= 1"),
         (format!("[{{ {size}, max_non_blank_lines = 4.5 }}]"), "must be an integer"),
         (r#"[{rule = "orphaned-test", path = "test_a.py", rationale = "Reviewed."}]"#.to_owned(), "must be one of"),
-        (r#"[{rule = "mapping-missing-test", path = "a.py"}]"#.to_owned(), "rationale"),
         (r#"[{rule = "mapping-missing-test", path = "a.py", rationale = " "}]"#.to_owned(), "non-empty"),
+        (r#"[{rule = "mapping-missing-test", path = "a.py", rationale = 3}]"#.to_owned(), "must be a string"),
         (r#"[{rule = "mapping-missing-test", path = 3, rationale = "Reviewed."}]"#.to_owned(), "must be a string"),
         (r#"[{rule = "test-file-too-large", path = "module.py", rationale = "Reviewed.", max_non_blank_lines = 4}]"#.to_owned(), "test_*.py"),
     ];
