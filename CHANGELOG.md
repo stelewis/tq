@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.13.0] - 2026-10-25
+
+### Added
+
+- Added target-local accepted findings for `mapping-missing-test` and `test-file-too-large`, with exact paths and optional rationales.
+- Added finite size ceilings that expose growth beyond an accepted size without raising the global limit.
+- Added `unused-accepted-finding` warnings with independent rule selection and severity controls to identify exceptions whose underlying finding no longer exists.
+
+### Changed
+
+- Size findings for accepted files include both the accepted ceiling and the effective rule limit.
+
 ## [0.12.2] - 2026-10-25
 
 ### Changed

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use tq_core::InitModulesMode;
 use tq_engine::Rule;
-use tq_rules::{MappingMissingTestRule, QualifierStrategy};
+use tq_rules::{MappingMissingTestRule, QualifierStrategy, UnusedAcceptedFindings};
 
 use crate::support::{context_with_target, create_dirs, fixture_workspace};
 
@@ -27,6 +27,8 @@ fn mapping_rule_emits_error_for_unmapped_source() {
         InitModulesMode::Ignore,
         QualifierStrategy::AnySuffix,
         BTreeSet::new(),
+        &[],
+        UnusedAcceptedFindings::Report,
     )
     .expect("rule should be valid");
     let findings = rule
@@ -57,6 +59,8 @@ fn mapping_rule_allowlist_rejects_unknown_suffix_match() {
         InitModulesMode::Ignore,
         QualifierStrategy::Allowlist,
         std::iter::once("regression".to_owned()).collect(),
+        &[],
+        UnusedAcceptedFindings::Report,
     )
     .expect("rule should be valid");
     let findings = rule

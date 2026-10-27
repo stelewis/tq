@@ -1,3 +1,4 @@
+mod accepted;
 pub(crate) mod builtin;
 mod error;
 mod file_too_large;
@@ -7,6 +8,7 @@ mod qualifiers;
 mod rule_docs;
 mod structure_mismatch;
 
+pub use accepted::UnusedAcceptedFindings;
 pub use builtin::{
     BuiltinRuleOptions, BuiltinRuleRegistry, RuleSelection, builtin_rule_ids,
     resolve_active_rule_ids, validate_severity_override_rule_ids,

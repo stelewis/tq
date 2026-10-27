@@ -29,6 +29,7 @@ Missing unit tests reduce discoverability and leave source modules without direc
 
 - Add a mirrored unit test module under `tests/{package}/...`.
 - Use `test_<module>.py` or an allowed qualified form.
+- Accept an intentional shared-suite exception with an exact path and optional rationale.
 
 ## Related configuration and suppression controls
 
@@ -38,6 +39,7 @@ Missing unit tests reduce discoverability and leave source modules without direc
 - `[tool.tq].init_modules`
 - `[tool.tq].qualifier_strategy`
 - `[tool.tq].allowed_qualifiers`
+- `[[tool.tq.targets.accepted_findings]]`
 
 ## Added in
 
@@ -45,4 +47,4 @@ Missing unit tests reduce discoverability and leave source modules without direc
 
 ## Behavior changes
 
-None to date.
+0.13.0: supports exact-path acceptances; unused entries are reported as `unused-accepted-finding`.

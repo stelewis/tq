@@ -8,6 +8,7 @@ User-facing rules and default severities.
 - [`Structure Mismatch`](./structure-mismatch.md) (`structure-mismatch`; default severity: `warning`)
 - [`Test File Too Large`](./test-file-too-large.md) (`test-file-too-large`; default severity: `warning`)
 - [`Orphaned Test`](./orphaned-test.md) (`orphaned-test`; default severity: `warning`)
+- [`Unused Accepted Finding`](./unused-accepted-finding.md) (`unused-accepted-finding`; default severity: `warning`)
 
 ## Severity vocabulary
 

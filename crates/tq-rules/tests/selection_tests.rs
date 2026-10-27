@@ -45,8 +45,8 @@ fn registry_builds_selected_rules_in_builtin_order() {
         Vec::new(),
     );
 
-    let rules =
-        BuiltinRuleRegistry::build_rules(&selection, &options).expect("rule build should succeed");
+    let rules = BuiltinRuleRegistry::build_rules(&selection, &options, &[])
+        .expect("rule build should succeed");
 
     let ids = rules
         .iter()

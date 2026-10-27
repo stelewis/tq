@@ -2,16 +2,18 @@ use std::collections::BTreeSet;
 use std::num::NonZeroU64;
 use std::path::Path;
 
+use tq_core::accepted::AcceptedFinding;
 use tq_core::{DEFAULT_MAX_TEST_FILE_NON_BLANK_LINES, InitModulesMode, QualifierStrategy, RuleId};
 use tq_engine::Rule;
 
+use crate::accepted::UnusedAcceptedFindings;
 use crate::error::RulesError;
 use crate::file_too_large::TestFileTooLargeRule;
 use crate::mapping_missing_test::MappingMissingTestRule;
 use crate::orphaned_test::OrphanedTestRule;
 use crate::rule_docs::{
     BuiltinRuleDoc, mapping_missing_test_doc, orphaned_test_doc, structure_mismatch_doc,
-    test_file_too_large_doc,
+    test_file_too_large_doc, unused_accepted_finding_doc,
 };
 use crate::structure_mismatch::StructureMismatchRule;
 
@@ -21,14 +23,16 @@ pub enum BuiltinRule {
     StructureMismatch,
     TestFileTooLarge,
     OrphanedTest,
+    UnusedAcceptedFinding,
 }
 
 impl BuiltinRule {
-    const ALL: [Self; 4] = [
+    const ALL: [Self; 5] = [
         Self::MappingMissingTest,
         Self::StructureMismatch,
         Self::TestFileTooLarge,
         Self::OrphanedTest,
+        Self::UnusedAcceptedFinding,
     ];
 
     #[must_use]
@@ -52,6 +56,7 @@ impl BuiltinRule {
             Self::StructureMismatch => structure_mismatch_doc(),
             Self::TestFileTooLarge => test_file_too_large_doc(),
             Self::OrphanedTest => orphaned_test_doc(),
+            Self::UnusedAcceptedFinding => unused_accepted_finding_doc(),
         }
     }
 
@@ -62,28 +67,8 @@ impl BuiltinRule {
             "structure-mismatch" => Some(Self::StructureMismatch),
             "test-file-too-large" => Some(Self::TestFileTooLarge),
             "orphaned-test" => Some(Self::OrphanedTest),
+            "unused-accepted-finding" => Some(Self::UnusedAcceptedFinding),
             _ => None,
-        }
-    }
-
-    fn build(
-        self,
-        options: &BuiltinRuleOptions,
-    ) -> Result<Box<dyn Rule<Error = RulesError>>, RulesError> {
-        match self {
-            Self::MappingMissingTest => Ok(Box::new(MappingMissingTestRule::new(
-                options.init_modules(),
-                options.qualifier_strategy(),
-                options.allowed_qualifiers().clone(),
-            )?)),
-            Self::StructureMismatch => Ok(Box::new(StructureMismatchRule::new())),
-            Self::TestFileTooLarge => Ok(Box::new(TestFileTooLargeRule::new(
-                options.max_test_file_non_blank_lines(),
-            ))),
-            Self::OrphanedTest => Ok(Box::new(OrphanedTestRule::new(
-                options.qualifier_strategy(),
-                options.allowed_qualifiers().clone(),
-            )?)),
         }
     }
 }
@@ -177,13 +162,40 @@ impl BuiltinRuleRegistry {
     pub fn build_rules(
         selection: &RuleSelection,
         options: &BuiltinRuleOptions,
+        accepted: &[AcceptedFinding],
     ) -> Result<Vec<Box<dyn Rule<Error = RulesError>>>, RulesError> {
         let active_rules = resolve_active_rules(selection)?;
+        let unused = if active_rules.contains(&BuiltinRule::UnusedAcceptedFinding) {
+            UnusedAcceptedFindings::Report
+        } else {
+            UnusedAcceptedFindings::Ignore
+        };
 
         let mut rules: Vec<Box<dyn Rule<Error = RulesError>>> =
             Vec::with_capacity(active_rules.len());
         for builtin_rule in active_rules {
-            rules.push(builtin_rule.build(options)?);
+            let rule: Box<dyn Rule<Error = RulesError>> = match builtin_rule {
+                BuiltinRule::MappingMissingTest => Box::new(MappingMissingTestRule::new(
+                    options.init_modules(),
+                    options.qualifier_strategy(),
+                    options.allowed_qualifiers().clone(),
+                    accepted,
+                    unused,
+                )?),
+                BuiltinRule::StructureMismatch => Box::new(StructureMismatchRule::new()),
+                BuiltinRule::TestFileTooLarge => Box::new(TestFileTooLargeRule::new(
+                    options.max_test_file_non_blank_lines(),
+                    accepted,
+                    unused,
+                )),
+                BuiltinRule::OrphanedTest => Box::new(OrphanedTestRule::new(
+                    options.qualifier_strategy(),
+                    options.allowed_qualifiers().clone(),
+                )?),
+                // The mapping and size evaluators report unused entries from their own checks.
+                BuiltinRule::UnusedAcceptedFinding => continue,
+            };
+            rules.push(rule);
         }
 
         Ok(rules)

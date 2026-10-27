@@ -194,6 +194,7 @@ fn materialize_target(
         select: final_rules.select.unwrap_or_default(),
         ignore: final_rules.ignore.unwrap_or_default(),
         severity_overrides: final_rules.severity_overrides.unwrap_or_default(),
+        accepted_findings: target.accepted_findings.clone(),
     })
 }
 

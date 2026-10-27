@@ -4,6 +4,7 @@ use std::num::NonZeroU64;
 use std::path::Path;
 
 use toml::Table;
+use tq_core::accepted::{AcceptedFinding, AcceptedFindingKind};
 use tq_core::{QualifierStrategy, RuleId, Severity};
 
 use crate::{
@@ -361,6 +362,7 @@ fn expect_optional_targets(
                 "select",
                 "ignore",
                 "severity_overrides",
+                "accepted_findings",
             ],
             &format!("Unknown key(s) in {location}:"),
         )?;
@@ -394,10 +396,85 @@ fn expect_optional_targets(
                 "severity_overrides",
                 &location,
             )?,
+            accepted_findings: expect_accepted_findings(target_table, &location)?,
         });
     }
 
     Ok(Some(targets))
+}
+
+fn expect_accepted_findings(
+    table: &Table,
+    target_location: &str,
+) -> Result<Vec<AcceptedFinding>, ConfigError> {
+    let location = format!("{target_location}.accepted_findings");
+    let Some(value) = table.get("accepted_findings") else {
+        return Ok(Vec::new());
+    };
+    let array = value
+        .as_array()
+        .ok_or_else(|| ConfigError::TableArrayExpected {
+            location: location.clone(),
+        })?;
+    let mut accepted = Vec::with_capacity(array.len());
+    let mut seen = BTreeMap::new();
+    for (index, item) in array.iter().enumerate() {
+        let entry_location = format!("{location}[{index}]");
+        let entry = as_table(item, &entry_location)?;
+        let required_string = |key| {
+            expect_optional_str(entry, key, &entry_location)?.ok_or_else(|| {
+                ConfigError::MissingAcceptedFindingKey {
+                    location: format!("{entry_location}.{key}"),
+                }
+            })
+        };
+        let rule = required_string("rule")?;
+        let kind = match rule.as_str() {
+            "mapping-missing-test" => AcceptedFindingKind::MappingMissingTest,
+            "test-file-too-large" => AcceptedFindingKind::TestFileTooLarge {
+                max_non_blank_lines: expect_optional_positive_int(
+                    entry,
+                    "max_non_blank_lines",
+                    &entry_location,
+                )?
+                .ok_or_else(|| ConfigError::MissingAcceptedFindingKey {
+                    location: format!("{entry_location}.max_non_blank_lines"),
+                })?,
+            },
+            _ => {
+                return Err(ConfigError::InvalidEnumValue {
+                    location: format!("{entry_location}.rule"),
+                    expected: "mapping-missing-test, test-file-too-large".to_owned(),
+                });
+            }
+        };
+        let keys: &[&str] = match kind {
+            AcceptedFindingKind::MappingMissingTest => &["rule", "path", "rationale"],
+            AcceptedFindingKind::TestFileTooLarge { .. } => {
+                &["rule", "path", "rationale", "max_non_blank_lines"]
+            }
+        };
+        reject_unknown_keys(entry, keys, &format!("Unknown key(s) in {entry_location}:"))?;
+        let path = required_string("path")?;
+        let rationale = expect_optional_str(entry, "rationale", &entry_location)?;
+        let finding =
+            AcceptedFinding::new(kind, &path, rationale.as_deref()).map_err(|source| {
+                ConfigError::InvalidAcceptedFinding {
+                    location: entry_location,
+                    source,
+                }
+            })?;
+        if let Some(first_index) = seen.insert((kind.rule_id(), path.clone()), index) {
+            return Err(ConfigError::DuplicateValue {
+                location,
+                value: format!("{rule}: {path}"),
+                first_index,
+                second_index: index,
+            });
+        }
+        accepted.push(finding);
+    }
+    Ok(accepted)
 }
 
 fn expect_optional_fail_on(
